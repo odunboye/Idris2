@@ -118,6 +118,36 @@ solveUniverse cs =
         []      => Right a
         _       => Left "Universe inconsistency: unsatisfiable level constraints"
 
+-- Structural less-than-or-equal comparison on UnivLevel.
+-- Returns Just True  if provably ul ≤ ur from structure alone.
+-- Returns Just False if provably ul > ur.
+-- Returns Nothing   if the comparison depends on UVar assignments.
+-- Used by the conversion checker (Phase 5) for cumulativity without
+-- needing access to UST.
+export
+leqUnivLevel : UnivLevel -> UnivLevel -> Maybe Bool
+leqUnivLevel UZero     _          = Just True    -- 0 ≤ anything
+leqUnivLevel _         UZero      = Nothing      -- n ≤ 0 only if n = 0 (need to know n)
+leqUnivLevel (UVar n)  (UVar m)   =
+  if n == m then Just True else Nothing           -- same var: equal; different: unknown
+leqUnivLevel (UVar _)  _          = Nothing      -- unknown variable
+leqUnivLevel _          (UVar _)  = Nothing      -- unknown variable
+leqUnivLevel (USucc l) (USucc r)  = leqUnivLevel l r
+leqUnivLevel (USucc _) UZero      = Just False   -- n+1 > 0
+leqUnivLevel UZero     (USucc _)  = Just True    -- 0 < n+1
+leqUnivLevel (UMax a b) r         =              -- max(a,b) ≤ r iff a ≤ r AND b ≤ r
+  case (leqUnivLevel a r, leqUnivLevel b r) of
+    (Just True,  Just True)  => Just True
+    (Just False, _)          => Just False
+    (_,          Just False) => Just False
+    _                        => Nothing
+leqUnivLevel l         (UMax a b) =              -- l ≤ max(a,b) iff l ≤ a OR l ≤ b
+  case (leqUnivLevel l a, leqUnivLevel l b) of
+    (Just True,  _)          => Just True
+    (_,          Just True)  => Just True
+    (Just False, Just False) => Just False
+    _                        => Nothing
+
 -- Helpers for natToLevel, used by applyAssign and applyAssignToTerm.
 natToLevel : Nat -> UnivLevel
 natToLevel Z     = UZero
