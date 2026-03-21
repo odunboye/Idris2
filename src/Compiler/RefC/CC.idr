@@ -124,23 +124,6 @@ needsNoGmp directives = do
     env       <- idrisGetEnv "IDRIS2_NO_GMP"
     pure $ wasm || baremetal || elem "no-gmp" directives || isJust env
 
--- True when -lgmp should be omitted from the link step.
--- The pre-built libidris2_refc.a is compiled with GMP and always needs it,
--- so only omit -lgmp when: (a) GMP is truly absent from the system
--- (IDRIS2_NO_GMP env var / WASM / bare-metal target), OR (b) the user
--- supplies their own GMP-free library (--directive no-support-lib or a
--- custom refc-lib-dir) together with --directive no-gmp.
-needsNoGmpLink : List String -> IO Bool
-needsNoGmpLink directives = do
-    wasm          <- isWasmTarget directives
-    baremetal     <- isBaremetalTarget directives
-    env           <- idrisGetEnv "IDRIS2_NO_GMP"
-    noSupportLib  <- needsNoSupportLib directives
-    let customLib  = not (null (mapMaybe (directiveValue "refc-lib-dir") directives))
-    let noGmpReq   = elem "no-gmp" directives
-    pure $ wasm || baremetal || isJust env
-                || (noGmpReq && (noSupportLib || customLib))
-
 -- True when libffi should be omitted from the link.
 needsNoFfi : List String -> IO Bool
 needsNoFfi directives = do
@@ -177,6 +160,23 @@ needsNoSupportLib directives = do
     baremetal <- isBaremetalTarget directives
     env       <- idrisGetEnv "IDRIS2_NO_SUPPORT_LIB"
     pure $ baremetal || elem "no-support-lib" directives || isJust env
+
+-- True when -lgmp should be omitted from the link step.
+-- The pre-built libidris2_refc.a is compiled with GMP and always needs it,
+-- so only omit -lgmp when: (a) GMP is truly absent from the system
+-- (IDRIS2_NO_GMP env var / WASM / bare-metal target), OR (b) the user
+-- supplies their own GMP-free library (--directive no-support-lib or a
+-- custom refc-lib-dir) together with --directive no-gmp.
+needsNoGmpLink : List String -> IO Bool
+needsNoGmpLink directives = do
+    wasm          <- isWasmTarget directives
+    baremetal     <- isBaremetalTarget directives
+    env           <- idrisGetEnv "IDRIS2_NO_GMP"
+    noSupportLib  <- needsNoSupportLib directives
+    let customLib  = not (null (mapMaybe (directiveValue "refc-lib-dir") directives))
+    let noGmpReq   = elem "no-gmp" directives
+    pure $ wasm || baremetal || isJust env
+                || (noGmpReq && (noSupportLib || customLib))
 
 -- Find the directory containing libidris2_refc, with optional override.
 -- directive "refc-lib-dir=<path>"  / env IDRIS2_REFC_LIB_DIR override the
