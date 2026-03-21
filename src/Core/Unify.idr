@@ -7,7 +7,10 @@ import Core.GetType
 import Core.Normalise
 import Core.Options
 import public Core.UnifyState
+import Core.UnivSolver
 import Core.Value
+
+import Data.SortedMap
 
 import Data.Maybe
 
@@ -1534,6 +1537,26 @@ solveConstraintsAfter start umode smode
   where
     afterStart : (Int, a) -> Bool
     afterStart (x, _) = x >= start
+
+-- Solve accumulated universe level constraints.
+-- Called at the end of each top-level declaration (via checkDef).
+-- On success the solved assignment is available for inspection;
+-- on failure a universe inconsistency error is thrown.
+export
+solveUnivConstraints : {auto c : Ref Ctxt Defs} ->
+                       {auto u : Ref UST UState} ->
+                       FC -> Core ()
+solveUnivConstraints fc
+    = do ust <- get UST
+         let cs = univConstraints ust
+         when (not (isNil cs)) $
+           let result = solveUniverse cs in
+           case result of
+             Left err    => throw (GenericMsg fc ("Universe error: " ++ err))
+             Right _     =>
+               -- Clear solved constraints for next declaration.
+               -- (Phase 4: substitute assign back into the context.)
+               update UST { univConstraints := [] }
 
 -- Replace any 'BySearch' with 'Hole', so that we don't keep searching
 -- fruitlessly while elaborating the rest of a source file

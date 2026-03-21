@@ -147,6 +147,8 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
               -- helpful errors.
               solveConstraintsAfter constart solvemode LastChance
 
+         -- Discharge universe level constraints accumulated during elaboration.
+         solveUnivConstraints (getFC tm)
          dumpConstraints "elab" 4 False
          defs <- get Ctxt
          chktm <- if inPE -- Need to fully normalise holes in partial evaluation
