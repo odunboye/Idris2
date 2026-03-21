@@ -67,6 +67,10 @@ Value *idris2_mkInt64(int64_t i);
 
 Value_Integer *idris2_mkInteger(void);
 Value *idris2_mkIntegerLiteral(char *i);
+#ifndef IDRIS2_NO_GMP
+/* Fast-path allocator: stores v as an int64 with no mpz_init overhead. */
+Value *idris2_mkIntegerFast(int64_t v);
+#endif
 Value_String *idris2_mkEmptyString(size_t l);
 Value_String *idris2_mkString(char *);
 

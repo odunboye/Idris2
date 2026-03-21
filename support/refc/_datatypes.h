@@ -140,7 +140,16 @@ typedef struct {
 typedef struct {
   Value_header header;
 #ifndef IDRIS2_NO_GMP
-  mpz_t i;
+  /* header.reserved == 0 → val.mpz is valid (full GMP integer)
+   * header.reserved == 1 → val.fast is valid (small-integer fast path,
+   *                         no mpz_init/mpz_clear overhead) */
+  union {
+    mpz_t mpz;
+    int64_t fast;
+  } val;
+#define IDRIS2_INT_IS_SMALL(v) ((v)->header.reserved)
+#define IDRIS2_INT_MPZ(v) ((v)->val.mpz)
+#define IDRIS2_INT_FAST(v) ((v)->val.fast)
 #else
   int64_t i; /* IDRIS2_NO_GMP: Integer backed by 64-bit signed integer */
 #endif

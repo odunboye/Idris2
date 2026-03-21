@@ -198,7 +198,9 @@ int idris2_extractInt(Value *v) {
     return (int)idris2_vp_to_Int64(v);
   case INTEGER_TAG:
 #ifndef IDRIS2_NO_GMP
-    return (int)mpz_get_si(((Value_Integer *)v)->i);
+    return IDRIS2_INT_IS_SMALL((Value_Integer *)v)
+               ? (int)IDRIS2_INT_FAST((Value_Integer *)v)
+               : (int)mpz_get_si(IDRIS2_INT_MPZ((Value_Integer *)v));
 #else
     return (int)((Value_Integer *)v)->i;
 #endif
