@@ -115,13 +115,31 @@ isBaremetalTarget directives = do
             isPrefixOf "xtensa-esp"   t ||
             isPrefixOf "riscv32-esp"  t
 
--- True when GMP should be disabled: explicit directive, WASM/baremetal target, or env var.
+-- True when -DIDRIS2_NO_GMP should be added to the compile command.
+-- Activated by --directive no-gmp, WASM/bare-metal targets, or env var.
 needsNoGmp : List String -> IO Bool
 needsNoGmp directives = do
     wasm      <- isWasmTarget directives
     baremetal <- isBaremetalTarget directives
     env       <- idrisGetEnv "IDRIS2_NO_GMP"
     pure $ wasm || baremetal || elem "no-gmp" directives || isJust env
+
+-- True when -lgmp should be omitted from the link step.
+-- The pre-built libidris2_refc.a is compiled with GMP and always needs it,
+-- so only omit -lgmp when: (a) GMP is truly absent from the system
+-- (IDRIS2_NO_GMP env var / WASM / bare-metal target), OR (b) the user
+-- supplies their own GMP-free library (--directive no-support-lib or a
+-- custom refc-lib-dir) together with --directive no-gmp.
+needsNoGmpLink : List String -> IO Bool
+needsNoGmpLink directives = do
+    wasm          <- isWasmTarget directives
+    baremetal     <- isBaremetalTarget directives
+    env           <- idrisGetEnv "IDRIS2_NO_GMP"
+    noSupportLib  <- needsNoSupportLib directives
+    let customLib  = not (null (mapMaybe (directiveValue "refc-lib-dir") directives))
+    let noGmpReq   = elem "no-gmp" directives
+    pure $ wasm || baremetal || isJust env
+                || (noGmpReq && (noSupportLib || customLib))
 
 -- True when libffi should be omitted from the link.
 needsNoFfi : List String -> IO Bool
@@ -250,10 +268,10 @@ compileCFile {asShared} objectFile outFile =
      let debugFlag = if elem "debug" directives then ["-g"] else []
      let sharedFlag = if asShared then ["-shared"] else []
      crossFlags <- crossCompileFlags directives
-     noGmp       <- coreLift $ needsNoGmp       directives
+     noGmpLink    <- coreLift $ needsNoGmpLink    directives
      noFfi       <- coreLift $ needsNoFfi       directives
      noSupportLib <- coreLift $ needsNoSupportLib directives
-     let gmpLib     = if noGmp        then [] else ["-lgmp"]
+     let gmpLib     = if noGmpLink    then [] else ["-lgmp"]
      let ffiLib     = if noFfi        then [] else ["-lffi"]
      let supportArg = if noSupportLib then [] else [supportFile]
 
@@ -296,10 +314,10 @@ compileCFileInc objectFiles outFile =
 
      let debugFlag = if elem "debug" directives then ["-g"] else []
      crossFlags <- crossCompileFlags directives
-     noGmp        <- coreLift $ needsNoGmp        directives
+     noGmpLink    <- coreLift $ needsNoGmpLink    directives
      noFfi        <- coreLift $ needsNoFfi        directives
      noSupportLib <- coreLift $ needsNoSupportLib directives
-     let gmpLib     = if noGmp        then [] else ["-lgmp"]
+     let gmpLib     = if noGmpLink    then [] else ["-lgmp"]
      let ffiLib     = if noFfi        then [] else ["-lffi"]
      let supportArg = if noSupportLib then [] else [supportFile]
 

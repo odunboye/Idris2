@@ -3,6 +3,13 @@
 #include "refc_util.h"
 #include <string.h>
 
+/* 'erased' and '_world' parameters must match the Idris calling convention
+ * even when unused at the C level.  GCC requires __attribute__((unused)) to
+ * appear after the declarator name, but the IDRIS2_UNUSED macro is placed
+ * before it for readability.  Silence -Wunused-parameter for this file. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+
 Value *idris2_Data_IORef_prim__newIORef(Value *IDRIS2_UNUSED erased,
                                         Value *input_value,
                                         Value *IDRIS2_UNUSED _world) {
@@ -248,3 +255,5 @@ char const idris2_constr_Integer[] = "Integer";
 char const idris2_constr_Char[] = "Char";
 char const idris2_constr_String[] = "String";
 char const idris2_constr____gt[] = "->";
+
+#pragma GCC diagnostic pop
