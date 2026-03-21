@@ -55,6 +55,22 @@ test-tsan:
 	$(MAKE) clean
 	$(MAKE) build CFLAGS="$(CFLAGS) -fsanitize=thread -fno-omit-frame-pointer -g"
 
+# Rebuild the library with debug info for Valgrind memcheck.
+# After building, run your Idris2 program as:
+#   valgrind --leak-check=full --track-origins=yes <program>
+.PHONY: test-valgrind
+test-valgrind:
+	@command -v valgrind >/dev/null 2>&1 || { echo "valgrind not found; install it first"; exit 1; }
+	$(MAKE) clean
+	$(MAKE) build CFLAGS="$(CFLAGS) -g -O0"
+
+# 32-bit build — exercises the boxed Bits32/Int32 path (UINTPTR_WIDTH < 64).
+# Requires gcc-multilib (Linux) or the multilib SDK (macOS).
+.PHONY: build-32bit
+build-32bit:
+	$(MAKE) clean
+	$(MAKE) build CFLAGS="$(CFLAGS) -m32" CPPFLAGS="$(CPPFLAGS) -m32 -DIDRIS2_NO_GMP"
+
 # Build variants for embedded/bare-metal targets.
 # IDRIS2_NO_GMP: replace GMP Integer with int64_t (no -lgmp needed)
 # IDRIS2_NO_THREADS: stub out all pthread usage (no -lpthread needed)
