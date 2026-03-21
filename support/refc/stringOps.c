@@ -213,6 +213,11 @@ Value *stringIteratorNew(char *str) {
 #endif
 }
 
+/* IDRIS2_UNUSED expands to __attribute__((unused)), which GCC only accepts
+ * after the declarator name, not before it.  Suppress the warning for these
+ * three functions whose parameters must match the Idris calling convention. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 Value *onCollectStringIterator(Value_Pointer *ptr, void *IDRIS2_UNUSED null) {
   String_Iterator *it = (String_Iterator *)ptr->p;
   free(it->str);
@@ -247,3 +252,4 @@ Value *stringIteratorNext(char *IDRIS2_UNUSED s, Value *it_p) {
 
   return (Value *)retVal;
 }
+#pragma GCC diagnostic pop

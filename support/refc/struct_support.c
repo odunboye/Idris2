@@ -136,6 +136,8 @@ static void idris2_struct_set_field(idris2_struct_t *desc, void *ptr,
  * val, _world]
  * ----------------------------------------------------------------------- */
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
 Value *idris2_prim__getField(Value *struct_name, Value *IDRIS2_UNUSED _e1,
                              Value *IDRIS2_UNUSED _e2, Value *struct_ptr,
                              Value *field_name, Value *IDRIS2_UNUSED _proof) {
@@ -159,3 +161,4 @@ Value *idris2_prim__setField(Value *struct_name, Value *IDRIS2_UNUSED _e1,
   idris2_struct_set_field(desc, raw, fname, val);
   return NULL;
 }
+#pragma GCC diagnostic pop
