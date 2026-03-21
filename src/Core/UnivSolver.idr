@@ -15,6 +15,8 @@ module Core.UnivSolver
 
 import Core.FC
 import Core.Name
+import Core.Name.Scoped
+import Core.TT.Binder
 import Core.TT.Term
 
 import Data.List
@@ -116,6 +118,11 @@ solveUniverse cs =
         []      => Right a
         _       => Left "Universe inconsistency: unsatisfiable level constraints"
 
+-- Helpers for natToLevel, used by applyAssign and applyAssignToTerm.
+natToLevel : Nat -> UnivLevel
+natToLevel Z     = UZero
+natToLevel (S k) = USucc (natToLevel k)
+
 -- Substitute solved levels into a UnivLevel expression.
 export
 applyAssign : UnivAssignment -> UnivLevel -> UnivLevel
@@ -124,9 +131,50 @@ applyAssign assign (UVar n)     =
   case lookup n assign of
     Nothing => UVar n      -- unresolved; keep as-is
     Just k  => natToLevel k
-  where
-    natToLevel : Nat -> UnivLevel
-    natToLevel Z     = UZero
-    natToLevel (S k) = USucc (natToLevel k)
 applyAssign assign (USucc u)    = USucc (applyAssign assign u)
 applyAssign assign (UMax l r)   = UMax (applyAssign assign l) (applyAssign assign r)
+
+-- Apply a solved UnivAssignment to every TType node in a Term.
+-- This is the back-substitution step: after solving, concretise all
+-- universe metavariables in the elaborated term.
+mutual
+  export
+  covering
+  applyAssignToTerm : UnivAssignment -> Term vars -> Term vars
+  applyAssignToTerm assign (Local fc isLet idx p)   = Local fc isLet idx p
+  applyAssignToTerm assign (Ref fc nt n)            = Ref fc nt n
+  applyAssignToTerm assign (Meta fc n i args)
+      = Meta fc n i (map (applyAssignToTerm assign) args)
+  applyAssignToTerm assign (Bind fc x b scope)
+      = Bind fc x (applyAssignToBinder assign b)
+                  (applyAssignToTerm assign scope)
+  applyAssignToTerm assign (App fc fn arg)
+      = App fc (applyAssignToTerm assign fn) (applyAssignToTerm assign arg)
+  applyAssignToTerm assign (As fc s as pat)
+      = As fc s (applyAssignToTerm assign as) (applyAssignToTerm assign pat)
+  applyAssignToTerm assign (TDelayed fc r ty)
+      = TDelayed fc r (applyAssignToTerm assign ty)
+  applyAssignToTerm assign (TDelay fc r ty val)
+      = TDelay fc r (applyAssignToTerm assign ty) (applyAssignToTerm assign val)
+  applyAssignToTerm assign (TForce fc r tm)
+      = TForce fc r (applyAssignToTerm assign tm)
+  applyAssignToTerm assign (PrimVal fc c) = PrimVal fc c
+  applyAssignToTerm assign (Erased fc why)
+      = Erased fc (map (applyAssignToTerm assign) why)
+  applyAssignToTerm assign (TType fc u)
+      = TType fc (applyAssign assign u)
+
+  covering
+  applyAssignToBinder : UnivAssignment -> Binder (Term vars) -> Binder (Term vars)
+  applyAssignToBinder assign (Lam fc c p ty)
+      = Lam fc c (map (applyAssignToTerm assign) p) (applyAssignToTerm assign ty)
+  applyAssignToBinder assign (Let fc c val ty)
+      = Let fc c (applyAssignToTerm assign val) (applyAssignToTerm assign ty)
+  applyAssignToBinder assign (Pi fc c p ty)
+      = Pi fc c (map (applyAssignToTerm assign) p) (applyAssignToTerm assign ty)
+  applyAssignToBinder assign (PVar fc c p ty)
+      = PVar fc c (map (applyAssignToTerm assign) p) (applyAssignToTerm assign ty)
+  applyAssignToBinder assign (PLet fc c val ty)
+      = PLet fc c (applyAssignToTerm assign val) (applyAssignToTerm assign ty)
+  applyAssignToBinder assign (PVTy fc c ty)
+      = PVTy fc c (applyAssignToTerm assign ty)
