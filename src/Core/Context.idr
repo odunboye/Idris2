@@ -411,6 +411,18 @@ HasNames Name where
            pure (Resolved i)
 
 export
+HasNames UnivLevel where
+  full gam (UVar n)   = UVar <$> full gam n
+  full gam (USucc u)  = USucc <$> full gam u
+  full gam (UMax l r) = UMax <$> full gam l <*> full gam r
+  full gam ul         = pure ul
+
+  resolved gam (UVar n)   = UVar <$> resolved gam n
+  resolved gam (USucc u)  = USucc <$> resolved gam u
+  resolved gam (UMax l r) = UMax <$> resolved gam l <*> resolved gam r
+  resolved gam ul         = pure ul
+
+export
 HasNames UConstraint where
   full gam (ULT x y)
       = do x' <- full gam x; y' <- full gam y
@@ -449,10 +461,10 @@ HasNames (Term vars) where
       = pure (TDelay fc x !(full gam t) !(full gam y))
   full gam (TForce fc r y)
       = pure (TForce fc r !(full gam y))
-  full gam (TType fc (Resolved i))
+  full gam (TType fc (UVar (Resolved i)))
       = do Just gdef <- lookupCtxtExact (Resolved i) gam
-                | Nothing => pure (TType fc (Resolved i))
-           pure (TType fc (fullname gdef))
+                | Nothing => pure (TType fc (UVar (Resolved i)))
+           pure (TType fc (UVar (fullname gdef)))
   full gam (Erased fc (Dotted t))
       = pure (Erased fc (Dotted !(full gam t)))
   full gam tm = pure tm
@@ -478,10 +490,11 @@ HasNames (Term vars) where
       = pure (TDelay fc x !(resolved gam t) !(resolved gam y))
   resolved gam (TForce fc r y)
       = pure (TForce fc r !(resolved gam y))
-  resolved gam (TType fc n)
+  resolved gam (TType fc (UVar n))
       = do let Just i = getNameID n gam
-                | Nothing => pure (TType fc n)
-           pure (TType fc (Resolved i))
+                | Nothing => pure (TType fc (UVar n))
+           pure (TType fc (UVar (Resolved i)))
+  resolved gam (TType fc ul) = pure (TType fc ul)
   resolved gam (Erased fc (Dotted t))
       = pure (Erased fc (Dotted !(resolved gam t)))
   resolved gam tm = pure tm

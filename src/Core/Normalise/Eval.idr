@@ -604,7 +604,7 @@ gnfOpts opts env tm
                        nfOpts opts defs env tm)
 
 export
-gType : FC -> Name -> Glued vars
+gType : FC -> UnivLevel -> Glued vars
 gType fc u = MkGlue True (pure (TType fc u)) (const (pure (NType fc u)))
 
 export

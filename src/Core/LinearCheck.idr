@@ -336,7 +336,7 @@ mutual
   lcheck rig erase env (TDelayed fc r ty)
       = do log "quantity" 15 "lcheck Delayed"
            (ty', _, u) <- lcheck rig erase env ty
-           pure (TDelayed fc r ty', gType fc (MN "top" 0), u)
+           pure (TDelayed fc r ty', gType fc (UVar (MN "top" 0)), u)
   lcheck rig erase env (TDelay fc r ty val)
       = do (ty', _, _) <- lcheck erased erase env ty
            (val', gty, u) <- lcheck rig erase env val
@@ -360,7 +360,7 @@ mutual
   lcheck rig erase env (TType fc u)
       -- Not universe checking here, just use the top of the hierarchy
       = do log "quantity" 15 "lcheck TType"
-           pure (TType fc u, gType fc (MN "top" 0), [])
+           pure (TType fc u, gType fc (UVar (MN "top" 0)), [])
 
   lcheckBinder : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
