@@ -56,7 +56,9 @@ typedef struct {
   uint8_t tag;
   uint8_t reserved;
 } Value_header;
+// clang-format off
 #define IDRIS2_STOCKVAL(t) {IDRIS2_VP_REFCOUNTER_MAX, t, 0}
+// clang-format on
 
 typedef struct {
   Value_header header;
@@ -75,7 +77,9 @@ pretending to be pointers cannot have that tag, so use that flag to identify
 them first. Of course, this flag is not used if it is clear that Value* is
 actually an Int. But places like newReference/removeReference require this flag.
  */
+// clang-format off
 #define idris2_vp_is_unboxed(p) ((uintptr_t)(p) & 3)
+// clang-format on
 
 #define idris2_vp_int_shift                                                    \
   ((sizeof(uintptr_t) >= 8 && sizeof(Value *) >= 8) ? 32 : 16)
