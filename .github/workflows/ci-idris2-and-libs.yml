@@ -327,6 +327,87 @@ jobs:
       - name: Test self-hosted
         run: make ci-ubuntu-test INTERACTIVE=''
 
+  ######################################################################
+  # RefC runtime build-quality jobs (no Idris2 bootstrap required)
+  ######################################################################
+
+  ubuntu-refc-asan:
+    needs: [initialise, quick-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: |
+      !contains(needs.initialise.outputs.commit_message, '[ci:')
+      || contains(needs.initialise.outputs.commit_message, '[ci: ubuntu]')
+      || contains(needs.initialise.outputs.commit_message, '[ci: refc]')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgmp-dev libffi-dev
+      - name: Build RefC runtime with AddressSanitizer + UBSan
+        run: make -C support/refc test-asan
+
+  ubuntu-refc-tsan:
+    needs: [initialise, quick-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: |
+      !contains(needs.initialise.outputs.commit_message, '[ci:')
+      || contains(needs.initialise.outputs.commit_message, '[ci: ubuntu]')
+      || contains(needs.initialise.outputs.commit_message, '[ci: refc]')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgmp-dev libffi-dev
+      - name: Build RefC runtime with ThreadSanitizer
+        run: make -C support/refc test-tsan
+
+  ubuntu-refc-32bit:
+    needs: [initialise, quick-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: |
+      !contains(needs.initialise.outputs.commit_message, '[ci:')
+      || contains(needs.initialise.outputs.commit_message, '[ci: ubuntu]')
+      || contains(needs.initialise.outputs.commit_message, '[ci: refc]')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-multilib
+      - name: Build RefC runtime for 32-bit (exercises boxed Bits32/Int32 path)
+        run: make -C support/refc build-32bit
+
+  ubuntu-refc-aarch64:
+    needs: [initialise, quick-check]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: |
+      !contains(needs.initialise.outputs.commit_message, '[ci:')
+      || contains(needs.initialise.outputs.commit_message, '[ci: ubuntu]')
+      || contains(needs.initialise.outputs.commit_message, '[ci: refc]')
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+      - name: Cross-compile RefC runtime for aarch64
+        run: |
+          make -C support/refc build \
+            CC=aarch64-linux-gnu-gcc \
+            AR=aarch64-linux-gnu-ar \
+            RANLIB=aarch64-linux-gnu-ranlib \
+            CPPFLAGS="-DIDRIS2_NO_GMP -DIDRIS2_NO_THREADS"
+
   macos-self-host-chez:
     needs: macos-bootstrap-chez
     runs-on: macos-latest
