@@ -358,9 +358,9 @@ mutual
       = do log "quantity" 15 "lcheck Erased"
            pure (Erased fc i, gErased fc, [])
   lcheck rig erase env (TType fc u)
-      -- Not universe checking here, just use the top of the hierarchy
+      -- LinearCheck doesn't need to recurse into universe levels
       = do log "quantity" 15 "lcheck TType"
-           pure (TType fc u, gType fc (UVar (MN "top" 0)), [])
+           pure (TType fc u, gType fc (USucc u), [])
 
   lcheckBinder : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->

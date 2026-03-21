@@ -59,7 +59,8 @@ mutual
                        pure $ glueBack defs env fty
                 _ => throw (GenericMsg fc "Not a delayed type")
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)
-  chk env (TType fc u) = pure (gType fc (UVar (MN "top" 0)))
+  -- Type u : Type (u+1)  — the key universe stratification rule
+  chk env (TType fc u) = pure (gType fc (USucc u))
   chk env (Erased fc _) = pure (gErased fc)
 
   chkMeta : {vars : _} ->
