@@ -9,8 +9,9 @@
 /* Helper: compare two Value_Integer values.
  * Returns negative / zero / positive like memcmp / strcmp. */
 #ifndef IDRIS2_NO_GMP
-#define idris2_cmp_Integer(l, r)                                               \
-  mpz_cmp(((Value_Integer *)(l))->i, ((Value_Integer *)(r))->i)
+/* idris2_cmp_Integer is defined as a function in mathFunctions.c to avoid
+ * macro-expansion conflicts with GMP's mpz_cmp definition. */
+int idris2_cmp_Integer(Value *l, Value *r);
 #else
 #define idris2_cmp_Integer(l, r)                                               \
   (((Value_Integer *)(l))->i < ((Value_Integer *)(r))->i   ? -1                \

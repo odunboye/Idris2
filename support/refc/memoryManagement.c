@@ -137,7 +137,8 @@ Value_Integer *idris2_mkInteger(void) {
   Value_Integer *retVal = IDRIS2_NEW_VALUE(Value_Integer);
   retVal->header.tag = INTEGER_TAG;
 #ifndef IDRIS2_NO_GMP
-  mpz_init(retVal->i);
+  retVal->header.reserved = 0; /* GMP path */
+  mpz_init(IDRIS2_INT_MPZ(retVal));
 #else
   retVal->i = 0;
 #endif
@@ -147,12 +148,23 @@ Value_Integer *idris2_mkInteger(void) {
 Value *idris2_mkIntegerLiteral(char *i) {
   Value_Integer *retVal = idris2_mkInteger();
 #ifndef IDRIS2_NO_GMP
-  mpz_set_str(retVal->i, i, 10);
+  mpz_set_str(IDRIS2_INT_MPZ(retVal), i, 10);
 #else
   retVal->i = (int64_t)strtoll(i, NULL, 10);
 #endif
   return (Value *)retVal;
 }
+
+#ifndef IDRIS2_NO_GMP
+/* Allocate a small Integer without mpz_init — no GMP limb allocation. */
+Value *idris2_mkIntegerFast(int64_t v) {
+  Value_Integer *retVal = IDRIS2_NEW_VALUE(Value_Integer);
+  retVal->header.tag = INTEGER_TAG;
+  retVal->header.reserved = 1; /* small/fast path */
+  IDRIS2_INT_FAST(retVal) = v;
+  return (Value *)retVal;
+}
+#endif
 
 Value_String *idris2_mkEmptyString(size_t l) {
   if (l == 1)
@@ -524,7 +536,8 @@ static void freeValueDirect(Value *v) {
   switch (v->header.tag) {
   case INTEGER_TAG:
 #ifndef IDRIS2_NO_GMP
-    mpz_clear(((Value_Integer *)v)->i);
+    if (!IDRIS2_INT_IS_SMALL((Value_Integer *)v))
+      mpz_clear(IDRIS2_INT_MPZ((Value_Integer *)v));
 #endif
     break;
   case STRING_TAG:
@@ -720,7 +733,8 @@ void idris2_removeReference(Value *elem) {
       break;
     case INTEGER_TAG:
 #ifndef IDRIS2_NO_GMP
-      mpz_clear(((Value_Integer *)elem)->i);
+      if (!IDRIS2_INT_IS_SMALL((Value_Integer *)elem))
+        mpz_clear(IDRIS2_INT_MPZ((Value_Integer *)elem));
 #endif
       break;
 
@@ -877,11 +891,12 @@ Value *idris2_getPredefinedInteger(int n) {
     for (int i = 0; i < 100; ++i) {
       idris2_predefined_Integer[i].header.refCounter = IDRIS2_VP_REFCOUNTER_MAX;
       idris2_predefined_Integer[i].header.tag = INTEGER_TAG;
-      idris2_predefined_Integer[i].header.reserved = 0;
 #ifndef IDRIS2_NO_GMP
-      mpz_init(idris2_predefined_Integer[i].i);
-      mpz_set_si(idris2_predefined_Integer[i].i, i);
+      /* Use the fast path for predefined integers — no GMP allocation. */
+      idris2_predefined_Integer[i].header.reserved = 1;
+      IDRIS2_INT_FAST(&idris2_predefined_Integer[i]) = (int64_t)i;
 #else
+      idris2_predefined_Integer[i].header.reserved = 0;
       idris2_predefined_Integer[i].i = (int64_t)i;
 #endif
     }
