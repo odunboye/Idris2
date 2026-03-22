@@ -49,10 +49,20 @@ Value *idris2_add_Integer(Value *x, Value *y) {
   if (IDRIS2_INT_IS_SMALL((Value_Integer *)x)) {
     mpz_set_si(IDRIS2_INT_MPZ(retVal),
                (long)IDRIS2_INT_FAST((Value_Integer *)x));
-    mpz_add_ui(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ(retVal),
-               0); /* no-op, normalises */
-    mpz_add(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ(retVal),
-            IDRIS2_INT_MPZ((Value_Integer *)y));
+    if (IDRIS2_INT_IS_SMALL((Value_Integer *)y)) {
+      /* Both-small overflow: promote y via its fast value, not the mpz union.
+       */
+      long yv = (long)IDRIS2_INT_FAST((Value_Integer *)y);
+      if (yv >= 0)
+        mpz_add_ui(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ(retVal),
+                   (unsigned long)yv);
+      else
+        mpz_sub_ui(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ(retVal),
+                   (unsigned long)(-yv));
+    } else {
+      mpz_add(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ(retVal),
+              IDRIS2_INT_MPZ((Value_Integer *)y));
+    }
   } else if (IDRIS2_INT_IS_SMALL((Value_Integer *)y)) {
     long yv = (long)IDRIS2_INT_FAST((Value_Integer *)y);
     if (yv >= 0)
@@ -188,7 +198,13 @@ Value *idris2_mul_Integer(Value *x, Value *y) {
   if (IDRIS2_INT_IS_SMALL((Value_Integer *)x)) {
     mpz_t tmp;
     mpz_init_set_si(tmp, (long)IDRIS2_INT_FAST((Value_Integer *)x));
-    mpz_mul(IDRIS2_INT_MPZ(retVal), tmp, IDRIS2_INT_MPZ((Value_Integer *)y));
+    if (IDRIS2_INT_IS_SMALL((Value_Integer *)y))
+      /* Both-small overflow: promote y via its fast value, not the mpz union.
+       */
+      mpz_mul_si(IDRIS2_INT_MPZ(retVal), tmp,
+                 (long)IDRIS2_INT_FAST((Value_Integer *)y));
+    else
+      mpz_mul(IDRIS2_INT_MPZ(retVal), tmp, IDRIS2_INT_MPZ((Value_Integer *)y));
     mpz_clear(tmp);
   } else if (IDRIS2_INT_IS_SMALL((Value_Integer *)y)) {
     mpz_mul_si(IDRIS2_INT_MPZ(retVal), IDRIS2_INT_MPZ((Value_Integer *)x),
