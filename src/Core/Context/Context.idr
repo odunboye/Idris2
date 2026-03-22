@@ -205,7 +205,7 @@ data DefFlag
     = Inline
     | NoInline
     | ||| A definition has been marked as deprecated
-      Deprecate
+      Deprecate (Maybe String)
     | Invertible -- assume safe to cancel arguments in unification
     | Overloadable -- allow ad-hoc overloads
     | TCInline -- always inline before totality checking
@@ -239,7 +239,7 @@ export
 Eq DefFlag where
     (==) Inline Inline = True
     (==) NoInline NoInline = True
-    (==) Deprecate Deprecate = True
+    (==) (Deprecate x) (Deprecate y) = x == y
     (==) Invertible Invertible = True
     (==) Overloadable Overloadable = True
     (==) TCInline TCInline = True
@@ -256,7 +256,8 @@ export
 Show DefFlag where
   show Inline = "inline"
   show NoInline = "noinline"
-  show Deprecate = "deprecate"
+  show (Deprecate Nothing) = "deprecate"
+  show (Deprecate (Just m)) = "deprecate \{show m}"
   show Invertible = "invertible"
   show Overloadable = "overloadable"
   show TCInline = "tcinline"

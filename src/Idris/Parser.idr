@@ -1135,7 +1135,8 @@ mutual
            pure $ IFnOpt NoInline
     <|> do decoratedPragma fname "deprecate"
            commit
-           pure $ IFnOpt Deprecate
+           msg <- optional simpleStr
+           pure $ IFnOpt (Deprecate msg)
     <|> do decoratedPragma fname "tcinline"
            commit
            pure $ IFnOpt TCInline
@@ -1560,6 +1561,9 @@ directive
          tot <- totalityOpt fname
          atEnd indents
          pure (DefaultTotality tot)
+  <|> do decoratedPragma fname "safe"
+         atEnd indents
+         pure SafeModule
 
 fix : Rule Fixity
 fix

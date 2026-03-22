@@ -446,6 +446,7 @@ mutual
        Overloadable : Name -> Directive
        Extension : LangExt -> Directive
        DefaultTotality : TotalReq -> Directive
+       SafeModule : Directive
        PrefixRecordProjections : Bool -> Directive
        AutoImplicitDepth : Nat -> Directive
        NFMetavarThreshold : Nat -> Directive

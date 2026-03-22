@@ -121,7 +121,7 @@ mutual
     map f Unsafe = Unsafe
     map f Inline = Inline
     map f NoInline = NoInline
-    map f Deprecate = Deprecate
+    map f (Deprecate msg) = Deprecate msg
     map f TCInline = TCInline
     map f (Hint b) = Hint b
     map f (GlobalHint b) = GlobalHint b

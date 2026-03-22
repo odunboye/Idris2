@@ -330,7 +330,7 @@ mkSpecDef {vars} fc gdef pename sargs fn stk
 
     propagateFlags : List DefFlag -> List DefFlag
     propagateFlags = mapMaybe $ \case
-      Deprecate => Nothing
+      (Deprecate _) => Nothing
       Overloadable => Nothing
       Identity k => Identity <$> identityFlag sargs k
       fl => Just fl

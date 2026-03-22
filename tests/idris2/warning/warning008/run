@@ -1,0 +1,10 @@
+. ../../../testutils.sh
+
+# %safe pragma: believe_me is %unsafe, must be rejected
+idris2 --check SafeModule.idr 2>&1
+
+# --safe CLI flag: assert_total is %unsafe, must be rejected
+idris2 --safe --check SafeCLI.idr 2>&1
+
+# --safe CLI flag: defining a %unsafe function must be rejected
+idris2 --safe --check UnsafeAnnotation.idr 2>&1

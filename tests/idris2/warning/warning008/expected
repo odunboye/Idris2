@@ -1,0 +1,30 @@
+1/1: Building SafeModule (SafeModule.idr)
+Error: While processing right hand side of bad. Safe module violation: Builtin.believe_me is marked %unsafe and cannot be called from a safe module
+
+SafeModule:7:9--7:19
+ 3 | %safe
+ 4 |
+ 5 | -- believe_me should be banned in a safe module
+ 6 | bad : Nat -> String
+ 7 | bad n = believe_me n
+             ^^^^^^^^^^
+
+1/1: Building SafeCLI (SafeCLI.idr)
+Error: While processing right hand side of bad. Safe module violation: Builtin.assert_total is marked %unsafe and cannot be called from a safe module
+
+SafeCLI:5:9--5:21
+ 1 | module SafeCLI
+ 2 |
+ 3 | -- assert_total should be banned when --safe is passed
+ 4 | bad : Nat -> Nat
+ 5 | bad n = assert_total (n + 1)
+             ^^^^^^^^^^^^
+
+1/1: Building UnsafeAnnotation (UnsafeAnnotation.idr)
+Error: Safe module violation: %unsafe is not permitted in a safe module
+
+UnsafeAnnotation:3:1--5:18
+ 3 | %unsafe
+ 4 | export
+ 5 | dangerousFn : Nat
+

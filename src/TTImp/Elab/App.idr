@@ -72,8 +72,9 @@ getNameType elabMode rigc env fc x
                  [(pname, i, def)] <- lookupCtxtName x (gamma defs)
                       | ns => ambiguousName fc x (map fst ns)
                  checkVisibleNS fc (fullname def) (collapseDefault $ visibility def)
-                 when (not $ onLHS elabMode) $
+                 when (not $ onLHS elabMode) $ do
                    checkDeprecation fc def
+                   checkSafety fc def
                  rigSafe (multiplicity def) rigc
                  let nt = getDefNameType def
 
@@ -96,11 +97,30 @@ getNameType elabMode rigc env fc x
 
     checkDeprecation : FC -> GlobalDef -> Core ()
     checkDeprecation fc gdef =
-      do when (Deprecate `elem` gdef.flags) $
-           recordWarning $
-             Deprecated fc
-               "\{show gdef.fullname} is deprecated and will be removed in a future version."
-               (Just (fc, gdef.fullname))
+      let defMsg = "\{show gdef.fullname} is deprecated and will be removed in a future version."
+      in case mapMaybe (\case { Deprecate m => Just m; _ => Nothing }) gdef.flags of
+           [] => pure ()
+           (mMsg :: _) =>
+             recordWarning $
+               Deprecated fc
+                 (fromMaybe defMsg mMsg)
+                 (Just (fc, gdef.fullname))
+
+    checkSafety : FC -> GlobalDef -> Core ()
+    checkSafety fc gdef = do
+      opts <- getSession
+      when opts.safeMode $ do
+        when gdef.isEscapeHatch $
+          throw (SafeModuleViolation fc
+            "\{show gdef.fullname} is marked %unsafe and cannot be called from a safe module")
+        let root = nameRoot gdef.fullname
+        let bannedNames : List String
+            bannedNames = ["believe_me", "prim__believe_me",
+                           "assert_total", "assert_smaller",
+                           "unsafePerformIO"]
+        when (root `elem` bannedNames) $
+          throw (SafeModuleViolation fc
+            "\{show gdef.fullname} is not permitted in a safe module")
 
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->

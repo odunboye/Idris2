@@ -173,7 +173,9 @@ data CLOpt
    ||| Turn on %default total globally
   Total |
    ||| Disable common subexpression elimination
-  NoCSE
+  NoCSE |
+   ||| Treat all modules as %safe: ban believe_me, assert_total, assert_smaller, %unsafe, unsafePerformIO
+  Safe
 
 ||| Extract the host and port to bind the IDE socket to
 export
@@ -262,6 +264,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
            optSeparator,
            MkOpt ["--total"] [] [Total]
               (Just "Require functions to be total by default"),
+           MkOpt ["--safe"] [] [Safe]
+              (Just "Ban believe_me, assert_total, assert_smaller, %unsafe, and unsafePerformIO"),
            MkOpt ["-Werror"] [] [WarningsAsErrors]
               (Just "Treat warnings as errors"),
            MkOpt ["-Wno-shadowing"] [] [IgnoreShadowingWarnings]
