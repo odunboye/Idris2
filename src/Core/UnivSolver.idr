@@ -149,6 +149,7 @@ leqUnivLevel l         (UMax a b) =              -- l ≤ max(a,b) iff l ≤ a O
     _                        => Nothing
 
 -- Helpers for natToLevel, used by applyAssign and applyAssignToTerm.
+export
 natToLevel : Nat -> UnivLevel
 natToLevel Z     = UZero
 natToLevel (S k) = USucc (natToLevel k)
