@@ -36,6 +36,30 @@ should target this file (`CHANGELOG_NEXT`).
     and
     light & dark modes.
 
+### Type System changes
+
+* **Universe hierarchy (Phases 0–5)** — preliminary infrastructure for a
+  predicative universe hierarchy (`Type 0 : Type 1 : Type 2 …`):
+  - Added `UnivLevel` algebraic type (`UZero | UVar Name | USucc UnivLevel |
+    UMax UnivLevel UnivLevel`) in `Core.TT.Term`.
+  - `TType`, `NType`, `SType`, `gType` now carry `UnivLevel` instead of `Name`.
+  - `uniVar` returns `UnivLevel`; `uniVar`-generated metavariables are wrapped
+    in `UVar` and solved after each declaration.
+  - Pi formation computes its universe as `UMax tyu scu` and emits `≤`
+    constraints via `addUnivConstraint` in `Core.UnifyState`.
+  - `GetType` now returns `Type (u+1)` as the type of `Type u` (the key
+    stratification rule), replacing the previous `Type : Type` sentinel.
+  - A greedy fixpoint constraint solver (`Core.UnivSolver`) discharges
+    accumulated `≤` constraints after each declaration; cyclic constraints
+    (potential Girard paradoxes) are rejected with a `Universe error`.
+  - The conversion checker (`Core.Normalise.Convert`) implements structural
+    cumulativity via `leqUnivLevel`: `Type ul` is accepted where `Type ur`
+    is expected when `ul ≤ ur` is provable from the structure of the levels.
+  - Solved level assignments are back-substituted into elaborated terms via
+    `applyAssignToTerm`.
+  - **Note:** stdlib migration (Phase 6) and TTC format bump (Phase 7) are
+    still in progress; the `Type : Type` axiom is not yet fully eliminated.
+
 ### Compiler changes
 
 * Fixed missing handling of dotted patterns See
@@ -92,6 +116,7 @@ should target this file (`CHANGELOG_NEXT`).
   unboxed values, which dereferences unboxed pointers as `Value_Int32*` on
   32-bit platforms when `UINTPTR_WIDTH` is not defined (common in Emscripten).
 * Fix missing support for sized, signed integers in FFI.
+* Fix headers for numeric negation.
 
 ### Library changes
 

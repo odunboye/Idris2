@@ -122,6 +122,13 @@ Hashable Name where
   hashWithSalt h n = hashWithSalt h (show n)
 
 export
+Hashable UnivLevel where
+  hashWithSalt h UZero      = hashWithSalt h 0
+  hashWithSalt h (UVar n)   = h `hashWithSalt` 1 `hashWithSalt` n
+  hashWithSalt h (USucc u)  = h `hashWithSalt` 2 `hashWithSalt` u
+  hashWithSalt h (UMax l r) = h `hashWithSalt` 3 `hashWithSalt` l `hashWithSalt` r
+
+export
 Hashable RigCount where
   hashWithSalt h = elimSemi
                      (hashWithSalt h 0)

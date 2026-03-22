@@ -384,6 +384,9 @@ mutual
       $ let vfc = virtualiseFC fc in
       PLam vfc top Explicit (PRef vfc (MN "rec" 0)) (PImplicit vfc)
       $ PApp vfc (PUpdate fc fs) (PRef vfc (MN "rec" 0))
+  -- Type 0, Type 1, ... : explicit universe level in surface syntax
+  desugarB side ps (PApp fc (PType _) (PPrimVal _ (BI n)))
+      = pure $ IType fc (Just (integerToNat n))
   desugarB side ps (PApp fc x y)
       = pure $ IApp fc !(desugarB side ps x) !(desugarB side ps y)
   desugarB side ps (PAutoApp fc x y)
@@ -477,7 +480,7 @@ mutual
   desugarB side ps (PHole fc br holename)
       = do when br $ update Syn { bracketholes $= ((UN (Basic holename)) ::) }
            pure $ IHole fc holename
-  desugarB side ps (PType fc) = pure $ IType fc
+  desugarB side ps (PType fc) = pure $ IType fc Nothing
   desugarB side ps (PAs fc nameFC vname pattern)
       = pure $ IAs fc nameFC UseRight vname !(desugarB side ps pattern)
   desugarB side ps (PDotted fc x)

@@ -97,6 +97,9 @@ record UState where
   polyConstraints : List PolyConstraint -- constraints which need to be solved
                       -- successfully to check an LHS is polymorphic enough
   dotConstraints : List (Name, DotReason, Constraint) -- dot pattern constraints
+  univConstraints : List (UnivLevel, UnivLevel) -- universe level ≤ constraints
+                      -- Each pair (l, r) means l ≤ r. Accumulated during
+                      -- elaboration; solved at the end of each declaration.
   nextName : Int
   nextConstraint : Int
   delayedElab : List (DelayReason, Int, NameMap (), Core ClosedTerm)
@@ -118,6 +121,7 @@ initUState = MkUState
   , noSolve = empty
   , polyConstraints = []
   , dotConstraints = []
+  , univConstraints = []
   , nextName = 0
   , nextConstraint = 0
   , delayedElab = []
@@ -184,6 +188,14 @@ genWithName root
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
          inCurrentNS (WithBlock root (nextName ust))
+
+-- Record that universe level `l` must be ≤ level `r`.
+-- The constraint solver (Phase 3) will discharge these at the end of each
+-- declaration.  For now we just accumulate them.
+export
+addUnivConstraint : {auto u : Ref UST UState} ->
+                    UnivLevel -> UnivLevel -> Core ()
+addUnivConstraint l r = update UST { univConstraints $= ((l, r) ::) }
 
 addHoleName : {auto u : Ref UST UState} ->
               FC -> Name -> Int -> Core ()

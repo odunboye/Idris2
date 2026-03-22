@@ -381,7 +381,8 @@ mutual
   toPTerm p (ICoerced fc tm) = toPTerm p tm
   toPTerm p (IPrimVal fc c) = pure (PPrimVal fc c)
   toPTerm p (IHole fc str) = pure (PHole fc False str)
-  toPTerm p (IType fc) = pure (PType fc)
+  toPTerm p (IType fc Nothing)  = pure (PType fc)
+  toPTerm p (IType fc (Just k)) = pure $ PApp fc (PType fc) (PPrimVal fc (BI (natToInteger k)))
   toPTerm p (IBindVar fc nm)
     = pure (PRef fc (MkKindedName (Just Bound) nm nm))
   toPTerm p (IBindHere fc _ tm) = toPTerm p tm

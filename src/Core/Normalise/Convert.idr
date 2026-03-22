@@ -6,6 +6,7 @@ import public Core.Normalise.Quote
 import Core.Case.CaseTree
 import Core.Context
 import Core.Env
+import Core.UnivSolver
 import Core.Value
 
 import Libraries.Data.NatSet
@@ -422,8 +423,17 @@ mutual
     convGen q i defs env (NErased {}) _ = pure True
     convGen q i defs env _ (NErased {}) = pure True
     convGen q i defs env (NType _ ul) (NType _ ur)
-        = -- TODO Cumulativity: Add constraint here
-          pure True
+        = -- Cumulativity: Type ul is a subtype of Type ur when ul ≤ ur.
+          -- We hard-reject only when both sides are fully concrete (no UVars),
+          -- so that proof search with unsolved universe metavariables can still
+          -- proceed optimistically.
+          case leqUnivLevel ul ur of
+            Just True  => pure True
+            Just False =>
+              if isConcrete ul && isConcrete ur
+                then pure False   -- definitively wrong concrete levels
+                else pure True    -- UVar involved: optimistic, solver handles it
+            Nothing    => pure True
     convGen q i defs env x y = pure False
 
   export

@@ -262,7 +262,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
               case mode of
                    PI c =>
                       (Bind fc _ (Pi fc c Implicit bty') tm',
-                       TType fc (MN "top" 0))
+                       TType fc (UVar (MN "top" 0)))
                    _ =>
                       (Bind fc _ (PVar loc c (map (weakenNs (sizeOf bs)) p) bty') tm',
                        Bind fc _ (PVTy fc c bty') ty')

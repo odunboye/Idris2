@@ -136,7 +136,7 @@ mutual
        NForce   : FC -> LazyReason -> NF vars -> List (FC, Closure vars) -> NF vars
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> WhyErased (NF vars) -> NF vars
-       NType    : FC -> Name -> NF vars
+       NType    : FC -> UnivLevel -> NF vars
 
 %name LocalEnv lenv
 %name Closure cl
@@ -160,7 +160,7 @@ export
 ntCon : FC -> Name -> Nat -> List (FC, Closure vars) -> NF vars
 -- Part of the machinery for matching on types - I believe this won't affect
 -- universe checking so put a dummy name.
-ntCon fc (UN (Basic "Type")) Z [] = NType fc (MN "top" 0)
+ntCon fc (UN (Basic "Type")) Z [] = NType fc (UVar (MN "top" 0))
 ntCon fc n Z [] = case isConstantType n of
   Just c => NPrimVal fc $ PrT c
   Nothing => NTCon fc n Z []

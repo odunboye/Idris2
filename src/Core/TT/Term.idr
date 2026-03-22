@@ -91,6 +91,48 @@ Traversable WhyErased where
 
 
 ------------------------------------------------------------------------
+-- Universe levels
+--
+-- UnivLevel represents a universe level expression.
+-- Phase 0: structural scaffolding — semantics unchanged (UVar is still
+-- treated as an opaque Name placeholder until Phase 3 solver lands).
+
+public export
+data UnivLevel : Type where
+  ||| A universe-level variable (metavariable to be solved)
+  UVar  : Name -> UnivLevel
+  ||| The successor of a level:  l+1
+  USucc : UnivLevel -> UnivLevel
+  ||| The maximum of two levels:  max(l, r)
+  UMax  : UnivLevel -> UnivLevel -> UnivLevel
+  ||| The ground level:  0
+  UZero : UnivLevel
+
+%name UnivLevel ul
+
+public export
+Show UnivLevel where
+  show UZero        = "0"
+  show (UVar n)     = "_" ++ show n  -- internal metavariable
+  show (USucc ul)   = "(" ++ show ul ++ "+1)"
+  show (UMax l r)   = "max(" ++ show l ++ ", " ++ show r ++ ")"
+
+-- Convert a concrete level to a Nat for display (Nothing if it has UVars/UMax)
+export
+levelToNat : UnivLevel -> Maybe Nat
+levelToNat UZero       = Just Z
+levelToNat (USucc ul)  = map S (levelToNat ul)
+levelToNat _           = Nothing
+
+public export
+Eq UnivLevel where
+  UZero     == UZero     = True
+  UVar n    == UVar m    = n == m
+  USucc a   == USucc b   = a == b
+  UMax a b  == UMax c d  = a == c && b == d
+  _         == _         = False
+
+------------------------------------------------------------------------
 -- Core Terms
 
 public export
@@ -118,7 +160,7 @@ data Term : Scoped where
      TForce : FC -> LazyReason -> Term vars -> Term vars
      PrimVal : FC -> (c : Constant) -> Term vars
      Erased : FC -> WhyErased (Term vars) -> Term vars
-     TType : FC -> Name -> -- universe variable
+     TType : FC -> UnivLevel -> -- universe level
              Term vars
 
 %name Term t, u
@@ -551,7 +593,9 @@ covering
       showApp (PrimVal _ c) [] = show c
       showApp (Erased _ (Dotted t)) [] = ".(" ++ show t ++ ")"
       showApp (Erased {}) [] = "[__]"
-      showApp (TType _ u) [] = "Type"
+      showApp (TType _ u) [] = case levelToNat u of
+                                    Just n  => "Type " ++ show n
+                                    Nothing => "Type"
       showApp _ [] = "???"
       showApp f args = "(" ++ assert_total (show f) ++ " " ++
                         assert_total (showSep " " (map show args))
