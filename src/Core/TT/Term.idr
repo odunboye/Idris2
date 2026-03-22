@@ -113,9 +113,16 @@ data UnivLevel : Type where
 public export
 Show UnivLevel where
   show UZero        = "0"
-  show (UVar n)     = show n
+  show (UVar n)     = "_" ++ show n  -- internal metavariable
   show (USucc ul)   = "(" ++ show ul ++ "+1)"
   show (UMax l r)   = "max(" ++ show l ++ ", " ++ show r ++ ")"
+
+-- Convert a concrete level to a Nat for display (Nothing if it has UVars/UMax)
+export
+levelToNat : UnivLevel -> Maybe Nat
+levelToNat UZero       = Just Z
+levelToNat (USucc ul)  = map S (levelToNat ul)
+levelToNat _           = Nothing
 
 public export
 Eq UnivLevel where
@@ -586,7 +593,9 @@ covering
       showApp (PrimVal _ c) [] = show c
       showApp (Erased _ (Dotted t)) [] = ".(" ++ show t ++ ")"
       showApp (Erased {}) [] = "[__]"
-      showApp (TType _ u) [] = "Type"
+      showApp (TType _ u) [] = case levelToNat u of
+                                    Just n  => "Type " ++ show n
+                                    Nothing => "Type"
       showApp _ [] = "???"
       showApp f args = "(" ++ assert_total (show f) ++ " " ++
                         assert_total (showSep " " (map show args))

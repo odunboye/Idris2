@@ -211,6 +211,24 @@ checkTerm rig elabinfo nest env (IType fc Nothing) exp
          checkExp rig elabinfo env fc (TType fc u) (gType fc (USucc u)) exp
 checkTerm rig elabinfo nest env (IType fc (Just k)) exp
     = do let u = natToLevel k
+         -- Universe hierarchy: Type k lives in Type (k+1).
+         -- If the expected type is a concrete Type j with j ≤ k, reject early
+         -- before eqTerm's optimistic fast-path can hide the problem.
+         case exp of
+           Just gexp => do
+             expTy <- getTerm gexp
+             case expTy of
+               TType _ ul =>
+                 case leqUnivLevel (USucc u) ul of
+                   Just False =>
+                     throw $ GenericMsg fc $
+                       "Universe level error: Type " ++ show k ++
+                       " has type Type " ++ show (S k) ++
+                       ", which is not compatible with the expected type " ++
+                       show expTy
+                   _ => pure ()
+               _ => pure ()
+           Nothing => pure ()
          checkExp rig elabinfo env fc (TType fc u) (gType fc (USucc u)) exp
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc (Basic str) exp

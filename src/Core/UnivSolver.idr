@@ -118,6 +118,13 @@ solveUniverse cs =
         []      => Right a
         _       => Left "Universe inconsistency: unsatisfiable level constraints"
 
+-- True iff the level contains no UVar metavariables.
+export
+isConcrete : UnivLevel -> Bool
+isConcrete UZero       = True
+isConcrete (USucc u)   = isConcrete u
+isConcrete _           = False
+
 -- Structural less-than-or-equal comparison on UnivLevel.
 -- Returns Just True  if provably ul ≤ ur from structure alone.
 -- Returns Just False if provably ul > ur.
@@ -127,14 +134,14 @@ solveUniverse cs =
 export
 leqUnivLevel : UnivLevel -> UnivLevel -> Maybe Bool
 leqUnivLevel UZero     _          = Just True    -- 0 ≤ anything
-leqUnivLevel _         UZero      = Nothing      -- n ≤ 0 only if n = 0 (need to know n)
+leqUnivLevel (USucc _) UZero      = Just False   -- n+1 > 0, always (before wildcard)
 leqUnivLevel (UVar n)  (UVar m)   =
   if n == m then Just True else Nothing           -- same var: equal; different: unknown
 leqUnivLevel (UVar _)  _          = Nothing      -- unknown variable
 leqUnivLevel _          (UVar _)  = Nothing      -- unknown variable
 leqUnivLevel (USucc l) (USucc r)  = leqUnivLevel l r
-leqUnivLevel (USucc _) UZero      = Just False   -- n+1 > 0
-leqUnivLevel UZero     (USucc _)  = Just True    -- 0 < n+1
+leqUnivLevel _         UZero      = Nothing      -- UMax or other: unknown
+leqUnivLevel UZero     (USucc _)  = Just True    -- 0 < n+1 (redundant but clear)
 leqUnivLevel (UMax a b) r         =              -- max(a,b) ≤ r iff a ≤ r AND b ≤ r
   case (leqUnivLevel a r, leqUnivLevel b r) of
     (Just True,  Just True)  => Just True

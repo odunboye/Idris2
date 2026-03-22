@@ -424,12 +424,16 @@ mutual
     convGen q i defs env _ (NErased {}) = pure True
     convGen q i defs env (NType _ ul) (NType _ ur)
         = -- Cumulativity: Type ul is a subtype of Type ur when ul ≤ ur.
-          -- leqUnivLevel returns Nothing for unresolved UVars; we fall back
-          -- to True (optimistic) so elaboration can proceed and the solver
-          -- enforces the constraint post-hoc.
+          -- We hard-reject only when both sides are fully concrete (no UVars),
+          -- so that proof search with unsolved universe metavariables can still
+          -- proceed optimistically.
           case leqUnivLevel ul ur of
-            Just b  => pure b
-            Nothing => pure True
+            Just True  => pure True
+            Just False =>
+              if isConcrete ul && isConcrete ur
+                then pure False   -- definitively wrong concrete levels
+                else pure True    -- UVar involved: optimistic, solver handles it
+            Nothing    => pure True
     convGen q i defs env x y = pure False
 
   export
