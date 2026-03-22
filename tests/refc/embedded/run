@@ -22,7 +22,20 @@ if [ -z "$SRCS" ]; then
 fi
 
 CC_CMD="${CC:-cc}"
-BASE_FLAGS="-std=c11 -I${REFC_SRC} -Wall -Wextra -Werror -c -o /dev/null"
+
+# Detect GMP include path.  On macOS, GMP is typically installed via Homebrew
+# at a prefix that is not in the default compiler search path.
+GMP_CFLAGS=""
+if command -v pkg-config > /dev/null 2>&1 && pkg-config --exists gmp 2>/dev/null; then
+    GMP_CFLAGS=$(pkg-config --cflags gmp 2>/dev/null || true)
+elif command -v brew > /dev/null 2>&1; then
+    _gmp_prefix=$(brew --prefix gmp 2>/dev/null || true)
+    if [ -n "$_gmp_prefix" ] && [ -d "${_gmp_prefix}/include" ]; then
+        GMP_CFLAGS="-I${_gmp_prefix}/include"
+    fi
+fi
+
+BASE_FLAGS="-std=c11 -I${REFC_SRC} ${GMP_CFLAGS} -Wall -Wextra -Werror -c -o /dev/null"
 
 compile_all() {
     local extra_flags="$1"
