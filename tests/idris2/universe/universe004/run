@@ -1,0 +1,6 @@
+. ../../../testutils.sh
+
+# Build the library first so its TTC is available for the importer.
+idris2 --no-prelude --check UnivLib.idr
+# Now check the importer, which reads levels from the library's TTC.
+idris2 --no-prelude --check UnivLibUser.idr
