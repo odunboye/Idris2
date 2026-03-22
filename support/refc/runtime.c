@@ -1,14 +1,21 @@
 #include "runtime.h"
 #include "_datatypes.h"
+#include "idris2_config.h"
+#include "memoryManagement.h"
 #include "refc_util.h"
 
-void idris2_missing_ffi() {
-  fprintf(stderr, "Foreign function declared, but not defined.\n"
-                  "Cannot call missing FFI - aborting.\n");
-  exit(1);
+void idris2_missing_ffi(void) {
+  IDRIS2_WRITE_STDERR(
+      "ERROR: A foreign function was called that has no implementation\n"
+      "for the RefC backend.  Add a\n"
+      "  %foreign \"C:your_function_name\"\n"
+      "or\n"
+      "  %foreign \"RefC:your_function_name\"\n"
+      "declaration to provide an implementation.\n");
+  IDRIS2_ABORT();
 }
 
-typedef Value *(*const FUN0)();
+typedef Value *(*const FUN0)(void);
 typedef Value *(*const FUN1)(Value *);
 typedef Value *(*const FUN2)(Value *, Value *);
 typedef Value *(*const FUN3)(Value *, Value *, Value *);
@@ -45,6 +52,17 @@ typedef Value *(*const FUN16)(Value *, Value *, Value *, Value *, Value *,
                               Value *);
 typedef Value *(*const FUNStar)(Value **);
 
+/* The closure dispatch below intentionally casts ClosureFun to FUN1..FUN16 to
+ * implement runtime-arity dispatch.  This is a well-known C idiom that is
+ * undefined behaviour in the standard but works on all targeted platforms;
+ * suppress the compiler's cast-function-type warning for this function only. */
+#if defined(__clang__)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wcast-function-type-mismatch"
+#elif defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-function-type"
+#endif
 static inline Value *idris2_dispatch_closure(Value_Closure *clo) {
   Value **const xs = clo->args;
 
@@ -100,6 +118,11 @@ static inline Value *idris2_dispatch_closure(Value_Closure *clo) {
                             xs[14], xs[15]);
   }
 }
+#if defined(__clang__)
+#pragma clang diagnostic pop
+#elif defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
 
 Value *idris2_trampoline(Value *it) {
   while (it && !idris2_vp_is_unboxed(it) && it->header.tag == CLOSURE_TAG) {
@@ -108,10 +131,12 @@ Value *idris2_trampoline(Value *it) {
       break;
 
     it = idris2_dispatch_closure(clos);
-    if (idris2_isUnique(clos))
-      free(clos);
-    else
+    if (idris2_isUnique(clos)) {
+      idris2_cc_remove_if_buffered((Value *)clos);
+      IDRIS2_FREE(clos);
+    } else {
       --clos->header.refCounter;
+    }
   }
   return it;
 }
@@ -133,7 +158,8 @@ Value *idris2_tailcall_apply_closure(Value *_clos, Value *arg) {
   newclos->args[clos->filled] = arg; // add argument to new arglist
 
   if (idris2_isUnique(clos)) {
-    free(clos);
+    idris2_cc_remove_if_buffered((Value *)clos);
+    IDRIS2_FREE(clos);
   } else {
     --clos->header.refCounter;
   }
@@ -153,7 +179,7 @@ void idris2_removeReuseConstructor(Value_Constructor *constr) {
                      (long long)constr->header.refCounter);
   constr->header.refCounter--;
   if (constr->header.refCounter == 0) {
-    free(constr);
+    IDRIS2_FREE(constr);
   }
 }
 
@@ -171,7 +197,13 @@ int idris2_extractInt(Value *v) {
   case INT64_TAG:
     return (int)idris2_vp_to_Int64(v);
   case INTEGER_TAG:
-    return (int)mpz_get_si(((Value_Integer *)v)->i);
+#ifndef IDRIS2_NO_GMP
+    return IDRIS2_INT_IS_SMALL((Value_Integer *)v)
+               ? (int)IDRIS2_INT_FAST((Value_Integer *)v)
+               : (int)mpz_get_si(IDRIS2_INT_MPZ((Value_Integer *)v));
+#else
+    return (int)((Value_Integer *)v)->i;
+#endif
   case DOUBLE_TAG:
     return (int)idris2_vp_to_Double(v);
   default:

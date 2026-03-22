@@ -1,0 +1,78 @@
+. ../../testutils.sh
+
+# Verify that the RefC runtime support library compiles with embedded feature flags.
+# These flags are intended for bare-metal / embedded targets:
+#   IDRIS2_NO_GMP     -- use int64_t for Integer instead of GMP mpz_t
+#   IDRIS2_NO_THREADS -- stub out all pthread usage
+#   IDRIS2_NO_STDIO   -- exclude fprintf/vsnprintf from the runtime
+#   IDRIS2_NO_CLOCK   -- stub time()/clock() to return 0
+
+# The support/refc source directory relative to this test.
+REFC_SRC="$(cd "$(dirname "$0")/../../../support/refc" && pwd)"
+
+if [ ! -d "$REFC_SRC" ]; then
+    echo "ERROR: refc source directory not found at ${REFC_SRC}"
+    exit 1
+fi
+
+SRCS=$(ls "${REFC_SRC}"/*.c 2>/dev/null)
+if [ -z "$SRCS" ]; then
+    echo "ERROR: no .c files found in ${REFC_SRC}"
+    exit 1
+fi
+
+CC_CMD="${CC:-cc}"
+
+# Detect GMP include path.  On macOS, GMP is typically installed via Homebrew
+# at a prefix that is not in the default compiler search path.
+GMP_CFLAGS=""
+if command -v pkg-config > /dev/null 2>&1 && pkg-config --exists gmp 2>/dev/null; then
+    GMP_CFLAGS=$(pkg-config --cflags gmp 2>/dev/null || true)
+elif command -v brew > /dev/null 2>&1; then
+    _gmp_prefix=$(brew --prefix gmp 2>/dev/null || true)
+    if [ -n "$_gmp_prefix" ] && [ -d "${_gmp_prefix}/include" ]; then
+        GMP_CFLAGS="-I${_gmp_prefix}/include"
+    fi
+fi
+
+BASE_FLAGS="-std=c11 -I${REFC_SRC} ${GMP_CFLAGS} -Wall -Wextra -Werror -c -o /dev/null"
+
+compile_all() {
+    local extra_flags="$1"
+    for src in $SRCS; do
+        if ! ${CC_CMD} ${BASE_FLAGS} ${extra_flags} "${src}" 2>&1; then
+            return 1
+        fi
+    done
+    return 0
+}
+
+if compile_all "-DIDRIS2_NO_GMP"; then
+    echo "no-gmp build: OK"
+else
+    echo "no-gmp build: FAILED"
+fi
+
+if compile_all "-DIDRIS2_NO_THREADS"; then
+    echo "no-threads build: OK"
+else
+    echo "no-threads build: FAILED"
+fi
+
+if compile_all "-DIDRIS2_NO_STDIO"; then
+    echo "no-stdio build: OK"
+else
+    echo "no-stdio build: FAILED"
+fi
+
+if compile_all "-DIDRIS2_NO_CLOCK"; then
+    echo "no-clock build: OK"
+else
+    echo "no-clock build: FAILED"
+fi
+
+if compile_all "-DIDRIS2_NO_GMP -DIDRIS2_NO_THREADS -DIDRIS2_NO_STDIO -DIDRIS2_NO_CLOCK"; then
+    echo "embedded build: OK"
+else
+    echo "embedded build: FAILED"
+fi

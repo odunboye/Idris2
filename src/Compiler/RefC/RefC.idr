@@ -19,6 +19,9 @@ import Data.Vect
 import System
 import System.File
 
+import Data.String
+import Idris.Env
+
 import Protocol.Hex
 import Libraries.Utils.Path
 
@@ -92,7 +95,7 @@ cName (Resolved i) = "fn__" ++ cCleanString (show i)
 escapeChar : Char -> String
 escapeChar c = if isAlphaNum c || isNL c
                   then show c
-                  else "(char)" ++ show (ord c)
+                  else "UINT32_C(" ++ show (ord c) ++ ")"
 
 cStringQuoted : String -> String
 cStringQuoted cs = strCons '"' (showCString (unpack cs) "\"")
@@ -133,7 +136,7 @@ cPrimType Bits8Type = "Bits8"
 cPrimType Bits16Type = "Bits16"
 cPrimType Bits32Type = "Bits32"
 cPrimType Bits64Type = "Bits64"
-cPrimType StringType = "string"
+cPrimType StringType = "String"
 cPrimType CharType = "Char"
 cPrimType DoubleType = "Double"
 cPrimType WorldType = "void"
@@ -179,7 +182,6 @@ cOp StrAppend     [x, y]    = "strAppend(" ++ x ++ ", " ++ y ++ ")"
 cOp StrSubstr     [x, y, z] = "strSubstr(" ++ x ++ ", " ++ y  ++ ", " ++ z ++ ")"
 cOp BelieveMe     [_, _, x] = "idris2_newReference(" ++ x ++ ")"
 cOp Crash         [_, msg]  = "idris2_crash(" ++ msg ++ ");"
-cOp fn args = show fn ++ "(" ++ (showSep ", " $ toList args) ++ ")"
 
 varName : AVar -> String
 varName (ALocal i) = "var_" ++ (show i)
@@ -190,6 +192,8 @@ data EnvTracker : Type where
 data FunctionDefinitions : Type where
 data IndentLevel : Type where
 data HeaderFiles : Type where
+data StructDecls : Type where
+data CallbackDecls : Type where
 data ConstDef
   = CDI64 String
   | CDB64 String
@@ -270,6 +274,14 @@ emit EmptyFC line = do
     indent <- indentation
     update OutfileText (flip snoc (indent ++ line))
 emit fc line = do
+    -- Emit a #line directive for concrete source locations (MkFC only, not virtual).
+    -- This lets C compilers and debuggers (gdb/lldb) map generated C back to the
+    -- original Idris source file and line.
+    case fc of
+        MkFC origin (startLine, _) _ =>
+            update OutfileText $ flip snoc $
+                "#line " ++ show (startLine + 1) ++ " " ++ cStringQuoted (show origin)
+        _ => pure ()
     let comment = "// " ++ show fc
     indent <- indentation
     let indentedLine = indent ++ line
@@ -350,8 +362,16 @@ makeClosure fc n args missing = do
     pure closure
 
 -- When changing this number, also change idris2_dispatch_closure in runtime.c.
--- Increasing this number will worsen stack consumption and increase the codesize of idris2_dispatch_closure.
--- In C89, the maximum number of arguments is 31, so it should not be larger than 31. 127 is safe in C99, but I do not recommend it.
+-- Functions with arity ≤ MaxExtractFunArgs are called with individual Value*
+-- arguments (FUN0…FUN16 in runtime.c), which lets the C compiler use
+-- registers and inline calls.  Functions with arity > MaxExtractFunArgs use
+-- the FUNStar calling convention: Value *f(Value **xs).  Both paths are
+-- TCO-correct: tail calls return a fully-applied closure that the outermost
+-- idris2_trampoline loop dispatches without growing the C stack.
+--
+-- Raising this limit requires adding corresponding FUNn typedefs and switch
+-- cases to support/refc/runtime.c.  In C89 the maximum parameter count is 31;
+-- C99 allows at least 127.  The current value of 16 is a practical sweet-spot.
 MaxExtractFunArgs : Nat
 MaxExtractFunArgs = 16
 
@@ -556,12 +576,17 @@ mutual
             ["prim__newIORef", "prim__readIORef", "prim__writeIORef", "prim__newArray",
              "prim__arrayGet", "prim__arraySet", "prim__getField", "prim__setField",
              "prim__os", "prim__codegen", "prim__onCollect", "prim__onCollectAny" ]
-        case p of
+        -- CFStruct stubs are generated without a namespace prefix, so use pn.
+        -- All other primitives match the support library's fully-qualified names.
+        let cfstructPrims : List String = ["prim__getField", "prim__setField"]
+        pn <- case p of
             NS _ (UN (Basic pn)) =>
-               unless (elem pn prims) $ throw $ InternalError $ "[refc] Unknown primitive: " ++ cName p
+               if elem pn prims then pure pn
+               else throw $ InternalError $ "[refc] Unknown primitive: " ++ cName p
             _ => throw $ InternalError $ "[refc] Unknown primitive: " ++ cName p
-        emit fc $ "// call to external primitive " ++ cName p
-        pure $ "idris2_\{cName p}("++ showSep ", " (map varName args) ++")"
+        let callName = if elem pn cfstructPrims then pn else cName p
+        emit fc $ "// call to external primitive " ++ callName
+        pure $ "idris2_\{callName}("++ showSep ", " (map varName args) ++")"
 
     cStatementsFromANF (AConCase fc sc alts mDef) tailPosition = do
         let sc' = varName sc
@@ -687,6 +712,154 @@ getArgsNrList [] _ = []
 getArgsNrList (x :: xs) k = k :: getArgsNrList xs (S k)
 
 
+-- -------------------------------------------------------------------------
+-- CFStruct descriptor code generation
+-- -------------------------------------------------------------------------
+
+||| Collect all CFStruct types reachable from a CFType.
+||| The returned map is (struct_name → field_list) for every unique struct.
+collectCFStructs : CFType -> SortedMap String (List (String, CFType))
+collectCFStructs (CFStruct n flds) =
+    let inner = foldl (\m, (_, ft) => mergeWith const m (collectCFStructs ft))
+                      (the (SortedMap String (List (String, CFType))) empty) flds
+    in mergeWith const (singleton n flds) inner
+collectCFStructs (CFIORes t)  = collectCFStructs t
+collectCFStructs (CFFun a b)  = mergeWith const (collectCFStructs a) (collectCFStructs b)
+collectCFStructs _            = empty
+
+||| Map a CFType to its IDRIS2_FIELD_* enum constant (for struct descriptors).
+cFieldKind : CFType -> String
+cFieldKind CFInt         = "IDRIS2_FIELD_INT"
+cFieldKind CFInt8        = "IDRIS2_FIELD_INT8"
+cFieldKind CFInt16       = "IDRIS2_FIELD_INT16"
+cFieldKind CFInt32       = "IDRIS2_FIELD_INT32"
+cFieldKind CFInt64       = "IDRIS2_FIELD_INT64"
+cFieldKind CFUnsigned8   = "IDRIS2_FIELD_BITS8"
+cFieldKind CFUnsigned16  = "IDRIS2_FIELD_BITS16"
+cFieldKind CFUnsigned32  = "IDRIS2_FIELD_BITS32"
+cFieldKind CFUnsigned64  = "IDRIS2_FIELD_BITS64"
+cFieldKind CFDouble      = "IDRIS2_FIELD_DOUBLE"
+cFieldKind CFChar        = "IDRIS2_FIELD_CHAR"
+cFieldKind CFString      = "IDRIS2_FIELD_STRING"
+cFieldKind CFPtr         = "IDRIS2_FIELD_PTR"
+cFieldKind CFGCPtr       = "IDRIS2_FIELD_PTR"
+cFieldKind (CFStruct _ _) = "IDRIS2_FIELD_STRUCT"
+cFieldKind _             = "IDRIS2_FIELD_PTR"  -- fallback for unusual types
+
+||| Emit the static field-descriptor array and struct-descriptor for one struct.
+||| Requires that the struct header has been #include-d already (for offsetof).
+emitOneStructDescriptor
+    : {auto oft : Ref OutfileText Output}
+   -> {auto il  : Ref IndentLevel Nat}
+   -> (name   : String)
+   -> (fields : List (String, CFType))
+   -> Core ()
+emitOneStructDescriptor name flds = do
+    let fvar = "idris2_struct_fields_" ++ name
+    let dvar = "idris2_struct_desc_"   ++ name
+    emit EmptyFC $ "static idris2_field_t " ++ fvar ++ "[] = {"
+    for_ flds $ \(fn, ft) => do
+        let nested = case ft of
+                       CFStruct n _ => "\"" ++ n ++ "\""
+                       _            => "NULL"
+        emit EmptyFC $
+            "  {\"" ++ fn ++ "\","
+            ++ " offsetof(" ++ name ++ ", " ++ fn ++ "),"
+            ++ " " ++ cFieldKind ft ++ ","
+            ++ " " ++ nested ++ "},"
+    emit EmptyFC "  {NULL, 0, 0, NULL}"
+    emit EmptyFC "};"
+    emit EmptyFC $ "static idris2_struct_t " ++ dvar ++ " = {"
+    emit EmptyFC $
+        "  \"" ++ name ++ "\","
+        ++ " " ++ fvar ++ ","
+        ++ " " ++ show (length flds) ++ ","
+        ++ " sizeof(" ++ name ++ ")"
+    emit EmptyFC "};"
+
+||| Emit all struct descriptors and a struct-registration function.
+||| In whole-program mode (`modular = False`) the function is named
+||| `idris2_register_all_structs` and called explicitly from `main()`.
+||| In modular mode (`modular = True`) a static
+||| `__attribute__((constructor))` function is emitted instead so that
+||| each translation unit self-registers its structs when loaded.
+emitStructCode
+    : {auto oft : Ref OutfileText Output}
+   -> {auto il  : Ref IndentLevel Nat}
+   -> {auto sd  : Ref StructDecls (SortedMap String (List (String, CFType)))}
+   -> (modular : Bool)
+   -> Core ()
+emitStructCode modular = do
+    structs <- get StructDecls
+    let decls = SortedMap.toList structs
+    emit EmptyFC "// --- struct descriptors (generated) ---"
+    traverse_ (uncurry emitOneStructDescriptor) decls
+    let fnDecl = if modular
+                   then "__attribute__((constructor)) static void idris2_register_structs(void)"
+                   else "static void idris2_register_all_structs(void)"
+    emit EmptyFC $ fnDecl ++ " {"
+    traverse_ (\(n, _) =>
+        emit EmptyFC $ "  idris2_register_struct(&idris2_struct_desc_" ++ n ++ ");")
+        decls
+    emit EmptyFC "}"
+
+-- -------------------------------------------------------------------------
+-- CFFun (callback) trampoline code generation
+-- -------------------------------------------------------------------------
+
+||| Flatten a nested CFFun into (argTypes, retType, hasWorld).
+||| hasWorld is True when the inner return is CFIORes, meaning the closure
+||| expects an extra World argument that C callers don't pass.
+flattenCFFun : CFType -> (List CFType, CFType, Bool)
+flattenCFFun (CFFun a b) =
+    let (args, ret, hw) = flattenCFFun b
+    in (a :: args, ret, hw)
+flattenCFFun (CFIORes t) = ([], t, True)
+flattenCFFun t           = ([], t, False)
+
+||| Short type-name suffix used in generated trampoline identifiers.
+cbSuffix : CFType -> String
+cbSuffix CFUnit         = "void"
+cbSuffix CFInt          = "i64"
+cbSuffix CFInt8         = "i8"
+cbSuffix CFInt16        = "i16"
+cbSuffix CFInt32        = "i32"
+cbSuffix CFInt64        = "i64"
+cbSuffix CFUnsigned8    = "u8"
+cbSuffix CFUnsigned16   = "u16"
+cbSuffix CFUnsigned32   = "u32"
+cbSuffix CFUnsigned64   = "u64"
+cbSuffix CFDouble       = "f64"
+cbSuffix CFChar         = "char"
+cbSuffix CFString       = "str"
+cbSuffix CFPtr          = "ptr"
+cbSuffix CFGCPtr        = "ptr"
+cbSuffix CFWorld        = "world"
+cbSuffix (CFFun _ _)    = "ptr"
+cbSuffix (CFIORes t)    = cbSuffix t
+cbSuffix (CFStruct n _) = n
+cbSuffix (CFUser n _)   = "ptr"
+cbSuffix _              = "ptr"
+
+||| Unique key for a callback signature: argSuffix1_..._argSuffixN_retSuffix.
+cbKey : List CFType -> CFType -> String
+cbKey args ret = fastConcat (intersperse "_" (map cbSuffix args)) ++ "_" ++ cbSuffix ret
+
+||| Collect all CFFun signatures reachable from a CFType.
+||| Returns a map from key to (args, ret, hasWorld).
+collectCFFuns : CFType -> SortedMap String (List CFType, CFType, Bool)
+collectCFFuns ft@(CFFun a b) =
+    let (args, ret, hw) = flattenCFFun ft
+        key = cbKey args ret
+        inner = mergeWith (\x, _ => x) (collectCFFuns a) (collectCFFuns b)
+    in mergeWith (\x, _ => x) (singleton key (args, ret, hw)) inner
+collectCFFuns (CFIORes t)       = collectCFFuns t
+collectCFFuns (CFStruct _ flds) =
+    foldl (\m, (_, ft) => mergeWith (\x, _ => x) m (collectCFFuns ft)) empty flds
+collectCFFuns _ = empty
+
+-- -------------------------------------------------------------------------
+
 cTypeOfCFType : CFType -> String
 cTypeOfCFType CFUnit          = "void"
 cTypeOfCFType CFInt           = "int64_t"
@@ -700,14 +873,14 @@ cTypeOfCFType CFUnsigned32    = "uint32_t"
 cTypeOfCFType CFUnsigned64    = "uint64_t"
 cTypeOfCFType CFString        = "char *"
 cTypeOfCFType CFDouble        = "double"
-cTypeOfCFType CFChar          = "char"
+cTypeOfCFType CFChar          = "int"
 cTypeOfCFType CFPtr           = "void *"
 cTypeOfCFType CFGCPtr         = "void *"
 cTypeOfCFType CFBuffer        = "void *"
 cTypeOfCFType CFWorld         = "void *"
 cTypeOfCFType (CFFun x y)     = "void *"
 cTypeOfCFType (CFIORes x)     = "void *"
-cTypeOfCFType (CFStruct x ys) = "void *"
+cTypeOfCFType (CFStruct x ys) = x ++ " *"
 cTypeOfCFType (CFUser x ys)   = "void *"
 cTypeOfCFType n = assert_total $ idris_crash ("INTERNAL ERROR: Unknown FFI type in C backend: " ++ show n)
 
@@ -758,9 +931,12 @@ extractValue _ CFGCPtr          varName = "((Value_GCPointer*)" ++ varName ++ ")
 extractValue CLangC    CFBuffer varName = "((Value_Buffer*)" ++ varName ++ ")->buffer->data"
 extractValue CLangRefC CFBuffer varName = "((Value_Buffer*)" ++ varName ++ ")->buffer"
 extractValue _ CFWorld          _       = "(Value *)NULL"
-extractValue _ (CFFun x y)      varName = "(Value_Closure*)" ++ varName
+extractValue CLangRefC (CFFun _ _) varName = "(Value_Closure *)(" ++ varName ++ ")"
+extractValue _ (CFFun x y)      varName =
+    let (args, ret, hw) = flattenCFFun (CFFun x y)
+    in "idris2_make_cb_" ++ cbKey args ret ++ "(" ++ varName ++ ")"
 extractValue c (CFIORes x)      varName = extractValue c x varName
-extractValue _ (CFStruct x xs)  varName = assert_total $ idris_crash ("INTERNAL ERROR: Struct access not implemented: " ++ varName)
+extractValue _ (CFStruct x xs)  varName = "((Value_Pointer*)" ++ varName ++ ")->p"
 -- not really total but this way this internal error does not contaminate everything else
 extractValue _ (CFUser x xs)    varName = "(Value*)" ++ varName
 extractValue _ n _ = assert_total $ idris_crash ("INTERNAL ERROR: Unknown FFI type in C backend: " ++ show n)
@@ -783,22 +959,221 @@ packCFType CFPtr           varName = "idris2_makePointer(" ++ varName ++ ")"
 packCFType CFGCPtr         varName = "idris2_makePointer(" ++ varName ++ ")"
 packCFType CFBuffer        varName = "idris2_makeBuffer(" ++ varName ++ ")"
 packCFType CFWorld         _       = "(Value *)NULL"
-packCFType (CFFun x y)     varName = "makeFunction(" ++ varName ++ ")"
+packCFType (CFFun x y)     varName = "idris2_makePointer((void *)" ++ varName ++ ")"
 packCFType (CFIORes x)     varName = packCFType x varName
-packCFType (CFStruct x xs) varName = "makeStruct(" ++ varName ++ ")"
+packCFType (CFStruct x xs) varName = "idris2_makePointer(" ++ varName ++ ")"
 packCFType (CFUser x xs)   varName = varName
 packCFType n _ = assert_total $ idris_crash ("INTERNAL ERROR: Unknown FFI type in C backend: " ++ show n)
+
+-- -------------------------------------------------------------------------
+-- CFFun trampoline emitters (placed after cTypeOfCFType/extractValue/packCFType)
+-- -------------------------------------------------------------------------
+
+||| Emit the static TLS closure slot, trampoline function, and maker for one
+||| callback signature.  `key` is used in all generated names.
+emitOneCallback
+    : {auto oft : Ref OutfileText Output}
+   -> {auto il  : Ref IndentLevel Nat}
+   -> (key      : String)
+   -> (args     : List CFType)
+   -> (ret      : CFType)
+   -> (hasWorld : Bool)
+   -> Core ()
+emitOneCallback key args ret hasWorld = do
+    let handlerFn = "idris2_cb_handler_" ++ key
+    let argtypesV = "idris2_cb_argtypes_" ++ key
+    let cifV      = "idris2_cb_cif_"      ++ key
+    let cifReadyV = "idris2_cb_cif_ready_" ++ key
+    let makerFn   = "idris2_make_cb_"     ++ key
+    let isVoidRet = case ret of { CFUnit => True; CFWorld => True; _ => False }
+    let retCType  = if isVoidRet then "void" else cTypeOfCFType ret
+    let indexedArgs = zipWith MkPair [0 .. length args `minus` 1] args
+    let n = length args
+    let fpArgsStr = if null args then "void" else showSep ", " (map cTypeOfCFType args)
+
+    emit EmptyFC "#if IDRIS2_HAS_FFI"
+
+    -- (1) libffi handler: called by libffi when the C caller invokes the closure.
+    -- _args[i] is a void* pointing to the i-th argument value.
+    -- _user_data is the Idris closure pointer.
+    emit EmptyFC $ "static void " ++ handlerFn
+               ++ "(ffi_cif *_cif, void *_ret, void **_args, void *_user_data) {"
+    emit EmptyFC "  Value *_clo = (Value *)_user_data;"
+    case indexedArgs of
+      [] =>
+        if hasWorld
+          then do
+            emit EmptyFC $ "  Value *_v0 = idris2_apply_closure(idris2_newReference(_clo), NULL);"
+            unless isVoidRet $
+              emit EmptyFC $ "  *((" ++ retCType ++ "*)_ret) = " ++ extractResult ret "_v0" ++ ";"
+          else
+            unless isVoidRet $
+              emit EmptyFC $ "  *((" ++ retCType ++ "*)_ret) = " ++ extractResult ret
+                "idris2_apply_closure(idris2_newReference(_clo), NULL)" ++ ";"
+      ((i0, t0) :: rest) => do
+        emit EmptyFC $ "  Value *_v0 = idris2_apply_closure(idris2_newReference(_clo), "
+                     ++ packFromPtr t0 0 ++ ");"
+        _ <- foldlC (\_, (i, t) => do
+                emit EmptyFC $ "  Value *_v" ++ show i ++ " = idris2_apply_closure(_v"
+                             ++ show (minus i 1) ++ ", " ++ packFromPtr t i ++ ");"
+                pure ()
+              ) () rest
+        let lastV = "_v" ++ show (minus n 1)
+        if hasWorld
+          then do
+            emit EmptyFC $ "  Value *_vw = idris2_apply_closure(" ++ lastV ++ ", NULL);"
+            unless isVoidRet $
+              emit EmptyFC $ "  *((" ++ retCType ++ "*)_ret) = " ++ extractResult ret "_vw" ++ ";"
+          else
+            unless isVoidRet $
+              emit EmptyFC $ "  *((" ++ retCType ++ "*)_ret) = " ++ extractResult ret lastV ++ ";"
+    emit EmptyFC "}"
+
+    -- (2) Static libffi CIF for this signature (initialised once, then reused).
+    let ffiArgtypes = map ffiType args
+    emit EmptyFC $ "static ffi_type *" ++ argtypesV ++ "[] = {"
+                ++ showSep ", " ffiArgtypes ++ ", NULL};"
+    emit EmptyFC $ "static ffi_cif " ++ cifV ++ ";"
+    emit EmptyFC $ "static int "     ++ cifReadyV ++ " = 0;"
+
+    -- (3) Maker: allocate a libffi closure per-call so re-entrant callbacks
+    -- each get their own function pointer and capture their own closure.
+    emit EmptyFC $ "static " ++ retCType ++ " (*" ++ makerFn ++ "(Value *_clo))(" ++ fpArgsStr ++ ") {"
+    emit EmptyFC $ "  if (!" ++ cifReadyV ++ ") {"
+    emit EmptyFC $ "    ffi_prep_cif(&" ++ cifV ++ ", FFI_DEFAULT_ABI, " ++ show n ++ ","
+    emit EmptyFC $ "                 " ++ ffiType ret ++ ", " ++ argtypesV ++ ");"
+    emit EmptyFC $ "    " ++ cifReadyV ++ " = 1;"
+    emit EmptyFC   "  }"
+    emit EmptyFC   "  ffi_closure *_fc;"
+    emit EmptyFC   "  void *_fn_ptr;"
+    emit EmptyFC   "  _fc = ffi_closure_alloc(sizeof(ffi_closure), &_fn_ptr);"
+    emit EmptyFC $ "  ffi_prep_closure_loc(_fc, &" ++ cifV ++ ", " ++ handlerFn ++ ", _clo, _fn_ptr);"
+    emit EmptyFC $ "  return (" ++ retCType ++ " (*)(" ++ fpArgsStr ++ "))_fn_ptr;"
+    emit EmptyFC   "}"
+
+    emit EmptyFC "#else"
+
+    -- Fallback: libffi is not available.  The maker compiles fine but aborts at
+    -- runtime if a CFFun callback is actually invoked.  Programs that only use
+    -- "RefC:" bindings (which pass Value_Closure* directly) are unaffected.
+    emit EmptyFC $ "static " ++ retCType ++ " (*" ++ makerFn ++ "(Value *_clo))(" ++ fpArgsStr ++ ") {"
+    emit EmptyFC   "  (void)_clo;"
+    emit EmptyFC   "  idris2_missing_ffi();"
+    emit EmptyFC   "  return NULL;"
+    emit EmptyFC   "}"
+
+    emit EmptyFC "#endif"
+  where
+    -- Pack a C arg (passed as void* in libffi) into a Value*
+    packFromPtr : CFType -> Nat -> String
+    packFromPtr CFInt        i = "idris2_mkInt64(*(int64_t *)_args["  ++ show i ++ "])"
+    packFromPtr CFInt8       i = "idris2_mkInt8(*(int8_t *)_args["    ++ show i ++ "])"
+    packFromPtr CFInt16      i = "idris2_mkInt16(*(int16_t *)_args["  ++ show i ++ "])"
+    packFromPtr CFInt32      i = "idris2_mkInt32(*(int32_t *)_args["  ++ show i ++ "])"
+    packFromPtr CFInt64      i = "idris2_mkInt64(*(int64_t *)_args["  ++ show i ++ "])"
+    packFromPtr CFUnsigned8  i = "idris2_mkBits8(*(uint8_t *)_args["  ++ show i ++ "])"
+    packFromPtr CFUnsigned16 i = "idris2_mkBits16(*(uint16_t *)_args[" ++ show i ++ "])"
+    packFromPtr CFUnsigned32 i = "idris2_mkBits32(*(uint32_t *)_args[" ++ show i ++ "])"
+    packFromPtr CFUnsigned64 i = "idris2_mkBits64(*(uint64_t *)_args[" ++ show i ++ "])"
+    packFromPtr CFDouble     i = "idris2_mkDouble(*(double *)_args["   ++ show i ++ "])"
+    packFromPtr CFChar       i = "idris2_mkChar(*(int *)_args["        ++ show i ++ "])"
+    packFromPtr CFString     i = "idris2_mkString(*(char **)_args["    ++ show i ++ "])"
+    packFromPtr CFPtr        i = "idris2_makePointer(*(void **)_args["  ++ show i ++ "])"
+    packFromPtr CFGCPtr      i = "idris2_makePointer(*(void **)_args["  ++ show i ++ "])"
+    packFromPtr _            i = "(Value *)*(void **)_args["            ++ show i ++ "]"
+
+    extractResult : CFType -> String -> String
+    extractResult CFInt        v = "idris2_vp_to_Int64("  ++ v ++ ")"
+    extractResult CFInt8       v = "idris2_vp_to_Int8("   ++ v ++ ")"
+    extractResult CFInt16      v = "idris2_vp_to_Int16("  ++ v ++ ")"
+    extractResult CFInt32      v = "idris2_vp_to_Int32("  ++ v ++ ")"
+    extractResult CFInt64      v = "idris2_vp_to_Int64("  ++ v ++ ")"
+    extractResult CFUnsigned8  v = "idris2_vp_to_Bits8("  ++ v ++ ")"
+    extractResult CFUnsigned16 v = "idris2_vp_to_Bits16(" ++ v ++ ")"
+    extractResult CFUnsigned32 v = "idris2_vp_to_Bits32(" ++ v ++ ")"
+    extractResult CFUnsigned64 v = "idris2_vp_to_Bits64(" ++ v ++ ")"
+    extractResult CFDouble     v = "idris2_vp_to_Double(" ++ v ++ ")"
+    extractResult CFChar       v = "idris2_vp_to_Char("   ++ v ++ ")"
+    extractResult CFPtr        v = "((Value_Pointer *)"   ++ v ++ ")->p"
+    extractResult _            v = "(intptr_t)"           ++ v
+
+    -- Map CFType to the libffi ffi_type pointer expression
+    ffiType : CFType -> String
+    ffiType CFUnit        = "&ffi_type_void"
+    ffiType CFInt         = "&ffi_type_sint64"
+    ffiType CFInt8        = "&ffi_type_sint8"
+    ffiType CFInt16       = "&ffi_type_sint16"
+    ffiType CFInt32       = "&ffi_type_sint32"
+    ffiType CFInt64       = "&ffi_type_sint64"
+    ffiType CFUnsigned8   = "&ffi_type_uint8"
+    ffiType CFUnsigned16  = "&ffi_type_uint16"
+    ffiType CFUnsigned32  = "&ffi_type_uint32"
+    ffiType CFUnsigned64  = "&ffi_type_uint64"
+    ffiType CFDouble      = "&ffi_type_double"
+    ffiType CFChar        = "&ffi_type_sint32"
+    ffiType CFWorld       = "&ffi_type_void"
+    ffiType _             = "&ffi_type_pointer"
+
+||| Emit all callback trampolines and add their forward declarations to the
+||| FunctionDefinitions header so callers see the declaration before the body.
+emitCallbackCode
+    : {auto oft : Ref OutfileText Output}
+   -> {auto il  : Ref IndentLevel Nat}
+   -> {auto h   : Ref HeaderFiles (SortedSet String)}
+   -> {auto f   : Ref FunctionDefinitions (List String)}
+   -> {auto cb  : Ref CallbackDecls (SortedMap String (List CFType, CFType, Bool))}
+   -> Core ()
+emitCallbackCode = do
+    entries <- SortedMap.toList <$> get CallbackDecls
+    unless (null entries) $ do
+        -- ffi.h location varies by platform; emit a portable include block
+        -- into the function-definitions preamble rather than using HeaderFiles.
+        -- (HeaderFiles always wraps entries in <...> which may miss ffi/ffi.h)
+        update FunctionDefinitions $ \ds =>
+            "#if __has_include(<ffi.h>)\n#include <ffi.h>\n#define IDRIS2_HAS_FFI 1\n#elif __has_include(<ffi/ffi.h>)\n#include <ffi/ffi.h>\n#define IDRIS2_HAS_FFI 1\n#else\n#define IDRIS2_HAS_FFI 0\n#endif\n" :: ds
+        emit EmptyFC "// --- callback trampolines (requires libffi when IDRIS2_HAS_FFI=1, stubs otherwise) ---"
+        traverse_ (\(key, (args, ret, hw)) => do
+            -- Forward-declare the maker so FFI wrappers (emitted before the trampolines)
+            -- can call it without an implicit declaration.
+            let isVoidRet = case ret of { CFUnit => True; CFWorld => True; _ => False }
+            let retCType  = if isVoidRet then "void" else cTypeOfCFType ret
+            let fpArgsStr = if null args then "void" else showSep ", " (map cTypeOfCFType args)
+            let makerFn   = "idris2_make_cb_" ++ key
+            let fwdDecl = "static " ++ retCType ++ " (*" ++ makerFn ++ "(Value *))(" ++ fpArgsStr ++ ");\n"
+            update FunctionDefinitions (fwdDecl ::)
+            emitOneCallback key args ret hw
+          ) entries
 
 discardLastArgument : List ty -> List ty
 discardLastArgument [] = []
 discardLastArgument xs@(_ :: _) = init xs
 
+-- Emit just the static `_refc_unimplemented` helper function (used in the
+-- `_ =>` fallback case where the full Value*-wrapper is emitted separately).
+additionalFFIHelper : Name -> List CFType -> CFType -> String
+additionalFFIHelper name argTypes (CFIORes retType) = additionalFFIHelper name (discardLastArgument argTypes) retType
+additionalFFIHelper name argTypes retType =
+    -- Give each parameter a name (_p0, _p1, …) so the definition is valid C99.
+    let params = map (\(i, t) => cTypeOfCFType t ++ " _p" ++ show i)
+                     (zipWith MkPair [0 .. length argTypes `minus` 1] argTypes)
+    in "static " ++ cTypeOfCFType retType ++
+       " " ++ cName name ++ "_refc_unimplemented(" ++
+       (concat $ intersperse ", " params) ++ ") {\n" ++
+       "  fprintf(stderr, \"ERROR: FFI function not implemented for the RefC backend:\\n" ++
+       "  %s\\n(Add a \\\"C:\\\" or \\\"RefC:\\\" %%foreign binding.)\\n\", \"" ++
+       show name ++ "\");\n" ++
+       "  exit(1);\n}\n"
+
+-- Emit the static helper plus a function pointer that can be called by name
+-- (used for non-standard FFI langs like "scheme:" where the generated wrapper
+-- calls `cName fctName` directly).
 additionalFFIStub : Name -> List CFType -> CFType -> String
 additionalFFIStub name argTypes (CFIORes retType) = additionalFFIStub name (discardLastArgument argTypes) retType
 additionalFFIStub name argTypes retType =
+    additionalFFIHelper name argTypes retType ++
     cTypeOfCFType retType ++
     " (*" ++ cName name ++ ")(" ++
-    (concat $ intersperse ", " $ map cTypeOfCFType argTypes) ++ ") = (void*)idris2_missing_ffi;\n"
+    (concat $ intersperse ", " $ map cTypeOfCFType argTypes) ++ ") = (void*)" ++ cName name ++ "_refc_unimplemented;\n"
 
 createCFunctions : {auto c : Ref Ctxt Defs}
                 -> {auto a : Ref ArgCounter Nat}
@@ -807,6 +1182,8 @@ createCFunctions : {auto c : Ref Ctxt Defs}
                 -> {auto oft : Ref OutfileText Output}
                 -> {auto il : Ref IndentLevel Nat}
                 -> {auto h : Ref HeaderFiles (SortedSet String)}
+                -> {auto sd : Ref StructDecls (SortedMap String (List (String, CFType)))}
+                -> {auto cb : Ref CallbackDecls (SortedMap String (List CFType, CFType, Bool))}
                 -> {default [] additionalFFILangs : List String}
                 -> Name
                 -> ANFDef
@@ -851,6 +1228,20 @@ createCFunctions n (MkACon tag arity nt) = do
 
 
 createCFunctions n (MkAForeign ccs fargs ret) = do
+  -- Collect CFStruct types for struct descriptor codegen (always).
+  let allStructs = foldl (\m, ft => mergeWith const m (collectCFStructs ft))
+                         empty (ret :: fargs)
+  update StructDecls (mergeWith const allStructs)
+  -- Collect CFFun types for libffi trampolines only for "C:" bindings.
+  -- "RefC:" bindings receive Value_Closure* directly and don't need libffi.
+  let isRefCBinding = case parseCC (additionalFFILangs ++ ["RefC", "C"]) ccs of
+        Just ("RefC", _) => True
+        _                => False
+  unless isRefCBinding $ do
+    let allCbs = foldl (\m, ft => mergeWith (\x, _ => x) m (collectCFFuns ft))
+                       empty (ret :: fargs)
+    update CallbackDecls (mergeWith (\x, _ => x) allCbs)
+
   case parseCC (additionalFFILangs ++ ["RefC", "C"]) ccs of
       Just (lang, fctForeignName :: extLibOpts) => do
           let cLang = if lang == "RefC"
@@ -863,6 +1254,8 @@ createCFunctions n (MkAForeign ccs fargs ret) = do
           if isStandardFFI
              then case extLibOpts of
                       [lib, header] => update HeaderFiles $ insert header
+                      -- "C:funcname, header.h" — one field, treat as header if it ends in ".h"
+                      [h] => when (isSuffixOf ".h" h) $ update HeaderFiles $ insert h
                       _ => pure ()
              else emit EmptyFC $ additionalFFIStub fctName fargs ret
           let fnDef = "Value *" ++ (cName n) ++ "(" ++ showSep ", " (replicate (length fargs) "Value *") ++ ");"
@@ -899,8 +1292,25 @@ createCFunctions n (MkAForeign ccs fargs ret) = do
 
           decreaseIndentation
           emit EmptyFC "}"
-      _ => throw $ InternalError "[refc] FFI not found for \{cName n}"
-          -- not really total but this way this internal error does not contaminate everything else
+      _ => do
+          -- No C/RefC binding found. Emit a named stub so that if the function
+          -- is called at runtime the error names the Idris function rather than
+          -- printing a generic "missing FFI" message.
+          -- Use additionalFFIHelper (not additionalFFIStub) to avoid emitting a
+          -- function pointer that would conflict with the Value* forward declaration.
+          emit EmptyFC $ additionalFFIHelper n fargs ret
+          let fnDef = "Value *" ++ (cName n) ++ "(" ++ showSep ", " (replicate (length fargs) "Value *") ++ ");"
+          update FunctionDefinitions $ \otherDefs => (fnDef ++ "\n") :: otherDefs
+          typeVarNameArgList <- createFFIArgList fargs
+          emitFDef n typeVarNameArgList
+          emit EmptyFC "{"
+          increaseIndentation
+          emit EmptyFC $ cName n ++ "_refc_unimplemented(" ++
+                         showSep ", " (map (\(_, vn, vt) => extractValue CLangC vt vn)
+                                           (discardLastArgument typeVarNameArgList)) ++ ");"
+          emit EmptyFC "return NULL;"
+          decreaseIndentation
+          emit EmptyFC "}"
 
 createCFunctions n (MkAError exp) = throw $ InternalError "[refc] Error with expression: \{show exp}"
 -- not really total but this way this internal error does not contaminate everything else
@@ -959,8 +1369,10 @@ footer = do
                         "idris2_setArgs(argc, argv);"
                         ""
           }
+          idris2_register_all_structs();
           Value *mainExprVal = __mainExpression_0();
           idris2_trampoline(mainExprVal);
+          idris2_collectCycles();
           return 0; // bye bye
       }
       """
@@ -968,6 +1380,7 @@ footer = do
 export
 generateCSourceFile : {auto c : Ref Ctxt Defs}
                    -> {default [] additionalFFILangs : List String}
+                   -> {default True withMain : Bool}
                    -> List (Name, ANFDef)
                    -> (outn : String)
                    -> Core ()
@@ -978,14 +1391,94 @@ generateCSourceFile defs outn =
      _ <- newRef OutfileText DList.Nil
      _ <- newRef HeaderFiles empty
      _ <- newRef IndentLevel 0
+     _ <- newRef StructDecls (the (SortedMap String (List (String, CFType))) empty)
+     _ <- newRef CallbackDecls (the (SortedMap String (List CFType, CFType, Bool)) empty)
      traverse_ (uncurry $ createCFunctions {additionalFFILangs}) defs
+     emitCallbackCode
+     emitStructCode (not withMain) -- modular = True when no main, False for whole-program
      header -- added after the definition traversal in order to add all encountered function defintions
-     footer
+     when withMain footer
      fileContent <- get OutfileText
      let code = fastConcat (map (++ "\n") (reify fileContent))
 
      coreLift_ $ writeFile outn code
      log "compiler.refc" 10 $ "Generated C file " ++ outn
+
+compileExprWhole : Ref Ctxt Defs
+                -> Ref Syn SyntaxInfo
+                -> (outputDir : String)
+                -> ClosedTerm
+                -> (outfile : String)
+                -> Core (Maybe String)
+compileExprWhole c s outputDir tm outfile = do
+    let outn   = outputDir </> outfile ++ ".c"
+    let outobj = outputDir </> outfile ++ ".o"
+    let outexec = outputDir </> outfile
+    coreLift_ $ mkdirAll outputDir
+    cdata <- getCompileData False ANF tm
+    let defs = anf cdata
+    generateCSourceFile defs outn
+    Just _ <- compileCObjectFile outn outobj
+      | Nothing => pure Nothing
+    compileCFile outobj outexec
+
+||| Incremental-link entry point: link all pre-compiled module .o files
+||| together with a generated main-only stub.
+compileExprInc : Ref Ctxt Defs
+              -> Ref Syn SyntaxInfo
+              -> (outputDir : String)
+              -> ClosedTerm
+              -> (outfile : String)
+              -> Core (Maybe String)
+compileExprInc c s outputDir tm outfile = do
+    defs <- get Ctxt
+    case lookup RefC (allIncData defs) of
+      Nothing => do
+        coreLift $ putStrLn "Missing incremental compile data for refc, reverting to whole program compilation"
+        compileExprWhole c s outputDir tm outfile
+      Just (mods, _) => do
+        -- Generate a tiny main-only C file that calls into the pre-compiled modules.
+        let mainCFile = outputDir </> outfile ++ "__main.c"
+        let mainOFile = outputDir </> outfile ++ "__main.o"
+        let outexec   = outputDir </> outfile
+        coreLift_ $ mkdirAll outputDir
+        let mainCode = """
+              #include <runtime.h>
+              #include <idris_support.h>
+              /* \{ generatedString "RefC" } (incremental main) */
+
+              // main function
+              int main(int argc, char *argv[])
+              {
+                  idris2_setArgs(argc, argv);
+                  Value *mainExprVal = __mainExpression_0();
+                  idris2_trampoline(mainExprVal);
+                  idris2_collectCycles();
+                  return 0;
+              }
+              """
+        Right () <- coreLift $ writeFile mainCFile mainCode
+          | Left err => throw (FileErr mainCFile err)
+        Just _ <- compileCObjectFile mainCFile mainOFile
+          | Nothing => pure Nothing
+        compileCFileInc (mainOFile :: mods) outexec
+
+||| Compile a single Idris source module to a C object file (.o) for
+||| later incremental linking.  No `main()` is emitted; structs
+||| self-register via `__attribute__((constructor))`.
+incCompile : Ref Ctxt Defs
+          -> Ref Syn SyntaxInfo
+          -> (sourceFile : String)
+          -> Core (Maybe (String, List String))
+incCompile c s sourceFile = do
+    cFile <- getTTCFileName sourceFile "c"
+    oFile <- getTTCFileName sourceFile "o"
+    cdata <- getIncCompileData False ANF
+    let defs = anf cdata
+    generateCSourceFile {withMain = False} defs cFile
+    Just _ <- compileCObjectFile cFile oFile
+      | Nothing => pure Nothing
+    pure (Just (oFile, []))
 
 export
 compileExpr : UsePhase
@@ -996,19 +1489,22 @@ compileExpr : UsePhase
            -> ClosedTerm
            -> (outfile : String)
            -> Core (Maybe String)
-compileExpr ANF c s _ outputDir tm outfile =
-  do let outn = outputDir </> outfile ++ ".c"
-     let outobj = outputDir </> outfile ++ ".o"
-     let outexec = outputDir </> outfile
-
-     coreLift_ $ mkdirAll outputDir
-     cdata <- getCompileData False ANF tm
-     let defs = anf cdata
-
-     generateCSourceFile defs outn
-     Just _ <- compileCObjectFile outn outobj
-       | Nothing => pure Nothing
-     compileCFile outobj outexec
+compileExpr ANF c s _ outputDir tm outfile = do
+    sesh <- getSession
+    if not (wholeProgram sesh) && (RefC `elem` incrementalCGs sesh)
+       then compileExprInc c s outputDir tm outfile
+       else do
+         -- Warn when the user requested refc incremental builds but the CG
+         -- was removed from incrementalCGs (most likely because the standard
+         -- libraries have not yet been compiled with IDRIS2_INC_CGS=refc).
+         mInc <- coreLift $ idrisGetEnv "IDRIS2_INC_CGS"
+         let requestedInc = maybe False (isInfixOf "refc") mInc
+         when (requestedInc && not (wholeProgram sesh)) $
+           coreLift $ putStrLn $
+             "Note [refc]: incremental compilation requested but not active. " ++
+             "The standard libraries must be compiled with IDRIS2_INC_CGS=refc " ++
+             "before per-module .o files can be used (run: make libs IDRIS2_INC_CGS=refc)."
+         compileExprWhole c s outputDir tm outfile
 
 compileExpr _ _ _ _ _ _ _ = pure Nothing
 
@@ -1025,4 +1521,4 @@ executeExpr c s tmpDir tm = do
 
 export
 codegenRefC : Codegen
-codegenRefC = MkCG (compileExpr ANF) executeExpr Nothing Nothing
+codegenRefC = MkCG (compileExpr ANF) executeExpr (Just incCompile) (Just "o")
