@@ -3,6 +3,7 @@ module TTImp.ProcessFnOpt
 import Core.Context.Log
 import Core.Env
 import Core.Normalise
+import Core.Options
 import Core.Value
 
 import TTImp.TTImp
@@ -35,15 +36,18 @@ processFnOpt : {auto c : Ref Ctxt Defs} ->
                FC -> Bool -> -- ^ top level name?
                Name -> FnOpt -> Core ()
 processFnOpt fc _ ndef Unsafe
-    = do setIsEscapeHatch fc ndef
+    = do opts <- getSession
+         when opts.safeMode $
+           throw (SafeModuleViolation fc "%unsafe is not permitted in a safe module")
+         setIsEscapeHatch fc ndef
 processFnOpt fc _ ndef Inline
     = do throwIfHasFlag fc ndef NoInline "%noinline and %inline are mutually exclusive"
          setFlag fc ndef Inline
 processFnOpt fc _ ndef NoInline
     = do throwIfHasFlag fc ndef Inline "%inline and %noinline are mutually exclusive"
          setFlag fc ndef NoInline
-processFnOpt fc _ ndef Deprecate
-    = setFlag fc ndef Deprecate
+processFnOpt fc _ ndef (Deprecate msg)
+    = setFlag fc ndef (Deprecate msg)
 processFnOpt fc _ ndef TCInline
     = setFlag fc ndef TCInline
 processFnOpt fc True ndef (Hint d)

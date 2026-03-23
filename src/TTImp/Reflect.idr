@@ -279,7 +279,11 @@ mutual
                (UN (Basic "Inline"), _) => pure Inline
                (UN (Basic "Unsafe"), _) => pure Unsafe
                (UN (Basic "NoInline"), _) => pure NoInline
-               (UN (Basic "Deprecate"), _) => pure Deprecate
+               (UN (Basic "Deprecate"), args) =>
+                 do msg <- case args of
+                              [(_, x)] => Just <$> reify defs !(evalClosure defs x)
+                              _ => pure Nothing
+                    pure (Deprecate msg)
                (UN (Basic "TCInline"), _) => pure TCInline
                (UN (Basic "Hint"), [(_, x)])
                     => do x' <- reify defs !(evalClosure defs x)
@@ -667,7 +671,9 @@ mutual
     reflect fc defs lhs env Unsafe = getCon fc defs (reflectionttimp "Unsafe")
     reflect fc defs lhs env Inline = getCon fc defs (reflectionttimp "Inline")
     reflect fc defs lhs env NoInline = getCon fc defs (reflectionttimp "NoInline")
-    reflect fc defs lhs env Deprecate = getCon fc defs (reflectionttimp "Deprecate")
+    reflect fc defs lhs env (Deprecate msg)
+        = do msg' <- reflect fc defs lhs env msg
+             appCon fc defs (reflectionttimp "Deprecate") [msg']
     reflect fc defs lhs env TCInline = getCon fc defs (reflectionttimp "TCInline")
     reflect fc defs lhs env (Hint x)
         = do x' <- reflect fc defs lhs env x

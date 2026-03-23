@@ -30,7 +30,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapFnOpt Unsafe = Unsafe
   mapFnOpt Inline = Inline
   mapFnOpt NoInline = NoInline
-  mapFnOpt Deprecate = Deprecate
+  mapFnOpt (Deprecate msg) = Deprecate msg
   mapFnOpt TCInline = TCInline
   mapFnOpt (Hint b) = Hint b
   mapFnOpt (GlobalHint b) = GlobalHint b

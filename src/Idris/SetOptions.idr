@@ -550,6 +550,9 @@ preOptions (ZshCompletionScript fun :: _)
 preOptions (Total :: opts)
     = do updateSession ({ totalReq := Total })
          preOptions opts
+preOptions (Safe :: opts)
+    = do updateSession ({ safeMode := True })
+         preOptions opts
 preOptions (NoCSE :: opts)
     = do updateSession ({ noCSE := True })
          preOptions opts

@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_03_22_00  -- UnivLevel introduced in TType/NType (feature/universe-hierarchy)
+ttcVersion = 2026_03_22_01  -- isSafe field added to TTCFile (feat/safe-mode)
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -36,6 +36,7 @@ record TTCFile extra where
   constructor MkTTCFile
   version : Int
   totalReq : TotalReq
+  isSafe : Bool
   sourceHash : Maybe String
   ifaceHash : Int
   importHashes : List (Namespace, Int)
@@ -90,14 +91,14 @@ HasNames (Name, Name, Bool) where
   resolved c (n1, n2, b) = pure (!(resolved c n1), !(resolved c n2), b)
 
 HasNames e => HasNames (TTCFile e) where
-  full gam (MkTTCFile version totalReq sourceHash ifaceHash iHashes incData
+  full gam (MkTTCFile version totalReq isSafe sourceHash ifaceHash iHashes incData
                       context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames foreignImpl
                       namedirectives cgdirectives trans
                       fexp extra)
-      = pure $ MkTTCFile version totalReq sourceHash ifaceHash iHashes incData
+      = pure $ MkTTCFile version totalReq isSafe sourceHash ifaceHash iHashes incData
                          context userHoles
                          !(traverse (full gam) autoHints)
                          !(traverse (full gam) typeHints)
@@ -138,14 +139,14 @@ HasNames e => HasNames (TTCFile e) where
   -- I don't think we ever actually want to call this, because after we read
   -- from the file we're going to add them to learn what the resolved names
   -- are supposed to be! But for completeness, let's do it right.
-  resolved gam (MkTTCFile version totalReq sourceHash ifaceHash iHashes incData
+  resolved gam (MkTTCFile version totalReq isSafe sourceHash ifaceHash iHashes incData
                       context userHoles
                       autoHints typeHints
                       imported nextVar currentNS nestedNS
                       pairnames rewritenames primnames foreignImpl
                       namedirectives cgdirectives trans
                       fexp extra)
-      = pure $ MkTTCFile version totalReq sourceHash ifaceHash iHashes incData
+      = pure $ MkTTCFile version totalReq isSafe sourceHash ifaceHash iHashes incData
                          context userHoles
                          !(traverse (resolved gam) autoHints)
                          !(traverse (resolved gam) typeHints)
@@ -193,6 +194,7 @@ writeTTCFile b file_in
            toBuf "TT2"
            toBuf @{Wasteful} (version file)
            toBuf (totalReq file)
+           toBuf (isSafe file)
            toBuf (sourceHash file)
            toBuf (ifaceHash file)
            toBuf (importHashes file)
@@ -226,6 +228,7 @@ readTTCFile readall file as b
            ver <- fromBuf @{Wasteful}
            checkTTCVersion file ver ttcVersion
            totalReq <- fromBuf
+           isSafe <- fromBuf
            sourceFileHash <- fromBuf
            ifaceHash <- fromBuf
            importHashes <- fromBuf
@@ -233,7 +236,7 @@ readTTCFile readall file as b
            imp <- fromBuf
            ex <- fromBuf
            if not readall
-              then pure (MkTTCFile ver totalReq
+              then pure (MkTTCFile ver totalReq isSafe
                                    sourceFileHash ifaceHash importHashes
                                    incData [] [] [] [] []
                                    0 (mkNamespace "") [] Nothing
@@ -256,7 +259,7 @@ readTTCFile readall file as b
                  cgds <- fromBuf
                  trans <- fromBuf
                  fexp <- fromBuf
-                 pure (MkTTCFile ver totalReq
+                 pure (MkTTCFile ver totalReq isSafe
                                  sourceFileHash ifaceHash importHashes incData
                                  (map (replaceNS cns) defs) uholes
                                  autohs typehs imp nextv cns nns
@@ -307,8 +310,9 @@ writeToTTC extradata sourceFileName ttcFileName
            , "with source hash", show sourceHash
            , "and interface hash", show (ifaceHash defs)
            ]
+         session <- getSession
          writeTTCFile bin
-                   (MkTTCFile ttcVersion totalReq
+                   (MkTTCFile ttcVersion totalReq session.safeMode
                               sourceHash
                               (ifaceHash defs) (importHashes defs)
                               (incData defs)
@@ -532,7 +536,8 @@ readFromTTC nestedns loc reexp fname modNS importAs
           || alreadyDone modns importAs rest
 
 -- Implements a portion of @readTTCFile@. The fields must be read in order.
--- This reads everything up to and including `totalReq`.
+-- This reads everything up to and including `totalReq` (also consumes `isSafe`
+-- so that callers are positioned at `sourceHash`).
 export
 getTotalReq : String -> Ref Bin Binary -> Core TotalReq
 getTotalReq file b
@@ -541,7 +546,9 @@ getTotalReq file b
            corrupt ("TTC header in " ++ file ++ " " ++ show hdr)
          ver <- fromBuf @{Wasteful}
          checkTTCVersion file ver ttcVersion
-         fromBuf -- `totalReq`
+         req <- fromBuf -- `totalReq`
+         ignore (fromBuf {a = Bool}) -- `isSafe`
+         pure req
 
 -- Implements a portion of @readTTCFile@. The fields must be read in order.
 -- This reads everything up to and including `interfaceHash`.

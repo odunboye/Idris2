@@ -62,6 +62,26 @@ should target this file (`CHANGELOG_NEXT`).
 
 ### Compiler changes
 
+* `%deprecate` now accepts an optional custom message string:
+  ```idris
+  %deprecate "use newFoo instead"
+  oldFoo : Nat
+  ```
+  When a custom message is supplied, it replaces the generic
+  "X is deprecated and will be removed in a future version." text in the
+  compiler warning and in `:doc` output. Bare `%deprecate` (no message)
+  retains the existing behaviour unchanged.
+
+* Added `--safe` CLI flag and `%safe` module pragma that ban unsafe
+  primitives from the current compilation unit:
+  - `believe_me`, `prim__believe_me`
+  - `assert_total`, `assert_smaller`
+  - `%unsafe`-annotated definitions
+  - `unsafePerformIO`
+
+  Using any of these in a `%safe` module (or when `--safe` is passed) raises
+  a `SafeModuleViolation` error at the use site.
+
 * Fixed missing handling of dotted patterns See
   [#3669](https://github.com/idris-lang/Idris2/issues/3669),
   [comment](https://github.com/idris-lang/Idris2/issues/3644#issuecomment-3286320272).

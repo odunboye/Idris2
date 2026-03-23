@@ -103,7 +103,7 @@ mutual
   data FnOpt : Type where
        Inline : FnOpt
        NoInline : FnOpt
-       Deprecate : FnOpt
+       Deprecate : Maybe String -> FnOpt
        TCInline : FnOpt
        -- Flag means the hint is a direct hint, not a function which might
        -- find the result (e.g. chasing parent interface dictionaries)
@@ -400,7 +400,7 @@ parameters {auto eqTTImp : Eq TTImp}
   Eq FnOpt where
     Inline == Inline = True
     NoInline == NoInline = True
-    Deprecate == Deprecate = True
+    (Deprecate x) == (Deprecate y) = x == y
     TCInline == TCInline = True
     Hint b == Hint b' = b == b'
     GlobalHint b == GlobalHint b' = b == b'
@@ -795,7 +795,7 @@ parameters (f : TTImp -> TTImp)
   mapFnOpt : FnOpt -> FnOpt
   mapFnOpt Inline = Inline
   mapFnOpt NoInline = NoInline
-  mapFnOpt Deprecate = Deprecate
+  mapFnOpt (Deprecate msg) = Deprecate msg
   mapFnOpt TCInline = TCInline
   mapFnOpt (Hint b) = Hint b
   mapFnOpt (GlobalHint b) = GlobalHint b
@@ -919,7 +919,7 @@ parameters {0 m : Type -> Type} {auto apl : Applicative m} (f : (original : TTIm
   mapMFnOpt : FnOpt -> m FnOpt
   mapMFnOpt Inline = pure Inline
   mapMFnOpt NoInline = pure NoInline
-  mapMFnOpt Deprecate = pure Deprecate
+  mapMFnOpt (Deprecate msg) = pure (Deprecate msg)
   mapMFnOpt TCInline = pure TCInline
   mapMFnOpt (Hint b) = pure (Hint b)
   mapMFnOpt (GlobalHint b) = pure (GlobalHint b)
