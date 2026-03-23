@@ -1,1 +1,12 @@
 1/1: Building IrrelevantBinder (IrrelevantBinder.idr)
+1/1: Building IrrelevantEnforce (IrrelevantEnforce.idr)
+Error: While processing right hand side of bad. x is not accessible in this context.
+
+IrrelevantEnforce:6:9--6:10
+ 2 |
+ 3 | -- Attempting to use an irrelevant argument in a relevant (value) position
+ 4 | -- must be rejected with "not accessible in this context"
+ 5 | bad : .(x : Nat) -> Nat
+ 6 | bad x = x
+             ^
+
