@@ -23,7 +23,11 @@ data PiInfo t =
   ||| Default Pi types (e.g. {default True flag : Bool} -> ...)
   ||| The argument is set to the default value if nothing is
   ||| passed explicitly
-  DefImplicit t
+  DefImplicit t |
+  ||| Irrelevant Pi types (e.g. .(x : A) -> ...)
+  ||| The argument is logically irrelevant: erased at runtime and
+  ||| cannot be used in computationally relevant positions.
+  Irrelevant
 
 %name PiInfo pinfo
 
@@ -33,6 +37,11 @@ namespace PiInfo
   isImplicit : PiInfo t -> Bool
   isImplicit Explicit = False
   isImplicit _ = True
+
+  export
+  isIrrelevant : PiInfo t -> Bool
+  isIrrelevant Irrelevant = True
+  isIrrelevant _ = False
 
 ||| Heterogeneous equality, provided an heterogeneous equality
 ||| of default values
@@ -45,6 +54,7 @@ eqPiInfoBy eqT = go where
   go Explicit Explicit = True
   go AutoImplicit AutoImplicit = True
   go (DefImplicit t) (DefImplicit t') = eqT t t'
+  go Irrelevant Irrelevant = True
   go _ _ = False
 
 -- There's few places where we need the default - it's just when checking if
@@ -56,6 +66,7 @@ forgetDef Explicit = Explicit
 forgetDef Implicit = Implicit
 forgetDef AutoImplicit = AutoImplicit
 forgetDef (DefImplicit t) = Implicit
+forgetDef Irrelevant = Irrelevant
 
 export
 Show t => Show (PiInfo t) where
@@ -63,6 +74,7 @@ Show t => Show (PiInfo t) where
   show Explicit = "Explicit"
   show AutoImplicit = "AutoImplicit"
   show (DefImplicit t) = "DefImplicit " ++ show t
+  show Irrelevant = "Irrelevant"
 
 export
 Eq t => Eq (PiInfo t) where
@@ -187,6 +199,7 @@ Functor PiInfo where
   map func Implicit = Implicit
   map func AutoImplicit = AutoImplicit
   map func (DefImplicit t) = (DefImplicit (func t))
+  map func Irrelevant = Irrelevant
 
 export
 Foldable PiInfo where
@@ -194,6 +207,7 @@ Foldable PiInfo where
   foldr f acc Explicit = acc
   foldr f acc AutoImplicit = acc
   foldr f acc (DefImplicit x) = f x acc
+  foldr f acc Irrelevant = acc
 
 export
 Traversable PiInfo where
@@ -201,6 +215,7 @@ Traversable PiInfo where
   traverse f Explicit = pure Explicit
   traverse f AutoImplicit = pure AutoImplicit
   traverse f (DefImplicit x) = map DefImplicit (f x)
+  traverse f Irrelevant = pure Irrelevant
 
 export
 Functor PiBindData where

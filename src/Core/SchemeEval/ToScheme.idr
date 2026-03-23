@@ -115,6 +115,7 @@ toSchemePi Implicit = IntegerVal 0
 toSchemePi Explicit = IntegerVal 1
 toSchemePi AutoImplicit = IntegerVal 2
 toSchemePi (DefImplicit s) = Box s
+toSchemePi Irrelevant = IntegerVal 4
 
 export
 toSchemeWhy : WhyErased (SchemeObj Write) -> SchemeObj Write

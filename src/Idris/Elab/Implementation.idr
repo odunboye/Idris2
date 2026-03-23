@@ -347,6 +347,8 @@ elabImplementation {vars} ifc vis opts_in pass env nest is cons iname ps named i
         = applyTo (INamedApp EmptyFC tm x (IVar EmptyFC x)) xs
     applyTo tm ((x, c, DefImplicit _) :: xs)
         = applyTo (INamedApp EmptyFC tm x (IVar EmptyFC x)) xs
+    applyTo tm ((x, c, Irrelevant) :: xs)
+        = applyTo (INamedApp EmptyFC tm x (IVar EmptyFC x)) xs
 
     -- When applying the method in the field for the record, eta expand
     -- the expected arguments based on the field type, so that implicits get

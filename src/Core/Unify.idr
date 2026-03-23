@@ -525,6 +525,7 @@ tryInstantiate {newvars} loc mode env mname mref num mdef locs otm tm
         updateIVarsPi ivs (DefImplicit t)
             = do t' <- updateIVars ivs t
                  Just (DefImplicit t')
+        updateIVarsPi ivs Irrelevant = Just Irrelevant
 
         updateIVarsB : {vs, newvars : _} ->
                        IVars vs newvars -> Binder (Term newvars) -> Maybe (Binder (Term vs))
@@ -1043,6 +1044,7 @@ mutual
   unifyPiInfo mode loc env Implicit Implicit = pure $ Just success
   unifyPiInfo mode loc env AutoImplicit AutoImplicit = pure $ Just success
   unifyPiInfo mode loc env (DefImplicit x) (DefImplicit y) = Just <$> unify mode loc env x y
+  unifyPiInfo mode loc env Irrelevant Irrelevant = pure $ Just success
   unifyPiInfo mode loc env _ _ = pure Nothing
 
   unifyBothBinders: {auto c : Ref Ctxt Defs} ->

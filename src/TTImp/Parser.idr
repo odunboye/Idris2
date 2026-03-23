@@ -243,7 +243,8 @@ mutual
               RawImp -> RawImp
   pibindAll fc p [] scope = scope
   pibindAll fc p (ty :: rest) scope
-           = IPi fc ty.rig p (map val ty.mName) ty.val (pibindAll fc p rest scope)
+           = let effRig = case p of { Irrelevant => erased; _ => ty.rig }
+             in IPi fc effRig p (map val ty.mName) ty.val (pibindAll fc p rest scope)
 
   bindList : OriginDesc -> FilePos -> IndentInfo ->
              Rule (List (RigCount, Name, RawImp))
@@ -297,6 +298,18 @@ mutual
            scope <- typeExpr fname indents
            end <- location
            pure (pibindAll (MkFC fname start end) AutoImplicit binders scope)
+
+  irrelevantPi : OriginDesc -> IndentInfo -> Rule RawImp
+  irrelevantPi fname indents
+      = do start <- location
+           symbol ".("
+           commit
+           binders <- pibindList fname start indents
+           symbol ")"
+           symbol "->"
+           scope <- typeExpr fname indents
+           end <- location
+           pure (pibindAll (MkFC fname start end) Irrelevant binders scope)
 
   forall_ : OriginDesc -> IndentInfo -> Rule RawImp
   forall_ fname indents
@@ -468,6 +481,7 @@ mutual
   binder : OriginDesc -> IndentInfo -> Rule RawImp
   binder fname indents
       = autoImplicitPi fname indents
+    <|> irrelevantPi fname indents
     <|> forall_ fname indents
     <|> implicitPi fname indents
     <|> explicitPi fname indents

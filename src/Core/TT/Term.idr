@@ -554,6 +554,7 @@ withPiInfo Explicit tm = "(" ++ tm ++ ")"
 withPiInfo Implicit tm = "{" ++ tm ++ "}"
 withPiInfo AutoImplicit tm = "{auto " ++ tm ++ "}"
 withPiInfo (DefImplicit t) tm = "{default " ++ show t ++ " " ++ tm ++ "}"
+withPiInfo Irrelevant tm = ".(" ++ tm ++ ")"
 
 export
 covering

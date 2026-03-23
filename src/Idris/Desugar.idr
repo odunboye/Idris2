@@ -322,7 +322,9 @@ mutual
           = desugarB side ctx scope
         desugarMultiBinder ctx (name :: xs)
           = let extendedCtx = name.val :: ps
-            in IPi binder.fc rig
+                -- Irrelevant Pi always uses erased rig regardless of annotation
+                effRig = case info of { Irrelevant => erased; _ => rig }
+            in IPi binder.fc effRig
               <$> mapDesugarPiInfo extendedCtx info
               <*> (pure (Just name.val))
               <*> desugarB side ps type

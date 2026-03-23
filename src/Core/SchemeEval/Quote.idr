@@ -26,6 +26,7 @@ mutual
   quotePi q bound env (DefImplicit t)
       = do t' <- quoteGen q bound env t
            pure (DefImplicit t')
+  quotePi q bound env Irrelevant = pure Irrelevant
 
   quoteBinder : {auto c : Ref Ctxt Defs} ->
                 {bound, free : _} ->

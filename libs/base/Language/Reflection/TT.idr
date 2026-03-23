@@ -268,7 +268,7 @@ showCount M1 s = "1 \{s}"
 showCount MW s = s
 
 public export
-data PiInfo t = ImplicitArg | ExplicitArg | AutoImplicit | DefImplicit t
+data PiInfo t = ImplicitArg | ExplicitArg | AutoImplicit | DefImplicit t | IrrelevantArg
 %name PiInfo pinfo
 
 public export
@@ -277,6 +277,7 @@ Functor PiInfo where
   map f ExplicitArg     = ExplicitArg
   map f AutoImplicit    = AutoImplicit
   map f $ DefImplicit x = DefImplicit $ f x
+  map f IrrelevantArg   = IrrelevantArg
 
 export
 showPiInfo : Show a => {default True wrapExplicit : Bool} -> PiInfo a -> String -> String
@@ -284,6 +285,7 @@ showPiInfo ImplicitArg s = "{\{s}}"
 showPiInfo ExplicitArg s = if wrapExplicit then "(\{s})" else s
 showPiInfo AutoImplicit s = "{auto \{s}}"
 showPiInfo (DefImplicit t) s = "{default \{assert_total $ showPrec App t} \{s}}"
+showPiInfo IrrelevantArg s = ".\{s}"
 
 public export
 data IsVar : Name -> Nat -> List Name -> Type where

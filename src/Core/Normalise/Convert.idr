@@ -63,6 +63,7 @@ tryUpdate ms (Bind fc x b sc)
     tryUpdatePi Implicit = pure Implicit
     tryUpdatePi AutoImplicit = pure AutoImplicit
     tryUpdatePi (DefImplicit t) = pure $ DefImplicit !(tryUpdate ms t)
+    tryUpdatePi Irrelevant = pure Irrelevant
 
     tryUpdateB : Binder (Term vars) -> Maybe (Binder (Term vars'))
     tryUpdateB (Lam fc r p t) = pure $ Lam fc r !(tryUpdatePi p) !(tryUpdate ms t)
@@ -320,6 +321,7 @@ mutual
   convPiInfo q i defs env Explicit Explicit = pure True
   convPiInfo q i defs env AutoImplicit AutoImplicit = pure True
   convPiInfo q i defs env (DefImplicit x) (DefImplicit y) = convGen q i defs env x y
+  convPiInfo q i defs env Irrelevant Irrelevant = pure True
   convPiInfo q i defs env _ _ = pure False
 
   convBinders : {auto c : Ref Ctxt Defs} ->
