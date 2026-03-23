@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_03_22_01  -- isSafe field added to TTCFile (feat/safe-mode)
+ttcVersion = 2026_03_22_02  -- Irrelevant added to PiInfo; isSafe in TTCFile
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()

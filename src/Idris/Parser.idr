@@ -737,6 +737,22 @@ mutual
            pure (MkPBinderScope b.val scope)
            )
 
+  ||| Irrelevant pi-type: argument is erased at runtime and logically irrelevant
+  ||| BNF:
+  ||| irrelevantPi := '.(' pibindListName ')' '->' typeExpr
+  irrelevantPi : OriginDesc -> IndentInfo -> Rule PTerm
+  irrelevantPi fname indents
+      = NewPi <$> fcBounds (do
+           decoratedSymbol fname ".("
+           commit
+           b <- bounds $ pibindListName fname indents
+           decoratedSymbol fname ")"
+           mustWorkBecause b.bounds "Cannot return an irrelevant argument"
+             $ decoratedSymbol fname "->"
+           scope <- mustWork $ typeExpr pdef fname indents
+           pure (MkPBinderScope (MkPBinder Irrelevant b.val) scope)
+           )
+
   ||| Forall definition that automatically binds the names
   ||| BNF:
   ||| forall_ := 'forall' name (, name)* '.' typeExpr
@@ -1026,6 +1042,7 @@ mutual
   binder fname indents
       = autoImplicitPi fname indents
     <|> defaultImplicitPi fname indents
+    <|> irrelevantPi fname indents
     <|> forall_ fname indents
     <|> implicitPi fname indents
     <|> autobindOp pdef fname indents

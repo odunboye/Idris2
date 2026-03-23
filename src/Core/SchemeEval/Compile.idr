@@ -173,6 +173,7 @@ compilePiInfo svs AutoImplicit = pure AutoImplicit
 compilePiInfo svs (DefImplicit t)
     = do t' <- compileStk svs [] t
          pure (DefImplicit t')
+compilePiInfo svs Irrelevant = pure Irrelevant
 
 compileWhyErased : Ref Sym Integer =>
                 {auto c : Ref Ctxt Defs} ->

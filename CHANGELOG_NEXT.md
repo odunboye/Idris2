@@ -82,6 +82,13 @@ should target this file (`CHANGELOG_NEXT`).
   Using any of these in a `%safe` module (or when `--safe` is passed) raises
   a `SafeModuleViolation` error at the use site.
 
+* Added irrelevant Pi binders (`.(x : A) -> B` syntax). Arguments marked with
+  `.(...)` are erased at runtime (like `{0 x : A} -> B`) and logically
+  irrelevant — they cannot appear in computationally relevant positions. This
+  extends `PiInfo` with a new `Irrelevant` constructor and propagates through
+  elaboration, TTC serialisation, normalisation, and reflection.
+  See `Language.Reflection.TT.PiInfo.IrrelevantArg`.
+
 * Fixed missing handling of dotted patterns See
   [#3669](https://github.com/idris-lang/Idris2/issues/3669),
   [comment](https://github.com/idris-lang/Idris2/issues/3644#issuecomment-3286320272).

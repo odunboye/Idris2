@@ -369,6 +369,7 @@ Eq a => Eq (PiInfo a) where
   ExplicitArg   == ExplicitArg = True
   AutoImplicit  == AutoImplicit = True
   DefImplicit t == DefImplicit t' = t == t'
+  IrrelevantArg == IrrelevantArg = True
   _ == _ = False
 
 parameters {auto eqTTImp : Eq TTImp}
@@ -715,6 +716,7 @@ fromPiInfo fc ImplicitArg (Just nm) a = pure (NamedArg fc nm a)
 fromPiInfo fc ExplicitArg _ a = pure (Arg fc a)
 fromPiInfo fc AutoImplicit _ a = pure (AutoArg fc a)
 fromPiInfo fc (DefImplicit _) (Just nm) a = pure (NamedArg fc nm a)
+fromPiInfo fc IrrelevantArg (Just nm) a = pure (NamedArg fc nm a)
 fromPiInfo _ _ _ _ = Nothing
 
 public export
@@ -779,6 +781,7 @@ parameters (f : TTImp -> TTImp)
   mapPiInfo ExplicitArg = ExplicitArg
   mapPiInfo AutoImplicit = AutoImplicit
   mapPiInfo (DefImplicit t) = DefImplicit (mapTTImp t)
+  mapPiInfo IrrelevantArg = IrrelevantArg
 
   public export
   mapClause : Clause -> Clause
@@ -897,6 +900,7 @@ parameters {0 m : Type -> Type} {auto apl : Applicative m} (f : (original : TTIm
   mapMPiInfo ExplicitArg = pure ExplicitArg
   mapMPiInfo AutoImplicit = pure AutoImplicit
   mapMPiInfo (DefImplicit t) = DefImplicit <$> mapATTImp' t
+  mapMPiInfo IrrelevantArg = pure IrrelevantArg
 
   public export
   mapMClause : Clause -> m Clause

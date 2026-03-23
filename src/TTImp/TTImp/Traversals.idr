@@ -17,6 +17,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapPiInfo Explicit = Explicit
   mapPiInfo AutoImplicit = AutoImplicit
   mapPiInfo (DefImplicit t) = DefImplicit (mapTTImp t)
+  mapPiInfo Irrelevant = Irrelevant
 
   export
   mapImpClause : ImpClause' nm -> ImpClause' nm

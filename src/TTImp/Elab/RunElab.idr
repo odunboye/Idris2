@@ -260,6 +260,7 @@ elabScript rig fc nest env script@(NDCon nfc nm t ar args) exp
          quotePi Implicit = pure Implicit
          quotePi AutoImplicit = pure AutoImplicit
          quotePi (DefImplicit t) = failWith defs "Can't add default lambda"
+         quotePi Irrelevant = pure Irrelevant
     elabCon defs "Goal" []
         = do let Just gty = exp
                  | Nothing => nfOpts withAll defs env

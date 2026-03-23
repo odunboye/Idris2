@@ -1,0 +1,4 @@
+. ../../../testutils.sh
+
+check IrrelevantBinder.idr
+check IrrelevantEnforce.idr
