@@ -2,3 +2,5 @@
 
 check IrrelevantBinder.idr
 check IrrelevantEnforce.idr
+check IrrelevantLambda.idr
+check SquashExtract.idr

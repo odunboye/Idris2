@@ -799,14 +799,30 @@ mutual
 
   lam : OriginDesc -> IndentInfo -> Rule PTerm
   lam fname indents
-      = do decoratedSymbol fname "\\"
+      = (do -- Irrelevant lambda: \.(x : A) => body
+            -- The lexer combines \ and . into a single "\." token since both are
+            -- isOpChar, so we must match "\\." as one unit here, then "(" separately.
+            decoratedSymbol fname "\\."
+            commit
+            decoratedSymbol fname "("
+            b <- bounds $ pibindListName fname indents
+            decoratedSymbol fname ")"
+            commitSymbol fname "=>"
+            mustContinue indents Nothing
+            scope <- typeExpr pdef fname indents
+            pure $ foldr (bindIrrelLam b.val.type) scope (forget b.val.names))
+    <|> do decoratedSymbol fname "\\"
            commit
            switch <- optional (bounds $ decoratedKeyword fname "case")
            case switch of
-             Nothing => continueLamImpossible <|> continueLamIrrel <|> continueLam
+             Nothing => continueLamImpossible <|> continueLam
              Just r  => continueLamCase r
 
      where
+       bindIrrelLam : PTerm -> WithFC Name -> PTerm -> PTerm
+       bindIrrelLam ty nm sc =
+         PLam nm.fc erased Irrelevant (PRef nm.fc nm.val) ty sc
+
        continueLamImpossible : Rule PTerm
        continueLamImpossible = do
            lhs <- bounds (opExpr plhs fname indents)
@@ -819,21 +835,6 @@ mutual
              (PLam fcCase top Explicit (PRef fcCase n) (PInfer fcCase) $
                  PCase (virtualiseFC fc) [] (PRef fcCase n) [alt]))
 
-       ||| Irrelevant lambda binder: \ .(name : type) => scope
-       continueLamIrrel : Rule PTerm
-       continueLamIrrel = do
-           decoratedSymbol fname ".("
-           commit
-           b <- bounds $ pibindListName fname indents
-           decoratedSymbol fname ")"
-           commitSymbol fname "=>"
-           mustContinue indents Nothing
-           scope <- typeExpr pdef fname indents
-           pure $ foldr (bindIrrelLam b.val.type) scope (forget b.val.names)
-         where
-           bindIrrelLam : PTerm -> WithFC Name -> PTerm -> PTerm
-           bindIrrelLam ty nm sc =
-             PLam nm.fc erased Irrelevant (PRef nm.fc nm.val) ty sc
 
        bindAll : List (RigCount, WithBounds PTerm, PTerm) -> PTerm -> PTerm
        bindAll [] scope = scope

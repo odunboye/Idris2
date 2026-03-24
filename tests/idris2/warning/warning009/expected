@@ -11,3 +11,16 @@ IrrelevantEnforce:6:9--6:10
              ^
 
 Hint: variables bound by .(x : A) -> B are logically irrelevant and may only appear in erased positions.
+1/1: Building IrrelevantLambda (IrrelevantLambda.idr)
+1/1: Building SquashExtract (SquashExtract.idr)
+Error: While processing right hand side of extract. Irrelevant variable x cannot be used in a computationally relevant position.
+
+SquashExtract:10:24--10:25
+ 06 | -- position must be rejected by the IrrelevantUsed check.
+ 07 | -- MkSquash binds its argument as irrelevant (.(x : a)), so x cannot
+ 08 | -- appear in the return value of a function with a non-squash return type.
+ 09 | extract : ‖a‖ -> a
+ 10 | extract (MkSquash x) = x
+                             ^
+
+Hint: variables bound by .(x : A) -> B are logically irrelevant and may only appear in erased positions.
