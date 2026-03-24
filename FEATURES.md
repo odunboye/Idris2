@@ -1,0 +1,338 @@
+# Idris 2 — Features Roadmap for Developer Productivity
+
+Ordered by practical impact for developers shipping software.
+Status reflects current state as of March 2026.
+
+| Priority | Feature | Current State | What's Needed | Practical Impact | Dependencies | Status |
+|---|---|---|---|---|---|---|
+| 1 | **Mature editor automation** | Inconsistent LSP | Reliable case split, refine, goal context across all editors | Biggest day-to-day productivity gain | None | Backlog |
+| 2 | **Interactive elaborator hints** | LSP exposes hole types but provides no fill candidates; no ranked completions, no refine-from-context, no applicable-tactic suggestions | (1) `getHintCandidates : TTImp -> Elab (List (Name, TTImp))` — enumerate in-scope definitions whose return type unifies with goal; (2) LSP `textDocument/completion` on `?hole` returns ranked results: `exact candidate`, `apply candidate ?_`; (3) ranking by unification quality, `%hint`-annotated defs first, import distance; (4) refine action: `f : A -> B` with goal `B` → suggest `f ?_` and focus cursor on hole; (5) tactic hints (row 20): applicable tactics by goal shape | Type-driven development's core loop dramatically faster — finding the right function no longer requires manual search; makes Lean 4-style infoview available in Idris; highest daily ROI for newcomers and experts; synergises with every feature that adds library functions | Row 1 (mature LSP) for delivery; row 7 (proof search) feeds in as automated tier; row 20 (first-class tactics) for tactic-level suggestions; `getHintCandidates` can land in elaborator independently of LSP work | Backlog |
+| 3 | **Interactive type-directed search** | `:browse` shows a namespace; `:apropos` is string-based; no Hoogle-style type query; no cross-package type search; interactive hints (row 2) fill holes in context — type-directed search is a standing discovery query | (1) `searchByType : TTImp -> Elab (List (Name, TTImp))` — unification-based lookup across all imported modules, scoring by match quality; shares core with `getHintCandidates` (row 2); (2) REPL `:search TYPE` command in `Idris/REPL/REPL.idr`: parses type expression, invokes `searchByType`, displays ranked results; (3) approximate matching: treat free variables in query as wildcards — `(a -> b) -> f a -> f b` finds `map`, `fmap`, `traverse`; (4) LSP "search by type" code action; (5) cross-package index built at pack install time for whole-ecosystem search | The Hoogle moment for Idris — library API discovery via type query; in a dependently typed language types are more expressive so results are more precise; newcomer onboarding ("I have `List (Maybe a)`, what can I do with it?"); every function added to the stdlib (row 4) becomes instantly discoverable | Row 1 (mature LSP) for editor integration; REPL `:search` has no dependencies and can land immediately; shares `searchByType` core with row 2 (interactive hints) | Backlog |
+| 4 | **Expanded stdlib** | Growing but thin | More data structures, algorithms, HTTP, JSON, crypto primitives | Less reinventing the wheel per project | None | Backlog |
+| 5 | **Mixfix operators** | Infix only | Allow `_` anywhere in operator name: `if_then_else_`, `⟦_⟧`, `_!` | Cleaner DSLs; domain code reads like the problem domain | None | Backlog |
+| 6 | **Display forms** | None — `Resugar.idr` is automatic with no user control | `%display lhs = rhs` pragma; match against display form table in `Resugar.idr` before falling back to raw term; serialise per module in TTC | Multiplies value of mixfix operators — errors show `if c then t else f` not `if_then_else_ c t f`; hides internal representations in error messages; essential for DSL legibility | None (pairs naturally with mixfix, row 5) | Backlog |
+| 7 | **Stronger proof search (Agsy-equivalent)** | `%search` exists but shallow — no splitting, no hint database, fails on non-trivial goals; LSP `auto` fill equally limited | (1) Extend `TTImp/Elab/Search.idr` with case-splitting loop: when goal stuck, split on a local variable and retry per branch — the key missing step vs current; (2) `%hint` pragma registering definitions as search candidates, stored in `SyntaxInfo`; (3) `%search_depth N` per-call-site depth control; (4) library search respecting `export` visibility of imports | Eliminates manual proof writing for goals obvious by type — `refl`/`Refl`, trivial equalities, `Functor`/`Monad` instance obligations, inductive steps with structurally obvious recursive cases; high ROI for verified/library code | None | Backlog |
+| 8 | **Selective / renaming imports** | All-or-nothing import; namespace alias only (`import M as N`) | `import M (f, g)` selective; `import M hiding (f)`; `import M (f as g)` renaming; `import public M (f as g)` selective re-export; extends `Import` record + parser + name resolution in `ProcessIdr.idr` | Eliminates ambiguity explosions when two modules export `map`/`encode`/`Request`; enables API curation on re-export; daily pain point in any multi-library project including Flux | None | Backlog |
+| 9 | **Multi-clause pattern matching lambdas** | `\case` for single argument only | Extend `λ { p1 => e1 ; p2 => e2 }` to multiple arguments matched simultaneously; tuple/constructor destructuring in lambda position; desugar to case tree (extends existing `\case` machinery) | Cleaner higher-order functions, event handlers, middleware callbacks — avoids forced top-level naming for functions with non-trivial pattern structure | None | Backlog |
+| 10 | **First-class hole survival** | Holes sometimes break elaboration | Holes that persist through partial type-checking gracefully | True incremental development; ship partial code, refine later | None | Backlog |
+| 11 | **Record modules / direct field access** | Dot notation (`r.field`) exists; projection functions land in current module namespace causing clashes when multiple records share field names; no `let open r` for record values | (1) Per-record field namespace: `ProcessRecord.idr` also registers `RecordName.fieldN` in `Core/Context.idr` — surgical one-time change fixing all existing multi-record ambiguity; (2) `let open r` for values: `Idris/Desugar.idr` infers record type of `r`, generates let-bindings for each projection; parser extension in `Idris/Parser.idr`; backwards compatible | Eliminates `reqHeaders`/`respHeaders` prefix workarounds — `Request`, `Response`, `Context` can all have `headers`/`body`/`status` without clash; `let open r` removes tedious destructuring in record-heavy code; direct daily benefit in any multi-record project | None | Backlog |
+| 12 | **Pattern synonyms** | Not supported | `pattern Name args = pat` declaration; `PatSyn` record in `SyntaxInfo`; expansion in `Idris/Desugar.idr` at pattern position; bidirectional variant also usable in expression position; serialised in TTC for cross-module use | Decouple public pattern API from internal representation — library evolves data types without breaking match sites; ergonomic aliases for complex nested constructors (e.g. `pattern OK = 200`, `pattern Cons x xs = x :: xs`); zero runtime cost | None | Backlog |
+| 13 | **`with` abstraction improvements** | Single scrutinee only; no name binding for abstracted term; nested `with` required for multiple values | Multi-scrutinee `with (f x) \| (g y)`; `as` binding (`with f x as y`) storing name in `IWith` AST node in `TTImp/TTImp.idr`; parser extension in `Idris/Parser.idr`; elaborator in `TTImp/Elab/With.idr` passes bound name into branch scope | Eliminates forced nesting for multi-value refinement; `as` binding removes need to recompute abstracted term in branches — the most painful daily gap for dependently typed code over indexed types (`Vect`, `Fin`, well-typed syntax) | None | Backlog |
+| 14 | **Unicode flexibility** | Good Unicode operator support (`→`, `∀`, `⊢` etc. work); subscript digits (`x₁`, U+2080–U+2089) not valid identifier chars; some Mathematical Operators block symbols rejected; no NFC normalization | (1) `Idris2/Parser/Lexer/Source.idr`: add subscript digits (U+2080–U+2089), superscript (U+2070–U+2079), subscript letters (U+2090–U+209C) to identifier continuation set; (2) extend operator character set with Mathematical Operators (U+2200–U+22FF) and Supplemental Mathematical Operators (U+2A00–U+2AFF); (3) NFC normalization of identifier tokens at lex time — store canonical form in `Context` | Formalization parity with Agda — `x₁`/`x₂` as variable names, `Γ ⊢ t ∶ τ` inference-rule style, `α ≤ β ⊔ γ` for lattice operations; lexer-only change, zero risk to existing code | None — lexer only | Backlog |
+| 15 | **Nested and local modules** | `namespace` blocks exist at file level only; no `namespace`/`open` inside `where` clauses or `let`; no local module alias | Allow `namespace` blocks inside `where` clauses and `let` bindings (`Idris/Parser.idr`); `open M` / `let open M` in local scope (`Idris/Desugar.idr` scopes name resolution to block); inline module alias `let module M = Long.Path.Name` — desugar to local `open` with renaming; scope stack in `Core/Context.idr` | Helper names stay out of public module surface without forced file splits; deep namespace paths (`Data.SortedMap.insert`) aliased locally; large files organised into named scopes without artificial module boundaries | None | Backlog |
+| 16 | **Interleaved mutual definitions** | `mutual` blocks work but require all items explicitly bracketed together; cannot write a data type and its canonical function in exposition order without `mutual` | **Forward declarations** as the tractable form: (1) `foo : T` without a body is a valid top-level declaration — stored as "declared" entry in `Core/Context.idr`; (2) `foo pats = body` appearing later fills it in; (3) `ProcessDecl.idr` verifies body signature matches declaration; (4) compiler warning if declaration never fulfilled; `mutual` remains for explicit grouping | Code presentable in exposition order — data type then its meaning function, without forced `mutual`; reads as mathematical prose; useful in large files where a function calls a helper defined later | None | Backlog |
+| 17 | **Parameterised modules** | `parameters` block exists | Module instantiation: `module M = N args`, `open M args` | Reusable, composable named abstractions | Cumulativity landed | Blocked |
+| 18 | **Literate programming / verified documentation** | `.lidr` Bird-style exists; `|||` docstrings exist but examples are inert prose; no Markdown-style literate files; no doctest verification; `idris2 --html` is minimal | (1) Markdown literate `.lidr.md`: preprocessor converting ` ```idris ` fences to Bird-style before parsing — avoids touching core parser; (2) `|||` doctest pass: new `Idris/Doctest.idr` extracts code blocks from docstrings and elaborates as top-level expressions; (3) `%doctest` pragma for named verified examples; (4) `idris2 --html` improvements for cross-linked API docs | API evolution safety — renamed functions break documentation examples at compile time; tutorial/book code verified by type checker cannot drift from reality; in dependently typed setting, doc examples are often complete specifications | None | Backlog |
+| 19 | **Mature reflection (`Elab` / TC)** | Exists but underdocumented; API unstable between versions | (1) Structured error reporting with source locations (`typeError` + `ErrorPart` equiv); (2) `getDef` returning full case tree not just TTImp; (3) mutual block generation from macros; (4) reduction control (`onlyReduceDefs` equiv); (5) stable API contract + documentation | Codegen, boilerplate elimination, custom tactics; currently impractical due to undocumented API and missing capabilities vs Agda `TC` monad | None | Backlog |
+| 20 | **First-class tactics** | `%runElab` + `Elab` reflection monad exist but are low-level elaborator scripts — no `intro`/`apply`/`cases` combinators, no multi-goal tracking, no `by tac` inline syntax; API unstable between versions (see row 19) | (1) `by { tac; ... }` syntax in `Idris/Parser.idr` desugaring to `%runElab (do ...)`; (2) multi-goal list `tacGoals` in `Core/UnifyState.idr` + focus/dispatch for `<;>`; (3) `Language.Reflection.Tactic` module: `intro`, `exact`, `apply`, `rewrite`, `cases`, `induction`, `try`, `first`, `<;>`, `all_goals`, `solve_by_search`; (4) proof state inspection (`getGoals`, `getFocus`, `getGoalType`) | Custom tactics ship with libraries; `by` blocks let proofs coexist with terms without syntactic context-switching; tactic sequencing and recovery (`try`/`first`) make proof scripts robust; unblocks user-extensible proof search (row 7) | Builds on mature reflection (row 19) — stable Elab API required so reusable tactics don't break between versions; multi-goal tracking interacts with deferred unification (row 30) | Backlog |
+| 21 | **Reflection-based static analysis** | `%runElab` runs per-definition; no module-level analysis hooks; no way to enumerate all definitions after elaboration; no custom warning/error emission with source locations from user code | (1) Module-level pass hooks: `%analysis_pass M.check` registers `Elab ()` called once per module after elaboration — `Core/ProcessIdr.idr` invokes registered passes at module boundary; (2) `getDefs : Elab (List (Name, GlobalDef))` enumerates definitions in current module; (3) `emitWarning : FC -> String -> Elab ()` and `emitError : FC -> String -> Elab ()` for custom diagnostics with source locations; (4) term traversal utilities over `TT.Term` for structural analysis | Library authors ship enforcement rules with their library — a security library verifies `%pure`-annotated definitions never call `unsafePerformIO` transitively; framework-level invariant checking with full type information; custom linting without a separate tool; proof obligation generation from annotations | Builds on mature reflection (row 19) — stable `Elab` API required; first-class tactics (row 20) provides useful implementation context | Backlog |
+| 22 | **Termination / positivity pragmas** | `assert_total`, `assert_smaller`, `partial`, `covering` exist; no positivity escape hatch on data types; no declaration-level `%terminating`; no well-founded recursion recognition; `partial` conflates non-terminating with partial match | (1) `%no_positivity_check` pragma on `data` declarations: skip positivity pass in `TTImp/ProcessData.idr`, store flag in `TyConInfo`; (2) `%terminating` declaration pragma: visible above definition, sets `Unchecked` totality in `TTImp/ProcessDef.idr` — more auditable than `assert_total` buried in body; (3) `%no_coverage_check` to decouple coverage from totality; (4) `Acc`/`WellFounded` recognition in `Core/Termination.idr` for well-founded recursion | Unblocks data type designs rejected by strict positivity; `%terminating` makes escape hatches visible in code review; well-founded recursion removes need for `assert_total` on structurally-clear but non-structural recursion; all new pragmas banned by `--safe` (row 26) | Pairs with `--safe` (row 26) — escape hatches and their audit mechanism are complementary | Backlog |
+| 23 | **Instance fields in records** | Manual dictionary threading required — `@{r.instField}` at every call site; no auto-search from record fields; no ergonomic existential capability records | `[Interface]` or `%instance` field modifier in `Idris/Parser.idr`; `TTImp/ProcessRecord.idr` registers instance fields as local hints when record value is in scope; `Core/AutoSearch.idr` checks local instance-field hints before failing resolution | Plugin architectures, heterogeneous collections, capability records — `Showable` bundles `{0 A}` + `value : A` + `[Show A]`, used uniformly without knowing `A`; eliminates `@{...}` threading at every call site | None | Backlog |
+| 24 | **Mixfix constructors** | Operator constructors exist (`::`, `,`); mixfix (`_≤_`, `_∈_`, `_⊢_∶_`) not supported for constructor or type-constructor names; once row 5 (mixfix operators) lands for functions, constructors remain a separate gap | Extends row 5 infrastructure to constructor position: (1) `ProcessData.idr` accepts constructor names with `_` holes; (2) `Idris/Desugar.idr` resolves mixfix constructor patterns using the same operator table as expressions, restricted to constructor namespace; (3) type-constructor mixfix: `data _≤_ : Nat -> Nat -> Type` so `m ≤ n` is a valid type in signatures; (4) precedence sharing with or separate from function operators — design decision; (5) TTC serialisation of constructor names with `_` holes | Formalization-first feature: embedded type theories (`Γ ⊢ t ∶ τ`), typed logic (`P ∧ Q`, `P ∨ Q`), relation definitions (`m ≤ n`, `a ∈ xs`) read as the inference rules they represent; proof terms mirror mathematical notation; limited value for application developers; high value for research and verified compiler work | Row 5 (mixfix operators) — shares parser and operator table infrastructure; natural follow-on | Backlog |
+| 25 | **Custom compile-time warnings** | No user-defined warning mechanism; `%runElab (fail "...")` errors outright; no `%deprecated` pragma; no per-use-site advisory system for library authors | (1) `%warning "msg"` pragma on definitions — `warnMsg : Maybe String` on `GlobalDef` in `Core/Context.idr`; elaborator emits at every use site; (2) `%deprecated "use X instead"` as sugar; (3) `%warning_category Name` for groupable/suppressible categories; (4) TTC serialisation so warnings cross module boundaries; (5) `warnAt : FC -> String -> Elab ()` for use inside reflection macros (distinct from `emitWarning` in row 21) | Library evolution without breaking changes — deprecated APIs compile but warn; security advisories and performance footguns at call sites; currently impossible to communicate "use with care" at compile time; every mature library needs this; complements `--safe` (row 26) | None for `%deprecated`/`%warning` pragma form; row 19 (mature reflection) for `warnAt` Elab form | Backlog |
+| 26 | **`--safe` / consistency mode** | Not supported — `believe_me`, `assert_total`, `assert_smaller`, `%unsafe`, `unsafePerformIO` usable anywhere with no audit trail | `%safe` file-level pragma + `--safe` global flag; bans all unsafe escapes including new pragmas from row 22; enforces `%default total`; transitive — importing a non-safe module from a safe module errors with full import chain; `isSafe : Bool` serialised per TTC module; no type theory changes needed | Meaningful trust guarantee for verified libraries — user importing a `--safe` library knows no unsafe escape was used anywhere in the dependency chain; essential for security-critical and formally-verified code | Interacts with universe polymorphism (row 39, `Type:Type` inconsistent), `--without-K` (row 43), definitional rewrites (row 33, confluence required) | Done — `%safe` pragma + `--safe` flag; `SafeModuleViolation` error; `isSafe` in TTC; 3 golden tests; committed on `feat/safe-mode` |
+| 27 | **Logical irrelevance / irrelevant arguments** | QTT quantity-0 erases at runtime only; no type-level enforcement | `.`-prefixed binders; `Irrelevant` binding mode in `Core/TT/Term.idr`; linearity checker extended to block irrelevant args from relevant positions; squash types `‖A‖` for propositional truncation | Stronger than quantity-0 — static guarantee that implementation cannot inspect argument even at type level; proof-irrelevant data structures; information-flow safety for security-sensitive APIs | Pairs with Prop universe (row 44) and definitional proof irrelevance (row 42) for complete proof-irrelevance story | Partial — `.(x : A) -> B` syntax parses and type-checks; `Irrelevant` PiInfo propagated through elaborator/TTC/reflection; runtime-erased (rig-0); linearity enforcement (blocking irrelevant args from relevant positions) and squash types `‖A‖` pending; committed on `feat/irrelevant-binders` |
+| 28 | **Definitional η-equality for records** | Partial — η for functions exists; record η unreliable in conversion checker | η-expansion case in `Core/Normalise/Convert.idr`: when direct conversion of two record values fails, check all projections equal field-by-field; query `Core/Context.idr` to identify record types; try-before-expand to avoid performance cost on non-records | `Sigma`/`Pair`/interface records unify without manual rewriting; interface resolution less fragile; proofs over record types no longer require `rewrite` boilerplate; direct practical gain in any interface-heavy Idris code | None (pairs naturally with definitional proof irrelevance, row 42) | Backlog |
+| 29 | **Opaque definitions** | No per-definition reducibility control; all exported definitions unfold during elaboration; abstract blocks (row 35) control module visibility, not elaboration-time reduction | (1) `reducibility : Reducibility` field on `GlobalDef` in `Core/Context.idr`: `Reducible \| SemireducibleInstance \| Irreducible`; (2) `%opaque f` pragma: sets `Irreducible`, serialised in TTC; `Core/Normalise/Eval.idr` skips body when `Irreducible`; (3) `%reducible f` override for type aliases that must always reduce; (4) `Core/Unify.idr` respects reducibility when solving constraints | Elaboration performance — no deep unfolding of implementation details; `newtype`-style wrappers stay opaque so proofs cannot rely on representation; error messages show abstract names not unfolded internals; distinct from abstract blocks (row 35) — opaque defs are fully exported, opacity controls only when the normaliser unfolds them | None; complements abstract blocks (row 35) | Backlog |
+| 30 | **Deferred unification** | Eager/fail-fast constraint solver; fails rather than waits when constraints unresolvable | Blocking constraints on metavariables (`Core/Unify.idr`); retry queue in `UState`; constraints blocked on unsolved metavar registered and retried when metavar solved; cross-clause information flow | Reduces annotation burden — fewer spurious "can't solve constraint" errors; programs obviously correct to programmer typecheck without extra hints; higher-order code and interface resolution less fragile | Benefits from cumulativity stable first (universe constraints interact with unification) | Backlog |
+| 31 | **Clause-specific `where` blocks** | `where` clauses attach to the entire function — all helpers shared across all clauses; clause-specific helpers pollute the shared scope | (1) Parser: `where` block indented under a single clause parsed as clause-local; (2) `TTImp/ProcessDef.idr`: scope helpers to that clause — clause-local names shadow function-level where; (3) backwards compatible — existing function-level where unchanged; no type-checking model changes, purely a scoping change | Better encapsulation when clauses are structurally different; `Nil` and `Cons` cases carry their own private helpers without polluting each other's scope; niche but eliminates real name-management overhead in pattern-heavy code | None | Backlog |
+| 32 | **The `%static` pragma** | NbE runs during elaboration with no completeness guarantee; stuck redexes silently produce runtime terms; `%transform` is optimiser-only; no way to assert compile-time evaluation | (1) `%static expr`: run NbE to normal form during elaboration; error if any stuck subterm remains — report exactly which subterm is stuck (unsolved metavar, postulate, opaque def); (2) `%static` on a definition: all closed call sites evaluated fully; stored as `mustEvaluate : Bool` on `GlobalDef`; post-elaboration check in `TTImp/ProcessDef.idr`; (3) `%static` expression hitting `%opaque` definition (row 29) fails loudly — programmer must resolve tension | Lookup tables, crypto S-boxes, round constants — zero runtime cost guaranteed; type-level computations fail loudly when stuck rather than silently deferring; machine-verified "compile-time constant" documentation; eliminates accidental runtime computation of values that should be constants | Pairs with opaque definitions (row 29) — they interact directly: `%static` + `%opaque` is a detectable conflict | Backlog |
+| 33 | **Definitional rewrite rules** | `rewrite` tactic (propositional only); `%transform` (optimiser only) | `%rewrite` pragma promoting propositional equalities to definitional; confluence + termination checker | Eliminates `rewrite ... in` boilerplate in verified code touching arithmetic, `Vect`, `Fin`, index arithmetic — one of the most concrete daily pain points | Cumulativity landed (universe interaction) | Blocked |
+| 34 | **Injective type families** | Data constructors injective automatically; user-defined type-level functions not — `F a = F b` cannot be inverted to `a = b` by the unifier without proof | `%injective` pragma on type-level function declarations; store `isInjective : Bool` on `GlobalDef` in `Core/Context.idr`; `Core/Unify.idr` inverts `F args1 = F args2` to `args1i = args2i` sub-goals when `F` is flagged; user asserts soundness (like `assert_total`); banned by `--safe` (row 26) since unsound if misused | Eliminates manual type annotations when elaborator can't invert type-level dispatch; associated types in interfaces infer bidirectionally; reduces annotation burden in generic type-level programming | Pairs with deferred unification (row 30) — injective functions discharge goals that would otherwise block | Backlog |
+| 35 | **Abstract blocks** | Module-level opacity via `export` only; forces artificial module splits | `abstract` keyword scoping opacity to post-block within same file; flag on `GlobalDef` to block reduction; touches `Syntax.idr`, `Parser.idr`, `Context.idr`, `Normalise/Eval.idr` | Representation independence for verified data structures without forced module splits; proofs cannot accidentally rely on implementation details | None | Backlog |
+| 36 | **Guardedness checker** | Manual `Inf`/`Lazy` | Automatic productivity checking for coinductive definitions | Safer stream, websocket, and reactive programming | None | Backlog |
+| 37 | **Polarity tracking** | No variance annotations on type parameters; `%deriving Functor` not supported; in dependent types, polarity is more complex than System F — types can depend on values so variance is not syntactically determined | **Scoped to functor derivation:** (1) `%polarity (+a) (-b)` annotations on type parameters — `Polarity` per parameter in `TyConInfo` in `Core/Context.idr`; (2) `%deriving Functor` generates `fmap` using polarity — covariant positions mapped, contravariant requires explicit handling; (3) `%deriving Contravariant`, `Bifunctor`, `Profunctor` similarly; NOT a full subtyping relation (incompatible with current type theory) | Automatic `Functor`/`Contravariant`/`Bifunctor` derivation without reflection boilerplate; narrow audience — library authors defining functorial containers; subtyping semantics not appropriate for dependent types | None for derivation use case | Backlog |
+| 38 | **Copattern matching** | Limited | Full copattern support for records and coinductives; design decision on `Inf`/`Lazy` deprecation | Cleaner APIs for coinductive/infinite structures; removes manual `Delay`/`Force` | Guardedness checker (row 36) | Blocked |
+| 39 | **Explicit universe polymorphism** | Basic `Type k` hierarchy landed: explicit level syntax, cumulativity, constraint solver, TTC versioning, 6 tests; `Type : Type` eliminated for explicit-level terms; same-file implicit `Type` still uses UVar → 0 (Type-in-Type via `initAssign`) | Level variable syntax (`{u : Level}` binders); true generalization replacing `initAssign → 0`; back-substitution of solved levels into elaborated terms before TTC serialisation; stdlib migration (`Prelude`, `Data.List`, `Data.Vect`, etc.) to `Type u` | Highest-leverage item — unblocks rows 17, 33, 40, 42, 43, 44, 45, 46; critical for generic library authors, verified programming, and formalization; low direct impact on application developers | None | Partial — basic hierarchy merged to `main`; level variable syntax + stdlib migration pending (see Task #40) |
+| 40 | **Scoped variable generalization** | Auto-binding of free lowercase names; no explicit declaration or kind annotation; no module-scoped `variable` blocks | `variable` block declaring generalizable names with kind annotations; `private variable` for module-local scope; registers in `SyntaxInfo`; `BindImplicits.idr` uses table for kind-annotated auto-binding; touches `Syntax.idr`, `Parser.idr`, `Desugar.idr`, `BindImplicits.idr` | Eliminates verbosity in generic signatures — especially acute post-cumulativity where every signature needs explicit level variables; library authors write one `variable ℓ : Level; A : Type ℓ` block instead of threading levels through every signature | Most valuable post-cumulativity (row 39) — implement alongside or immediately after | Blocked (low priority until row 39 lands) |
+| 41 | **Guarded recursion / clock variables** | Not supported | `▶κ` (later) modality with clock variables; `next` operator for coinductive productivity | Sound alternative to sized types (deprecated in Agda 2.6.3 due to soundness issues with universe polymorphism); cleaner coinductive programming without `assert_total` | Guardedness checker (row 36) | Blocked |
+| 42 | **Definitional proof irrelevance** | Runtime erasure only (QTT) | Checker treats proofs of same type as definitionally equal | Fewer rewrites in proof-heavy code | Cumulativity landed | Blocked |
+| 43 | **`--without-K`** | Not supported | Mode disabling Axiom K | Only relevant for HoTT-style development | Cumulativity landed | Blocked |
+| 44 | **Prop universe** | No `Prop` sort | Separate `Prop` sort distinct from `Type` | Foundational; low direct shipping value | Cumulativity landed | Blocked |
+| 45 | **Cubical Type Theory** | Not supported | `--cubical` mode with path types and univalence | Research; not relevant to shipping software today | Cumulativity + `--without-K` | Blocked |
+| 46 | **Inductive-Inductive types** | Basic IR works via `mutual`; II types not supported | Elaborator support for two simultaneously-defined data types where each is indexed by the other; positivity + termination checker extensions | Formalizing type theories, certified compilers, ordinal arithmetic; narrow audience — formalization specialists not application developers | Cumulativity + `--without-K` | Blocked |
+| 47 | **Dot pattern annotations** | Implicit only — elaborator infers forced positions silently; no syntax to make forcing visible | Optional `.t` annotation in pattern position (Option A — not required); `Idris/Parser.idr` parses `.term` in pattern position; `TTImp/ProcessDef.idr` verifies annotation matches elaborator's forced-position inference; backwards compatible — existing code unchanged | Transparency for verified/pedagogical code — reader sees which positions are uniquely determined by types; catches "thought it was forced but isn't" bugs when annotation is present; zero cost when not used | None | Backlog |
+| 48 | **Error message quality** | Errors surface the raw elaboration failure — which constraint failed, but not why or where in the user's code; "can't solve constraint" with no actionable suggestion; errors on large expressions point to the whole application not the specific argument | (1) Pinpoint argument reporting: when an application fails, identify and report the specific argument position that doesn't typecheck rather than the whole call; (2) "Did you mean?" suggestions on unknown name errors — Levenshtein distance over in-scope names and imports; (3) Hole suggestions in error output: when elaboration fails with an unsolved `?hole`, display the top-3 `getHintCandidates` (row 2) results inline; (4) Constraint explanation: "can't unify `A` with `B` because `X` is not definitionally equal to `Y`" — trace the failing reduction step; (5) Import hint: if a name resolves in an unimported module, say so | Highest-leverage improvement for new users and daily ergonomics — a clear error with a suggestion beats any documentation; multiplies value of every other feature by making failures recoverable without a forum post | Row 2 (hint candidates) for hole suggestions in errors; otherwise self-contained | Backlog |
+| 49 | **Incremental builds and watch mode** | `idris2` rebuilds a module and all dependents on every invocation; no file-watching; `pack build` has no watch mode; cold build of a mid-size project takes seconds even for a one-line change | (1) Dependency fingerprinting: store a hash of each module's public interface in TTC; on rebuild, skip recompilation of any module whose interface hash is unchanged even if its source changed (implementation-only edits propagate no further); (2) `idris2 --watch` / `pack watch`: `inotify`/`FSEvents` file watcher, rebuild only changed modules and their dependents on save, pipe errors to stdout in a machine-readable format; (3) LSP integration: watch mode feeds errors directly to LSP diagnostics stream so editors update without a manual build step | Tightest possible edit-compile-fix loop — currently a one-line change in a deep module triggers a cascade; with interface hashing it stops at the module boundary; watch mode eliminates the manual "run build" step entirely; developer stays in editor | None — independent of all language features | Backlog |
+| 50 | **REPL improvements** | No tab completion on names, types, or namespaces; no persistent history across sessions; `:browse` is namespace-only with no type filter; `:search` pending (row 3) | (1) Tab completion: complete on in-scope names, module names for `:import`, and `:` commands — hook into `readline`/`linenoise` already linked; (2) Persistent history: write `~/.idris2/history` on exit, load on start — one-liner with `linenoise` API; (3) `:browse Namespace --type T` filter: show only names whose type unifies with `T`; (4) `:doc` improvements — render `|||` docstrings with type signature; (5) `:reload` without losing bindings defined in session | Lowers the barrier for exploration and scripting — REPL is often the first contact point for newcomers; completion and history are table-stakes for any interactive tool | Row 3 (`:search`) is the high-value REPL addition; items here are independently landable | Backlog |
+| 51 | **Testing infrastructure** | No standard testing library ships with Idris2; community uses ad-hoc `main` functions or golden tests; no property-based testing; `pack test` runs a single executable with no structured output | (1) `Test.Unit` stdlib module: `test`, `testGroup`, `assertEqual`, `assertEq`, `shouldBe` — output TAP format so CI tooling works without special drivers; (2) `Test.Property` stdlib module: QuickCheck-style `forAll`, `Arbitrary` interface, shrinking; (3) `pack test` runner: discovers `*Test.idr` files, compiles and runs each, aggregates TAP output, exits non-zero on failure; (4) `%test` pragma: marks a top-level value of type `IO Bool` as a test case — discoverable without file naming convention | Removes the biggest non-language barrier to writing reliable Idris code — currently setting up tests requires more boilerplate than the tests themselves; property-based testing is especially valuable for dependently typed code where types guarantee structure but not values | None | Backlog |
+| 52 | **Project-wide hole search (`workspace/symbol`)** | Client-side workaround only — `idris2-nvim` uses ripgrep to grep `?name` patterns across `.idr` files; no type information; not available in other editors | `idris2-lsp` implements `workspace/symbol`: (1) walk all `.idr`/`.lidr` files under the project root (discovered via `.ipkg` manifest); (2) type-check each file using cached TTCs where available; (3) return all unsolved holes as `WorkspaceSymbol[]` with `name = "?holeName"`, `kind = Variable`, `location`, and `containerName = module`; (4) type string available as detail via `SymbolInformation.containerName` or via a `workspace/symbol` extension; (5) client side: `vim.lsp.buf_request(0, 'workspace/symbol', { query = '?' }, ...)` — no custom Lua needed; works in VS Code, Helix, Zed, Emacs for free | Whole-project hole inventory with type information — currently only possible per-file via `textDocument/documentSymbol`; essential for large projects with holes spread across many modules; enables "how many holes remain?" as a project metric; client-side grep is a stopgap with no type info | Row 1 (mature LSP); benefits from incremental builds (row 49) so type-checking all files on each `workspace/symbol` call is fast | Backlog |
+| 53 | **Debugging and profiling** | `Debug.Trace.trace` exists but conflicts with totality; no structured logging during elaboration for user code; no runtime profiler; no time/allocation breakdown per function | (1) `Debug.Trace.traceIO : String -> IO ()` — safe variant that doesn't require `unsafePerformIO`, usable in `IO` functions without totality conflict; (2) `%logging "topic" N` user-accessible elaboration tracing — currently internal; expose a subset of elaboration log topics useful for debugging type errors (metavar creation, unification steps, instance search); (3) Runtime profiling: `idris2 --profile` emits a callgrind-compatible profile; requires instrumentation in the Scheme/JS backend; (4) `%noinline` pragma to prevent optimiser from obscuring hot paths in profiles | Lowers the cost of investigating "why is this slow" or "why does this typecheck but produce wrong results" — without profiling, performance work is guesswork; `traceIO` is the most-requested small addition | None for `traceIO` and `%logging` exposure; backend work for profiling | Backlog |
+
+## Dependency Graph
+
+```text
+feature/universe-hierarchy (in progress)
+    └── Parameterised modules (row 17)
+    └── Definitional rewrite rules (row 33)
+    └── Definitional proof irrelevance (row 42)
+    └── --without-K (row 43)
+    └── Prop universe (row 44)
+            └── Cubical Type Theory (row 45)
+    └── Scoped variable generalization (row 40)
+    └── Inductive-Inductive types (row 46)
+    └── Scoped variable generalization (row 40) — most useful once explicit levels exist
+
+Guardedness checker (row 36)
+    └── Copattern matching (row 38)
+    └── Guarded recursion / clock variables (row 41)
+
+Universe polymorphism (row 39)
+    └── Scoped variable generalization (row 40) — most useful once explicit levels exist
+
+Interactive elaborator hints (row 2) — delivery via row 1 (mature LSP); elaborator side feeds from row 7 (proof search) + row 20 (first-class tactics)
+Interactive type-directed search (row 3) — shares searchByType core with row 2; REPL :search has no blockers
+Mature reflection (row 19) — unblocked, self-contained; gates first-class tactics (row 20) + reflection-based static analysis (row 21)
+First-class tactics (row 20) — builds on mature reflection (row 19); multi-goal tracking interacts with deferred unification (row 30)
+Reflection-based static analysis (row 21) — builds on mature reflection (row 19) + first-class tactics (row 20)
+Opaque definitions (row 29) — unblocked, self-contained; complements abstract blocks (row 35)
+%static pragma (row 32) — unblocked; pairs with opaque definitions (row 29)
+Logical irrelevance (row 27) — pairs with Prop universe (row 44) + definitional PI (row 42)
+Definitional η-equality (row 28) — unblocked, self-contained; pairs with definitional PI (row 42)
+Instance fields in records (row 23) — unblocked, self-contained; extends auto-search (row 7)
+Injective type families (row 34) — unblocked, self-contained; pairs with deferred unification (row 30)
+Termination / positivity pragmas (row 22) — unblocked, self-contained; pairs with --safe (row 26)
+Record modules / direct field access (row 11) — unblocked, self-contained
+Literate programming / verified documentation (row 18) — unblocked, self-contained
+Mixfix operators (row 5) — pairs with Display forms (row 6)
+Mixfix constructors (row 24) — builds on row 5 (mixfix operators); same operator table and parser infrastructure
+Selective / renaming imports (row 8) — unblocked, self-contained
+Multi-clause pattern matching lambdas (row 9) — unblocked, self-contained
+Pattern synonyms (row 12) — unblocked, self-contained
+with abstraction improvements (row 13) — unblocked, self-contained
+Unicode flexibility (row 14) — lexer-only, unblocked, zero-risk
+Nested and local modules (row 15) — unblocked, self-contained
+Interleaved mutual definitions (row 16) — unblocked, self-contained
+Custom compile-time warnings (row 25) — unblocked for pragma form; reflection form gates on row 19
+Clause-specific where blocks (row 31) — unblocked, self-contained
+Polarity tracking (row 37) — unblocked for functor derivation use case
+Deferred unification (row 30) — benefits from cumulativity stable but not hard-blocked
+Abstract blocks (row 35) — unblocked, self-contained
+Display forms (row 6) — unblocked, self-contained
+Dot pattern annotations (row 47) — unblocked, backwards compatible, zero-risk
+Error message quality (row 48) — self-contained; hole suggestions in errors depend on row 2 (hint candidates)
+Incremental builds and watch mode (row 49) — independent of all language features; no blockers
+REPL improvements (row 50) — independently landable; row 3 (:search) is the high-value addition
+Testing infrastructure (row 51) — no dependencies; can land any time
+Debugging and profiling (row 52) — traceIO and %logging exposure have no blockers; runtime profiler requires backend work
+```
+
+## Notes
+
+- **Rows 1–16** are unblocked and deliver the highest ROI for everyday development (rows 14 and above are higher-effort or narrower audience).
+- **Row 6** (display forms): unblocked and self-contained. Touches `Syntax.idr`, `Parser.idr`,
+  `Resugar.idr`, `Core/TTC.idr`. Pairs with mixfix operators (row 5) — together they make a complete
+  DSL story: nice syntax to write AND legible errors when things go wrong.
+- **Row 12** (pattern synonyms): start with unidirectional synonyms (pattern-only) — simpler, already
+  useful. Bidirectional variant (usable in expression position) can follow. Key non-trivial work is
+  TTC serialisation — synonyms must be stored per module so downstream matches expand correctly.
+  Risk: bidirectional synonyms interacting with `auto` search; guard with a `%pattern` pragma or
+  explicit `<->` syntax to distinguish unidirectional from bidirectional upfront.
+- **Row 11** (record modules): implement per-record field namespace first — one change to
+  `TTImp/ProcessRecord.idr` that registers `RecordName.field` in addition to `field` for every
+  projection; backwards compatible (existing bare `field` still resolves). Then `let open r` for
+  values: `Idris/Desugar.idr` infers type of `r`, generates `let field = r.field` for each
+  projection. Pairs with row 28 (η-equality) — together they make record types feel first-class.
+- **Row 13** (`with` abstraction): two self-contained improvements. (1) Multi-scrutinee: `with (f x) | (g y)`
+  — parser change in `Idris/Parser.idr`, elaborator flattens to nested `with` internally; surface API is flat.
+  (2) `as` binding: `with f x as y` — extend `IWith` in `TTImp/TTImp.idr` with an optional name; pass into
+  branch scope in `TTImp/Elab/With.idr`. Start with `as` binding — smaller change, highest daily value.
+- **Row 14** (Unicode flexibility): lexer-only change — zero risk to existing code. Step (1) is the
+  highest-value change: subscript digits U+2080–U+2089 in identifier continuation set, enabling `x₁`/`x₂`
+  variable names used universally in mathematics and type theory. Step (2) extends the operator character
+  set — only accept characters that the Agda lexer also accepts, to keep Idris and Agda file exchange
+  practical. Step (3) NFC normalization: store canonical form so `à` (precomposed U+00E0) and `a` + combining
+  grave (U+0061 U+0300) are the same identifier. Normalization at lex time; no core changes.
+- **Row 15** (nested and local modules): `namespace` blocks already work at file level — the gap is
+  allowing them inside `where` clauses and `let` bindings. Implement in two steps: (1) `let open M`
+  in expression scope (parser + desugar change only, low risk); (2) full `namespace` blocks in `where`
+  (requires scope stack in `Core/Context.idr`). Complementary to abstract blocks (row 35) — abstract
+  blocks control external opacity; local modules control internal scope hygiene within a file.
+- **Row 16** (interleaved mutual definitions): forward declarations are the tractable form — `foo : T`
+  accepted at top level without a body, filling in later. Key implementation points: (1) `Core/Context.idr`
+  stores the declaration as a "declared" entry distinct from a fully elaborated def; (2) `ProcessDecl.idr`
+  matches the later body signature against the stored declaration and errors on mismatch; (3) compiler
+  warning on unfulfilled declaration (declaration with no body at end of file). `mutual` blocks remain
+  fully supported — forward declarations are additive. The exposition-order use case (data type then its
+  meaning function) is the primary driver; no theory change required.
+- **Row 17** (parameterised modules): `parameters` blocks already work; the missing piece is
+  named instantiation (`module M = N args`) and cross-file `open M args`. Safe to start
+  after cumulativity lands — key risk is `IType` signature stability and TTC version coordination.
+- **Row 18** (literate programming): implement in two independent steps. (1) Markdown literate
+  support — write a preprocessor (`idris2-literate` tool or pack plugin) that strips ` ```idris `
+  fences and rewrites to Bird-style before handing off to the compiler; avoids any parser changes.
+  (2) `|||` doctest pass — new `Idris/Doctest.idr` walks `|||` blocks, extracts code-fenced
+  examples, wraps each in a temporary module, and elaborates; failures reported as doc errors.
+  Start with the preprocessor (one afternoon's work); doctest pass is a week.
+- **Row 2** (interactive elaborator hints): implement `getHintCandidates` in the elaborator first —
+  it can land independently of LSP work and be tested via `%runElab`. Then wire into LSP
+  `textDocument/completion` once row 1 (mature LSP) is stable. Ranking is critical for usability:
+  `%hint`-annotated definitions should rank highest, followed by definitions whose return type
+  directly matches the goal (vs requires partial application), followed by import distance.
+  The refine action (`f ?_` with cursor focus) is the highest-value interaction: it extends the
+  hole-filling workflow without requiring the programmer to know all argument types in advance.
+  Synergises with row 7 (proof search) — search results surface as the automated tier of hints.
+- **Row 3** (interactive type-directed search): `:search` REPL command is the fastest-landing
+  component — `Idris/REPL/REPL.idr` parses the type expression and calls `searchByType` (which shares
+  its core with `getHintCandidates` from row 2). Implement the REPL command first; it has no
+  dependencies and can land before any LSP work. Approximate matching (free variables as wildcards)
+  requires a ranking pass — match quality score computed during unification attempt. Cross-package
+  indexing at pack install time is a separate, later milestone. This feature produces compounding
+  value: every function added to the stdlib (row 4) or any package becomes instantly queryable.
+- **Row 20** (first-class tactics): implement in two stages. (1) `by { ... }` syntax first —
+  parser change in `Idris/Parser.idr` desugaring to `%runElab (do ...)`; no semantic changes needed;
+  immediately useful with existing `Elab` combinators. (2) `Language.Reflection.Tactic` combinator
+  module: `intro`, `exact`, `apply`, `rewrite`, `cases`, `induction`, `try`, `first`, `<;>`,
+  `all_goals`. Multi-goal tracking (`tacGoals` in `Core/UnifyState.idr`) is the key engineering
+  risk — touches the same area as deferred unification (row 30); schedule these together.
+  Lean 4 `TacticM` is the reference implementation. Requires row 19 (mature reflection) to be
+  stable first — reusable tactics that ship in libraries must not break between compiler versions.
+- **Row 21** (reflection-based static analysis): implement `%analysis_pass` registration in
+  `Core/ProcessIdr.idr` — passes are `Elab ()` actions stored in `SyntaxInfo` and run at module
+  boundary after all definitions elaborated. `getDefs` is a thin wrapper over the existing
+  `Context` API. `emitWarning`/`emitError` with `FC` need `ProcessIdr.idr` to surface them into
+  the compiler error stream. Start with module-level enumeration + custom errors; traversal
+  utilities can be added incrementally. Requires stable `Elab` API (row 19).
+- **Row 22** (termination/positivity pragmas): implement in priority order — (1) `%no_positivity_check`
+  on `data` declarations: one flag in `TyConInfo`, skip positivity pass in `TTImp/ProcessData.idr`;
+  (2) `%terminating` above definitions: set `Unchecked` in `TTImp/ProcessDef.idr`, more auditable
+  than `assert_total` in body; (3) `%no_coverage_check`: decouple coverage from totality flag;
+  (4) `Acc`/`WellFounded` recognition in `Core/Termination.idr` (medium effort, highest theory value).
+  All new pragmas must be added to the banned list in `--safe` (row 26).
+- **Row 23** (instance fields): implement `[Interface]` field syntax in `Idris/Parser.idr`;
+  `TTImp/ProcessRecord.idr` registers instance fields as `%hint`-style local entries in
+  `Core/Context.idr` when the record value is bound; `Core/AutoSearch.idr` searches local hints
+  before failing. Key design decision: scope the hint to the binding site only (not globally) —
+  avoids polluting auto-search beyond the function where the record is in scope. Pairs with
+  row 27 (logical irrelevance) — erased `{0 A}` + instance field together enable full capability
+  existentials.
+- **Row 24** (mixfix constructors): implement after row 5 (mixfix operators) is stable — shares the
+  operator table infrastructure. Priority order: (1) `ProcessData.idr` must accept `_`-holes in
+  constructor names; (2) `Idris/Desugar.idr` resolves mixfix constructor patterns using the same
+  operator table, restricted to constructor namespace to prevent ambiguity with function operators;
+  (3) type-constructor mixfix (`data _≤_ : Nat -> Nat -> Type`) is the highest-value variant — lets
+  inference rules read naturally in signatures. Design decision on precedence sharing vs separate
+  namespace (recommend separate) must be made before TTC serialisation of `_`-hole names.
+- **Row 25** (custom compile-time warnings): implement `%warning`/`%deprecated` pragma first —
+  `warnMsg : Maybe String` on `GlobalDef` is a one-line addition to `Core/Context.idr`; TTC
+  serialisation is a single extra field. The elaborator emits at every use site by checking
+  `warnMsg` after resolving a name — one guard in `TTImp/Elab/App.idr`. `%warning_category` and
+  per-category suppression flags (`--ignore-warning CategoryName`) follow naturally. `warnAt` in
+  `Elab ()` depends on stable `Elab` API (row 19). Distinct from `emitWarning` in row 21 —
+  `%warning` is declarative (annotate a definition once); `warnAt` is procedural (called inside
+  a macro); `emitWarning` (row 21) is a module-level analysis hook. All three complement each other.
+- **Row 26** (`--safe` mode): file-level first (Agda's approach) — per-definition granularity
+  deferred to later. Key engineering challenge is transitive safety through the import graph:
+  every `.ttc` needs `isSafe : Bool`; `ProcessIdr.idr` checks transitively at import and reports
+  full chain on failure. Unsafe primitives to ban: `believe_me`, `prim__believe_me`,
+  `assert_total`, `assert_smaller`, `%unsafe`, `unsafePerformIO`. Also enforces `%default total`.
+  FFI (`%foreign`) is a grey area — suggest `%safe_foreign` annotation as a separate mechanism
+  rather than banning all FFI from safe modules. Interacts with rows 33, 39, 43 — a fully safe
+  module in a post-cumulativity world should also imply universe stratification.
+- **Row 27** (logical irrelevance): extends QTT quantity-0 with type-level enforcement.
+  Adds `Irrelevant` binding mode to `Core/TT/Term.idr`; linearity checker enforces irrelevant
+  args cannot appear in relevant positions even in types (not just at runtime). Squash types
+  `‖A‖` for propositional truncation — eliminates only into Props. Pairs with Prop universe
+  (row 44) and definitional proof irrelevance (row 42) — together they form a complete
+  proof-irrelevance story. Unblocked from type theory perspective; coherent design benefits
+  from Prop universe being planned alongside it.
+- **Row 28** (definitional η-equality): self-contained change to `Core/Normalise/Convert.idr`.
+  When direct conversion of two record values fails, η-expand both sides and check field-by-field.
+  Use try-before-expand strategy — only η-expand after direct conversion fails, to avoid performance
+  overhead on non-record types. `Core/Context.idr` already tracks whether a type constructor is a
+  record; use that to gate η-expansion. Pairs with definitional proof irrelevance (row 42) —
+  together they make proof-bearing record types work without any manual rewriting.
+- **Row 29** (opaque definitions): `reducibility` field on `GlobalDef` is a small, isolated change
+  to `Core/Context.idr`; serialisation in TTC is straightforward (one extra byte per def).
+  `Core/Normalise/Eval.idr` check is a one-liner guard before body lookup. The subtle design
+  decision is `SemireducibleInstance`: Lean 4 uses this level for `instance` definitions —
+  unfold during instance search but not during general unification. Decide upfront whether Idris
+  needs three levels or just `Reducible`/`Irreducible`. Pairs with `%static` (row 32) — the
+  interaction (`%static` hitting `%opaque`) should error loudly, not silently.
+- **Row 30** (deferred unification): touches `Core/Unify.idr` and `Core/UnifyState.idr` —
+  the most sensitive parts of the elaborator. Add blocking constraint registration: when a
+  constraint is stuck on an unsolved metavar, register it in a retry queue rather than failing;
+  retry when that metavar is solved. Risk: subtle soundness issues if constraints retried in wrong
+  order. Benefits from cumulativity being stable first (universe constraints interact with
+  unification) but not hard-blocked. Complementary to hole survival (row 10) — hole survival
+  keeps programmer-facing `?holes` alive; deferred unification keeps internal elaboration
+  constraints alive. Both reduce annotation burden at different levels.
+- **Row 31** (clause-specific `where` blocks): purely a scoping change — no type-checking model
+  changes. Parser change: `where` block indented under a single clause (column strictly greater than
+  the clause head) is parsed as clause-local. `TTImp/ProcessDef.idr` gives clause-local names a
+  fresh namespace to prevent cross-clause shadowing. Backwards compatible: function-level `where`
+  (indented under the whole function) is unchanged. Implementation risk is low; the main design
+  decision is the indentation rule — recommend aligning with the existing rule that `where` under
+  the function must be indented further than the function name.
+- **Row 33** (definitional rewrite rules): `%transform` exists but is optimiser-only — does not
+  affect elaboration. Need a `%rewrite` pragma promoting propositional equalities into the conversion
+  checker. Must include confluence and termination checking. Blocked on cumulativity because rewrite
+  rules involving `Type ℓ` must respect universe levels. Reference: Agda `REWRITE` pragma.
+- **Row 35** (abstract blocks): unblocked and self-contained. Touches `Syntax.idr`, `Parser.idr`,
+  `Core/Context.idr`, `Core/Normalise/Eval.idr`. No interaction with cumulativity. Current workaround
+  is splitting into separate files using `export` — abstract blocks eliminate that forced split.
+- **Row 36** (guardedness checker) should land before row 38 (copatterns) and row 41 (guarded recursion).
+  Copatterns without a productivity checker are cosmetic. Correct order:
+  guardedness checker → copatterns → guarded recursion → deprecate manual `Inf`/`Lazy`.
+- **Row 37** (polarity tracking): scoped narrowly to functor derivation — do not attempt a full
+  subtyping system. The `%polarity` annotation is purely advisory (user-asserted, like `%injective`)
+  and is checked lazily during `%deriving`. Implementation: add `Polarity` per type parameter to
+  `TyConInfo` in `Core/Context.idr`; `%deriving Functor` traverses the type body, checks each
+  parameter occurrence against declared polarity, and generates the `fmap` body. `%deriving
+  Contravariant`/`Bifunctor`/`Profunctor` are mechanical extensions. Do NOT attempt to infer
+  polarity automatically — too fragile under dependent types; require explicit `%polarity` annotation.
+- **Row 39** is tracked on branch `feature/universe-hierarchy` (all phases complete, 6/6 tests
+  passing as of March 2026). Ready to PR — drop stale stash first (`git stash drop stash@{0}`).
+  Also unblocks rows 17, 33, 40, 42, 43, 44, 45, 46.
+- **Row 40** (scoped variable generalization): implement alongside or immediately after row 39.
+  Touches `Syntax.idr`, `Parser.idr`, `Desugar.idr`, `BindImplicits.idr`. Low priority until
+  universe levels exist — current auto-binding is sufficient without explicit `Type ℓ` variables.
+  Most valuable for library authors writing many generic signatures post-cumulativity.
+- **Row 41** (guarded recursion): replaces sized types, which were deprecated in Agda 2.6.3 due to
+  soundness issues under universe polymorphism. Based on Atkey & McBride (2013) clock variable
+  approach. Agda's `--guarded` flag (experimental, added 2.6.3) is the reference implementation.
+  Long-term this enables Clocked Cubical Type Theory (row 45 prerequisite).
+- **Row 46** (inductive-inductive types): basic inductive-recursion already works via `mutual`.
+  The missing piece is II types — two data types defined simultaneously where one is indexed by
+  the other. Primary use case is formalizing type theories (MLTT, CIC) and certified compilers.
+  Not practical for application development. Blocked on cumulativity (large eliminations) and
+  `--without-K` (coherence of II constructions, row 43).
+- **Row 47** (dot pattern annotations): optional `.t` annotation, not required — backwards compatible (Option A).
+  Parser change is small: in pattern position, if a term is prefixed by `.`, parse it as a forced pattern annotation.
+  `TTImp/ProcessDef.idr` verifies the annotated term matches what the elaborator already computed as a forced position;
+  error if the annotation is present but the position is not actually forced. No change to elaboration or core — purely
+  a surface-level documentation/verification mechanism. Zero impact on existing code.
+- **Row 48** (error message quality): implement in priority order — (1) specific argument pinpointing is the
+  highest value: when `checkApp` in `TTImp/Elab/App.idr` fails, it already knows which argument failed;
+  surface that position through to the error type in `Core/Core.idr` so `Idris/Error.idr` can render it.
+  (2) "Did you mean?" on `UndefinedName`: Levenshtein over `Context` is cheap at error time — not on every
+  lookup. (3) Hole suggestions: call `getHintCandidates` (row 2) at error render time, print top 3 as
+  "possible fill: ...". (4) Constraint explanation: threaded through unification as an optional `reason`
+  field — only populated when error is being assembled, not during normal solving.
+- **Row 49** (incremental builds / watch mode): interface hashing is the highest-leverage change —
+  compute a hash of each module's exported names and their types after elaboration; store in TTC alongside
+  `isSafe` etc.; on rebuild, if source changed but interface hash matches, skip downstream recompilation.
+  Watch mode: use `FSEvents` (macOS) / `inotify` (Linux) — both have simple C APIs; wrap in a small
+  `System.FileWatch` module or add to `pack` directly. LSP watch integration: the LSP server already
+  runs persistently; feed watch events into its rebuild loop so diagnostics push without user action.
+- **Row 50** (REPL improvements): tab completion via `linenoise` (already linked in `Main/Main.idr`) —
+  set the completion callback to query `Context` for in-scope names. Persistent history: `linenoise`
+  has `linenoiseHistorySave`/`linenoiseHistoryLoad`; add to REPL startup/shutdown in
+  `Idris/REPL/REPL.idr`. `:browse --type T` filter: parse `T` as a `TTImp`, call `searchByType` (row 3
+  core), filter `:browse` results to matching names.
+- **Row 51** (testing infrastructure): `Test.Unit` with TAP output is a pure library — no compiler
+  changes needed, just a stdlib module. TAP format is trivial: `ok N name` / `not ok N name`. `pack test`
+  discovery: scan for files matching `*Test.idr` or `test/**/*.idr`, compile with `--package test`,
+  run, collect exit codes. `%test` pragma: store `testDefs : List Name` in `SyntaxInfo`; `pack test`
+  extracts them as the entry point list. `Test.Property`: `Arbitrary` interface with `arbitrary : Gen a`
+  and `shrink : a -> List a`; `forAll` runs 100 cases by default. Start with `Test.Unit` and the
+  `pack test` runner — these are the table-stakes items.
+- **Row 52** (debugging and profiling): `traceIO` is a one-line addition to `base/Debug/Trace.idr` —
+  just `putStrLn` wrapped in `IO`. `%logging` exposure: `Idris/REPL/REPL.idr` already handles
+  `:set logLevel`; expose the topic-filtered logging API as `Debug.Elab.Logging` for user elaboration
+  scripts. Runtime profiling requires backend cooperation: the Chez Scheme backend can use `profile`
+  instrumentation; output as `callgrind` format (text, no binary dependency). `%noinline` pragma:
+  one flag on `GlobalDef`, respected by the optimiser in `Compiler/Opts/` — prevents inlining of
+  the annotated definition, keeping it visible in profiles.
+- **ffi-cfstruct branch** (`fix/ffi-cfstruct`): 55 commits ahead of `main`, fully rebased,
+  no conflicts with either active branch. Merge to `main` after cumulativity lands.

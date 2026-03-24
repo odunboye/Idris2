@@ -2,12 +2,14 @@
 # CHANGELOG_NEXT.md and other existing files mix + and - per convention.
 MD004: false
 
-# MD013: Disable line-length check for tables and code blocks,
-# which are legitimately wider in reference documentation.
-MD013:
-  tables: false
-  code_blocks: false
+# MD013: Disable line-length check entirely — tables and dependency-graph
+# entries in FEATURES.md are legitimately wide and cannot be wrapped.
+MD013: false
 
 # MD031: Don't require blank lines around fenced code blocks.
 # The CI super-linter does not enforce this rule.
 MD031: false
+
+# MD056: Disable table column count — pipe characters inside table cells
+# (e.g. in code snippets) are misinterpreted as column separators.
+MD056: false

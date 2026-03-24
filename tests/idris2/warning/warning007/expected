@@ -1,0 +1,15 @@
+1/2: Building Foo (Foo.idr)
+2/2: Building Main (Main.idr)
+Warning: Deprecation warning: use newFoo instead
+
+Warning: Deprecation warning: Foo.oldBar is deprecated and will be removed in a future version.
+
+Foo> Imported module Foo
+Foo> =DEPRECATED= use newFoo instead
+Foo.oldFoo : Nat
+  Visibility: export
+Foo> =DEPRECATED=
+Foo.oldBar : Nat
+  Visibility: export
+Foo> 
+Bye for now!
