@@ -218,7 +218,8 @@ export
 groupSymbols : List String
 groupSymbols = [".(", -- for things such as Foo.Bar.(+)
     ".[|", -- for namespaced brackets such as Foo.Bar.[| x + y |]
-    "@{", "[|", "(", "{", "[<", "[>", "[", "`(", "`{", "`["]
+    "@{", "[|", "(", "{", "[<", "[>", "[", "`(", "`{", "`[",
+    "‖"] -- squash type brackets ‖A‖
 
 export
 groupClose : String -> String
@@ -234,6 +235,7 @@ groupClose "{" = "}"
 groupClose "`(" = ")"
 groupClose "`{" = "}"
 groupClose "`[" = "]"
+groupClose "‖" = "‖" -- squash type brackets are self-closing
 groupClose _ = ""
 
 validSymbol : Lexer
