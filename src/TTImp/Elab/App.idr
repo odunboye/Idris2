@@ -50,9 +50,11 @@ getNameType : {vars : _} ->
 getNameType elabMode rigc env fc x
     = case defined x env of
            Just (MkIsDefined rigb lv) =>
-              do rigSafe rigb rigc
-                 let binder = getBinder lv env
+              do let binder = getBinder lv env
                  let bty = binderType binder
+                 if isIrrelevant (piInfo binder) && not (isErased rigc)
+                    then throw (IrrelevantUsed fc x)
+                    else rigSafe rigb rigc
 
                  log "metadata.names" 7 $ "getNameType is adding ↓"
                  addNameType fc x env bty
@@ -492,7 +494,7 @@ mutual
              let fntm = App fc tm metaval
              logTerm "elab" 10 "...as" metaval
              fnty <- sc defs (toClosure defaultOpts env metaval)
-             (tm, gty) <- checkAppWith rig elabinfo nest env fc
+             (tm, gty) <- checkAppWith rig ({ inIrrelevantPi := False } elabinfo) nest env fc
                                        fntm fnty (n, 1 + argpos) expargs autoargs namedargs kr expty
              defs <- get Ctxt
              aty' <- nf defs env metaty
@@ -577,7 +579,7 @@ mutual
              defs <- get Ctxt
              let fntm = App fc tm argv
              fnty <- sc defs (toClosure defaultOpts env argv)
-             checkAppWith rig elabinfo nest env fc
+             checkAppWith rig ({ inIrrelevantPi := False } elabinfo) nest env fc
                           fntm fnty (n, 1 + argpos) expargs autoargs namedargs kr expty
 
   export
@@ -742,7 +744,7 @@ mutual
   checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
                argdata (arg :: expargs') autoargs namedargs kr expty
      = do let argRig = rig |*| rigb
-          checkRestApp rig argRig elabinfo nest env fc
+          checkRestApp rig argRig ({ inIrrelevantPi := True } elabinfo) nest env fc
                        tm x aty sc argdata arg expargs' autoargs namedargs kr expty
   -- Irrelevant Pi with no explicit args: auto-insert erased metavar
   checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)

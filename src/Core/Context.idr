@@ -768,6 +768,7 @@ HasNames Error where
   full gam ImpossibleCase = pure ImpossibleCase
   full gam (LinearUsed fc k n) = LinearUsed fc k <$> full gam n
   full gam (LinearMisuse fc n x y) = LinearMisuse fc <$> full gam n <*> pure x <*> pure y
+  full gam (IrrelevantUsed fc n) = IrrelevantUsed fc <$> full gam n
   full gam (BorrowPartial fc rho s t) = BorrowPartial fc <$> full gam rho <*> full gam s <*> full gam t
   full gam (BorrowPartialType fc rho s) = BorrowPartialType fc <$> full gam rho <*> full gam s
   full gam (AmbiguousName fc xs) = AmbiguousName fc <$> traverse (full gam) xs
@@ -868,6 +869,7 @@ HasNames Error where
   resolved gam ImpossibleCase = pure ImpossibleCase
   resolved gam (LinearUsed fc k n) = LinearUsed fc k <$> resolved gam n
   resolved gam (LinearMisuse fc n x y) = LinearMisuse fc <$> resolved gam n <*> pure x <*> pure y
+  resolved gam (IrrelevantUsed fc n) = IrrelevantUsed fc <$> resolved gam n
   resolved gam (BorrowPartial fc rho s t) = BorrowPartial fc <$> resolved gam rho <*> resolved gam s <*> resolved gam t
   resolved gam (BorrowPartialType fc rho s) = BorrowPartialType fc <$> resolved gam rho <*> resolved gam s
   resolved gam (AmbiguousName fc xs) = AmbiguousName fc <$> traverse (resolved gam) xs

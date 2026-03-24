@@ -68,6 +68,7 @@ Eq Error where
   NotTotal fc1 n1 x1 == NotTotal fc2 n2 x2 = fc1 == fc2 && n1 == n2
   LinearUsed fc1 k1 n1 == LinearUsed fc2 k2 n2 = fc1 == fc2 && k1 == k2 && n1 == n2
   LinearMisuse fc1 n1 x1 y1 == LinearMisuse fc2 n2 x2 y2 = fc1 == fc2 && n1 == n2 && x1 == x2 && y1 == y2
+  IrrelevantUsed fc1 n1 == IrrelevantUsed fc2 n2 = fc1 == fc2 && n1 == n2
   BorrowPartial fc1 rho1 s1 t1 == BorrowPartial fc2 rho2 s2 t2 = fc1 == fc2
   BorrowPartialType fc1 rho1 s1 == BorrowPartialType fc2 rho2 s2 = fc1 == fc2
   AmbiguousName fc1 xs1 == AmbiguousName fc2 xs2 = fc1 == fc2 && xs1 == xs2
@@ -421,6 +422,11 @@ perrorRaw (LinearMisuse fc n exp ctx)
     prettyRel = elimSemi "irrelevant"
                          "relevant"
                          (const "non-linear")
+perrorRaw (IrrelevantUsed fc n)
+    = pure $ errorDesc (reflow "Irrelevant variable" <++> code (pretty0 (sugarName n))
+        <++> reflow "cannot be used in a computationally relevant position.")
+        <+> line <+> !(ploc fc)
+        <+> line <+> reflow "Hint: variables bound by .(x : A) -> B are logically irrelevant and may only appear in erased positions."
 perrorRaw (BorrowPartial fc env tm arg)
     = pure $ errorDesc (code !(pshow env tm) <++> reflow "borrows argument" <++> code !(pshow env arg)
         <++> reflow "so must be fully applied.")

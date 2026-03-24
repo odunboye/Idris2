@@ -117,6 +117,9 @@ data Error : Type where
         -- (e.g. pattern match against an empty type).
      LinearUsed : FC -> Nat -> Name -> Error
      LinearMisuse : FC -> Name -> RigCount -> RigCount -> Error
+     ||| Raised when a variable bound by an irrelevant Pi is used in a
+     ||| computationally relevant position
+     IrrelevantUsed : FC -> Name -> Error
      BorrowPartial : {vars : _} ->
                      FC -> Env Term vars -> Term vars -> Term vars -> Error
      BorrowPartialType : {vars : _} ->
@@ -294,6 +297,8 @@ Show Error where
          "irrelevant"
          "relevant"
          (const "non-linear")
+  show (IrrelevantUsed fc n)
+      = show fc ++ ":Irrelevant variable " ++ show n ++ " used in a relevant position"
   show (BorrowPartial fc env t arg)
       = show fc ++ ":" ++ show t ++ " borrows argument " ++ show arg ++
                    " so must be fully applied"
@@ -451,6 +456,7 @@ getErrorLoc (NotTotal loc _ _) = Just loc
 getErrorLoc ImpossibleCase = Nothing
 getErrorLoc (LinearUsed loc _ _) = Just loc
 getErrorLoc (LinearMisuse loc _ _ _) = Just loc
+getErrorLoc (IrrelevantUsed loc _) = Just loc
 getErrorLoc (BorrowPartial loc _ _ _) = Just loc
 getErrorLoc (BorrowPartialType loc _ _) = Just loc
 getErrorLoc (AmbiguousName loc _) = Just loc
@@ -545,6 +551,7 @@ killErrorLoc ImpossibleCase = ImpossibleCase
 killErrorLoc (NotTotal fc x y) = NotTotal emptyFC x y
 killErrorLoc (LinearUsed fc k x) = LinearUsed emptyFC k x
 killErrorLoc (LinearMisuse fc x y z) = LinearMisuse emptyFC x y z
+killErrorLoc (IrrelevantUsed fc x) = IrrelevantUsed emptyFC x
 killErrorLoc (BorrowPartial fc x y z) = BorrowPartial emptyFC x y z
 killErrorLoc (BorrowPartialType fc x y) = BorrowPartialType emptyFC x y
 killErrorLoc (AmbiguousName fc xs) = AmbiguousName emptyFC xs

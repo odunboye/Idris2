@@ -163,7 +163,12 @@ mutual
             rigb = multiplicity b
             ty = binderType b in
             do log "quantity" 15 "lcheck Local"
-               when (not erase) $ rigSafe rigb rig
+               when (not erase) $
+                 -- Irrelevant binder check takes priority: gives a more specific
+                 -- error than the generic QTT rigSafe mismatch.
+                 if isIrrelevant (piInfo b) && not (isErased rig)
+                    then throw (IrrelevantUsed fc (nameAt prf))
+                    else rigSafe rigb rig
                pure (Local fc x idx prf, gnf env ty, used rig)
     where
       rigSafe : RigCount -> RigCount -> Core ()

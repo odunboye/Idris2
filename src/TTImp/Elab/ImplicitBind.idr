@@ -450,8 +450,10 @@ checkBindVar rig elabinfo nest env fc nm topexp
                         PI _ => setInvertible fc n
                         _ => pure ()
                    log "elab.implicits" 5 $ "Added Bound implicit " ++ show (n, (rig, tm, exp, bty))
-                   update EST { boundNames $= ((n, NameBinding fc rig Explicit tm exp) ::),
-                                toBind $= ((n, NameBinding fc rig Explicit tm bty) :: ) }
+                   let piinfo : PiInfo (Term vars) =
+                         if inIrrelevantPi elabinfo then Irrelevant else Explicit
+                   update EST { boundNames $= ((n, NameBinding fc rig piinfo tm exp) ::),
+                                toBind $= ((n, NameBinding fc rig piinfo tm bty) :: ) }
 
                    log "metadata.names" 7 $ "checkBindVar is adding ↓"
                    addNameType fc nm env exp
