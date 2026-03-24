@@ -1,0 +1,4 @@
+#!/bin/bash
+${IDRIS2} -o test Squash.idr
+./build/exec/test
+rm -rf build

@@ -184,8 +184,9 @@ mutual
       lcurly <+> auto_ <++> pretty bind <+> rcurly
     prettyPrec d (MkPBinder (DefImplicit x) bind)  =
       lcurly <+> default_ <++> prettyPrec appPrec x <+> rcurly
-    prettyPrec d (MkPBinder Irrelevant bind) =
-      dot <+> lparen <+> pretty bind <+> rparen
+    prettyPrec d (MkPBinder Irrelevant (MkBasicMultiBinder rig names type)) =
+      dot <+> lparen <+> commaSep (forget $ map (prettyBinder . val) names)
+                     <++> colon <++> pretty type <+> rparen
 
   export
   Pretty IdrisSyntax IPTerm where
@@ -243,11 +244,11 @@ mutual
              <++> arrow <+> softline <+> pretty ret
     prettyPrec d (PPi _ rig Irrelevant Nothing arg ret) =
       parenthesise (d > startPrec) $ group $
-        dot <+> parens (prettyRig rig <+> "_" <++> colon <++> pretty arg)
+        dot <+> parens ("_" <++> colon <++> pretty arg)
              <++> arrow <+> softline <+> pretty ret
     prettyPrec d (PPi _ rig Irrelevant (Just n) arg ret) =
       parenthesise (d > startPrec) $ group $
-        dot <+> parens (prettyRig rig <+> prettyBinder n
+        dot <+> parens (prettyBinder n
              <++> colon <++> pretty arg)
              <++> arrow <+> softline <+> pretty ret
     prettyPrec d (PLam _ rig _ n ty sc) =

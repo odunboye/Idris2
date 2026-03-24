@@ -595,6 +595,7 @@ mutual
                   decoratedSymbol fname "|]"
                   pure (t, mns)
            pure (PIdiom (boundToFC fname b) (snd b.val) (fst b.val))
+    <|> squashExpr
     <|> atom fname
     <|> record_ fname indents
     <|> singlelineStr pdef fname indents
@@ -643,6 +644,18 @@ mutual
            pure (PUnifyLog (boundToFC fname b) lvl e)
     <|> withWarning "DEPRECATED: trailing lambda. Use a $ or parens"
         (lam fname indents)
+   where
+     ||| Squash bracket: ‖A‖  desugars to  Squash A
+     squashExpr : Rule PTerm
+     squashExpr = do
+         start <- location
+         decoratedSymbol fname "‖"
+         commit
+         t <- typeExpr pdef fname indents
+         decoratedSymbol fname "‖"
+         end <- endLocation
+         let fc = MkFC fname start end
+         pure (PApp fc (PRef fc (UN $ Basic "Squash")) t)
 
   multiplicity : OriginDesc -> EmptyRule RigCount
   multiplicity fname
@@ -790,7 +803,7 @@ mutual
            commit
            switch <- optional (bounds $ decoratedKeyword fname "case")
            case switch of
-             Nothing => continueLamImpossible <|> continueLam
+             Nothing => continueLamImpossible <|> continueLamIrrel <|> continueLam
              Just r  => continueLamCase r
 
      where
@@ -805,6 +818,22 @@ mutual
                  n = MN "lcase" 0 in
              (PLam fcCase top Explicit (PRef fcCase n) (PInfer fcCase) $
                  PCase (virtualiseFC fc) [] (PRef fcCase n) [alt]))
+
+       ||| Irrelevant lambda binder: \ .(name : type) => scope
+       continueLamIrrel : Rule PTerm
+       continueLamIrrel = do
+           decoratedSymbol fname ".("
+           commit
+           b <- bounds $ pibindListName fname indents
+           decoratedSymbol fname ")"
+           commitSymbol fname "=>"
+           mustContinue indents Nothing
+           scope <- typeExpr pdef fname indents
+           pure $ foldr (bindIrrelLam b.val.type) scope (forget b.val.names)
+         where
+           bindIrrelLam : PTerm -> WithFC Name -> PTerm -> PTerm
+           bindIrrelLam ty nm sc =
+             PLam nm.fc erased Irrelevant (PRef nm.fc nm.val) ty sc
 
        bindAll : List (RigCount, WithBounds PTerm, PTerm) -> PTerm -> PTerm
        bindAll [] scope = scope
@@ -1842,6 +1871,11 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            params <- pibindListName fname indents
            decoratedSymbol fname "}"
            pure $ MkPBinder info params
+    <|> do decoratedSymbol fname ".("
+           commit
+           params <- pibindListName fname indents
+           decoratedSymbol fname ")"
+           pure $ MkPBinder Irrelevant params
 
   ||| Record parameter, can be either a typed binder or a name
   ||| BNF:
