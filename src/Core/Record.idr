@@ -33,7 +33,7 @@ export
 getConProjectors : {0 vars : _} -> Namespace -> Term vars -> List (Maybe Name)
 getConProjectors ns (Bind _ n (Pi _ rc info _) sc)
     = let root = nameRoot n
-          proj = if (isImplicit info && isErased rc) || root == "_"
+          proj = if isErased rc || root == "_"
                  then Nothing
                  else Just (NS ns (UN (Field root)))
       in proj :: getConProjectors ns sc

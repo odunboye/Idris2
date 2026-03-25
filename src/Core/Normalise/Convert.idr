@@ -343,12 +343,18 @@ mutual
       sameBinders _ _ = False
 
   -- Helper for record η-equality.
+  isMeta : NF vars -> Bool
+  isMeta (NApp _ (NMeta _ _ _) _) = True
+  isMeta _ = False
+
   tryRecordEta : {auto c : Ref Ctxt Defs} -> {vars : _} ->
                  Ref QVar Int -> Bool -> Defs -> Env Term vars ->
                  Name -> Int -> Nat -> List (FC, Closure vars) -> NF vars ->
                  Core Bool
   tryRecordEta q i defs env nm tag arity args neutral
-      = do -- Get full context since defs may be cleared
+      = do -- Don't apply η-equality to unresolved metavariables
+           let False = isMeta neutral | _ => pure False
+           -- Get full context since defs may be cleared
            fullDefs <- get Ctxt
            -- Check arity matches
            let True = length args == arity | _ => pure False
