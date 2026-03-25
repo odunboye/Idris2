@@ -815,7 +815,7 @@ mutual
            commit
            switch <- optional (bounds $ decoratedKeyword fname "case")
            case switch of
-             Nothing => continueLamImpossible <|> continueLam
+             Nothing => continueLamClauses <|> continueLamImpossible <|> continueLam
              Just r  => continueLamCase r
 
      where
@@ -859,6 +859,49 @@ mutual
                  n = MN "lcase" 0 in
               PLam fcCase top Explicit (PRef fcCase n) (PInfer fcCase) $
                 PCase (virtualiseFC fc) [] (PRef fcCase n) b.val)
+
+       freshLamNames : Int -> Nat -> List Name
+       freshLamNames _ Z = []
+       freshLamNames i (S n) = MN "lcase" i :: freshLamNames (i + 1) n
+
+       makePairs : FC -> List PTerm -> PTerm
+       makePairs fc [] = PUnit fc
+       makePairs fc [p] = p
+       makePairs fc (p :: ps) = PPair fc p (makePairs fc ps)
+
+       multiPatAlt : Rule (List1 PTerm, PTerm)
+       multiPatAlt = do
+           pats <- some (simpleExpr fname indents)
+           commitSymbol fname "=>"
+           rhs <- typeExpr pdef fname indents
+           pure (pats, rhs)
+
+       -- \{ p1 p2 => e1; p3 p4 => e2 }
+       -- Desugars to \lcase0 => \lcase1 => case (lcase0, lcase1) of
+       --              { (p1, p2) => e1; (p3, p4) => e2 }
+       continueLamClauses : Rule PTerm
+       continueLamClauses = do
+           decoratedSymbol fname "{"
+           commit
+           b <- bounds (sepBy1 (decoratedSymbol fname ";") multiPatAlt)
+           decoratedSymbol fname "}"
+           let (firstClause ::: _) = b.val
+               (firstPats, _) = firstClause
+               arity = length (forget firstPats)
+               fc = boundToFC fname b
+               fcCase = virtualiseFC fc
+               ns = freshLamNames 0 arity
+               refs = map (PRef fcCase) ns
+               scrutinee = makePairs fcCase refs
+               mkAlt : (List1 PTerm, PTerm) -> PClause
+               mkAlt (pats, rhs) =
+                 MkPatClause fc (makePairs fc (forget pats)) rhs []
+               caseAlts = map mkAlt (forget b.val)
+               body = PCase fcCase [] scrutinee caseAlts
+               wrapped = foldr (\n, acc =>
+                   PLam fcCase top Explicit (PRef fcCase n) (PInfer fcCase) acc)
+                 body ns
+           pure wrapped
 
   letBlock : OriginDesc -> IndentInfo -> Rule (WithBounds (Either LetBinder LetDecl))
   letBlock fname indents = bounds (letBinder <||> letDecl) where
