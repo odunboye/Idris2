@@ -195,7 +195,10 @@ knownTopics = [
     ("unify.postpone", Nothing),
     ("unify.retry", Nothing),
     ("unify.search", Nothing),
-    ("unify.unsolved", Nothing)
+    ("unify.unsolved", Nothing),
+    ("record.eta", Just "Record eta-equality conversion"),
+    ("unify.recordeta", Just "Record eta-equality in unifier"),
+    ("unify.app", Just "Unify application")
 ]
 
 export

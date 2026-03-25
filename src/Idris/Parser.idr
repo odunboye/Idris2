@@ -1184,6 +1184,10 @@ mutual
            commit
            msg <- optional simpleStr
            pure $ IFnOpt (Deprecate msg)
+    <|> do decoratedPragma fname "warning"
+           commit
+           msg <- simpleStr
+           pure $ IFnOpt (Warn msg)
     <|> do decoratedPragma fname "tcinline"
            commit
            pure $ IFnOpt TCInline

@@ -224,14 +224,14 @@ Call hierarchy (row 58) — outgoing calls free (GlobalDef.refersTo already exis
   (3) type-constructor mixfix (`data _≤_ : Nat -> Nat -> Type`) is the highest-value variant — lets
   inference rules read naturally in signatures. Design decision on precedence sharing vs separate
   namespace (recommend separate) must be made before TTC serialisation of `_`-hole names.
-- **Row 25** (custom compile-time warnings): implement `%warning`/`%deprecated` pragma first —
-  `warnMsg : Maybe String` on `GlobalDef` is a one-line addition to `Core/Context.idr`; TTC
-  serialisation is a single extra field. The elaborator emits at every use site by checking
-  `warnMsg` after resolving a name — one guard in `TTImp/Elab/App.idr`. `%warning_category` and
-  per-category suppression flags (`--ignore-warning CategoryName`) follow naturally. `warnAt` in
-  `Elab ()` depends on stable `Elab` API (row 19). Distinct from `emitWarning` in row 21 —
-  `%warning` is declarative (annotate a definition once); `warnAt` is procedural (called inside
-  a macro); `emitWarning` (row 21) is a module-level analysis hook. All three complement each other.
+- **Row 25** (custom compile-time warnings): **Done** — `%warning "msg"` pragma added as `Warn
+  String` constructor in `DefFlag` (`Core/Context/Context.idr`) and `FnOpt'` (`TTImp/TTImp.idr`).
+  TTC-serialised as tag 17 in both `Core/TTC.idr` and `TTImp/TTImp/TTC.idr`. Parser support in
+  `Idris/Parser.idr` and `TTImp/Parser.idr`. Processed via `TTImp/ProcessFnOpt.idr` (sets the
+  flag); emitted as `GenericWarn` at every use site in `TTImp/Elab/App.idr:checkWarn`. Not
+  propagated through partial evaluation (`TTImp/PartialEval.idr`). `%deprecated` was already
+  implemented (pre-existing `Deprecate (Maybe String)` flag). Golden test: `warning010` with
+  same-module and cross-module (TTC round-trip) cases. `%warning_category` and `warnAt` deferred.
 - **Row 26** (`--safe` mode): file-level first (Agda's approach) — per-definition granularity
   deferred to later. Key engineering challenge is transitive safety through the import graph:
   every `.ttc` needs `isSafe : Bool`; `ProcessIdr.idr` checks transitively at import and reports

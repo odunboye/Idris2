@@ -76,6 +76,7 @@ getNameType elabMode rigc env fc x
                  checkVisibleNS fc (fullname def) (collapseDefault $ visibility def)
                  when (not $ onLHS elabMode) $ do
                    checkDeprecation fc def
+                   checkWarn fc def
                    checkSafety fc def
                  rigSafe (multiplicity def) rigc
                  let nt = getDefNameType def
@@ -107,6 +108,12 @@ getNameType elabMode rigc env fc x
                Deprecated fc
                  (fromMaybe defMsg mMsg)
                  (Just (fc, gdef.fullname))
+
+    checkWarn : FC -> GlobalDef -> Core ()
+    checkWarn fc gdef =
+      case mapMaybe (\case { Warn m => Just m; _ => Nothing }) gdef.flags of
+           [] => pure ()
+           (msg :: _) => recordWarning (GenericWarn fc msg)
 
     checkSafety : FC -> GlobalDef -> Core ()
     checkSafety fc gdef = do

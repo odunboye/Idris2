@@ -104,6 +104,8 @@ mutual
        Inline : FnOpt
        NoInline : FnOpt
        Deprecate : Maybe String -> FnOpt
+       ||| Emit a custom compile-time warning at every use site.
+       Warn : String -> FnOpt
        TCInline : FnOpt
        -- Flag means the hint is a direct hint, not a function which might
        -- find the result (e.g. chasing parent interface dictionaries)
@@ -402,6 +404,7 @@ parameters {auto eqTTImp : Eq TTImp}
     Inline == Inline = True
     NoInline == NoInline = True
     (Deprecate x) == (Deprecate y) = x == y
+    (Warn x) == (Warn y) = x == y
     TCInline == TCInline = True
     Hint b == Hint b' = b == b'
     GlobalHint b == GlobalHint b' = b == b'
@@ -799,6 +802,7 @@ parameters (f : TTImp -> TTImp)
   mapFnOpt Inline = Inline
   mapFnOpt NoInline = NoInline
   mapFnOpt (Deprecate msg) = Deprecate msg
+  mapFnOpt (Warn msg) = Warn msg
   mapFnOpt TCInline = TCInline
   mapFnOpt (Hint b) = Hint b
   mapFnOpt (GlobalHint b) = GlobalHint b
@@ -924,6 +928,7 @@ parameters {0 m : Type -> Type} {auto apl : Applicative m} (f : (original : TTIm
   mapMFnOpt Inline = pure Inline
   mapMFnOpt NoInline = pure NoInline
   mapMFnOpt (Deprecate msg) = pure (Deprecate msg)
+  mapMFnOpt (Warn msg) = pure (Warn msg)
   mapMFnOpt TCInline = pure TCInline
   mapMFnOpt (Hint b) = pure (Hint b)
   mapMFnOpt (GlobalHint b) = pure (GlobalHint b)

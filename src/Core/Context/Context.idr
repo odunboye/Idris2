@@ -206,6 +206,8 @@ data DefFlag
     | NoInline
     | ||| A definition has been marked as deprecated
       Deprecate (Maybe String)
+    | ||| A definition carries a custom compile-time warning
+      Warn String
     | Invertible -- assume safe to cancel arguments in unification
     | Overloadable -- allow ad-hoc overloads
     | TCInline -- always inline before totality checking
@@ -240,6 +242,7 @@ Eq DefFlag where
     (==) Inline Inline = True
     (==) NoInline NoInline = True
     (==) (Deprecate x) (Deprecate y) = x == y
+    (==) (Warn x) (Warn y) = x == y
     (==) Invertible Invertible = True
     (==) Overloadable Overloadable = True
     (==) TCInline TCInline = True
@@ -258,6 +261,7 @@ Show DefFlag where
   show NoInline = "noinline"
   show (Deprecate Nothing) = "deprecate"
   show (Deprecate (Just m)) = "deprecate \{show m}"
+  show (Warn m) = "warning \{show m}"
   show Invertible = "invertible"
   show Overloadable = "overloadable"
   show TCInline = "tcinline"

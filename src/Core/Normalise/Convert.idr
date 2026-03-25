@@ -5,7 +5,10 @@ import public Core.Normalise.Quote
 
 import Core.Case.CaseTree
 import Core.Context
+import Core.Context.Log
 import Core.Env
+import Core.FC
+import Core.Record
 import Core.UnivSolver
 import Core.Value
 
@@ -339,8 +342,62 @@ mutual
       sameBinders (Lam {}) (Lam {}) = True
       sameBinders _ _ = False
 
+  -- Helper for record η-equality.
+  tryRecordEta : {auto c : Ref Ctxt Defs} -> {vars : _} ->
+                 Ref QVar Int -> Bool -> Defs -> Env Term vars ->
+                 Name -> Int -> Nat -> List (FC, Closure vars) -> NF vars ->
+                 Core Bool
+  tryRecordEta q i defs env nm tag arity args neutral
+      = do -- Get full context since defs may be cleared
+           fullDefs <- get Ctxt
+           -- Check arity matches
+           let True = length args == arity | _ => pure False
+           Just gdef <- lookupCtxtExact nm (gamma fullDefs) | _ => pure False
+           let Just tyName = returnTyCon (type gdef) | _ => pure False
+           Just tyDef <- lookupCtxtExact tyName (gamma fullDefs) | _ => pure False
+           let TCon _ _ _ _ _ (Just [_]) _ = definition tyDef | _ => pure False
+           -- Get projector namespace and projector names
+           let pns = projectorNS (fullname tyDef)
+           let projs = getConProjectors pns (type gdef)
+           let True = length projs == length args | _ => pure False
+           -- Quote neutral term; also quote erased (type-param) args to prepend
+           -- when applying projectors, so the arg count matches the NDCon closures.
+           empty <- clearDefs fullDefs
+           neutralTm <- quote empty env neutral
+           let projsAndArgCls = zip projs (map Builtin.snd args)
+           erasedTms <- do
+               let erasedCls = mapMaybe (\(mp, cl) => case mp of Nothing => Just cl; _ => Nothing)
+                                        projsAndArgCls
+               traverse (\cl => do
+                   v <- evalClosureWithOpts fullDefs defaultOpts cl
+                   quote empty env v) erasedCls
+           -- Apply each projector with its type-param args then the neutral term.
+           -- For fields with no projector (erased/unnamed), use a sentinel.
+           etaNFsAndFound <- for projsAndArgCls $ \(mproj, _) =>
+             case mproj of
+               Nothing => pure (NErased EmptyFC Placeholder, False)
+               Just proj =>
+                 case !(lookupCtxtExactI proj (gamma fullDefs)) of
+                   Nothing => pure (NErased EmptyFC Placeholder, False)
+                   Just (idx, _) => do
+                     let base = Ref EmptyFC Func (Resolved idx)
+                     let withTypeArgs = foldl (\acc, tm => App EmptyFC acc tm) base erasedTms
+                     etaNF <- nf fullDefs env (App EmptyFC withTypeArgs neutralTm)
+                     pure (etaNF, True)
+           -- Require at least one real projector, or zero fields (unit record).
+           let True = null projs || any (\x => Builtin.snd x) etaNFsAndFound | _ => pure False
+           let etaNFs = map fst etaNFsAndFound
+           -- Evaluate NDCon args and compare field-by-field
+           argNFs <- traverse (evalClosureWithOpts fullDefs defaultOpts) (map snd args)
+           allM (\(argNF, etaNF) => convGen q i fullDefs env argNF etaNF) (zip argNFs etaNFs)
+
   export
   Convert NF where
+    -- η-equality for single-constructor record types (place early for priority).
+    convGen q i defs env (NDCon _ nm tag arity args) tmy@(NApp _ _ _)
+        = tryRecordEta q i defs env nm tag arity args tmy
+    convGen q i defs env tmx@(NApp _ _ _) (NDCon _ nm tag arity args)
+        = tryRecordEta q i defs env nm tag arity args tmx
     convGen q i defs env (NBind fc x b sc) (NBind _ x' b' sc')
         = do var <- genName "conv"
              let c = MkClosure defaultOpts LocalEnv.empty env (Ref fc Bound var)

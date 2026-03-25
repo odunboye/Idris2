@@ -928,8 +928,14 @@ mutual
   -- A local against something canonical (binder or constructor) is bad
   unifyApp swap mode loc env xfc (NLocal rx x xp) args y@(NBind {})
       = convertErrorS swap loc env (NApp xfc (NLocal rx x xp) args) y
+  -- A local against a data constructor: try record η-equality first
   unifyApp swap mode loc env xfc (NLocal rx x xp) args y@(NDCon {})
-      = convertErrorS swap loc env (NApp xfc (NLocal rx x xp) args) y
+      = do gam <- get Ctxt
+           let localApp = NApp xfc (NLocal rx x xp) args
+           ok <- if swap then convert gam env y localApp
+                         else convert gam env localApp y
+           if ok then pure success
+                 else convertErrorS swap loc env localApp y
   unifyApp swap mode loc env xfc (NLocal rx x xp) args y@(NTCon {})
       = convertErrorS swap loc env (NApp xfc (NLocal rx x xp) args) y
   unifyApp swap mode loc env xfc (NLocal rx x xp) args y@(NPrimVal {})

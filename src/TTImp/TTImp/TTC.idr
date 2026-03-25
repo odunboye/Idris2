@@ -327,6 +327,7 @@ mutual
     toBuf Unsafe = tag 13
     toBuf (Deprecate Nothing) = tag 14
     toBuf (Deprecate (Just msg)) = do tag 16; toBuf msg
+    toBuf (Warn msg) = do tag 17; toBuf msg
     toBuf (ForeignExport cs) = do tag 15; toBuf cs
 
     fromBuf
@@ -347,6 +348,7 @@ mutual
                13 => pure Unsafe
                14 => pure (Deprecate Nothing)
                16 => do msg <- fromBuf; pure (Deprecate (Just msg))
+               17 => do msg <- fromBuf; pure (Warn msg)
                15 => do cs <- fromBuf; pure (ForeignExport cs)
                _ => corrupt "FnOpt"
 

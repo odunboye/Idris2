@@ -48,6 +48,8 @@ processFnOpt fc _ ndef NoInline
          setFlag fc ndef NoInline
 processFnOpt fc _ ndef (Deprecate msg)
     = setFlag fc ndef (Deprecate msg)
+processFnOpt fc _ ndef (Warn msg)
+    = setFlag fc ndef (Warn msg)
 processFnOpt fc _ ndef TCInline
     = setFlag fc ndef TCInline
 processFnOpt fc True ndef (Hint d)

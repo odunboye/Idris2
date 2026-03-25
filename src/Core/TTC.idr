@@ -1091,6 +1091,7 @@ TTC DefFlag where
   toBuf NoInline = tag 13
   toBuf (Deprecate Nothing) = tag 15
   toBuf (Deprecate (Just msg)) = do tag 16; toBuf msg
+  toBuf (Warn msg) = do tag 17; toBuf msg
   toBuf Invertible = tag 3
   toBuf Overloadable = tag 4
   toBuf TCInline = tag 5
@@ -1118,6 +1119,7 @@ TTC DefFlag where
              13 => pure NoInline
              15 => pure (Deprecate Nothing)
              16 => do msg <- fromBuf; pure (Deprecate (Just msg))
+             17 => do msg <- fromBuf; pure (Warn msg)
              _ => corrupt "DefFlag"
 
 export

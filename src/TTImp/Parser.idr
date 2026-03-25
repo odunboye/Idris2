@@ -123,6 +123,9 @@ fnDirectOpt
   <|> do pragma "deprecate"
          msg <- optional simpleStr
          pure (Deprecate msg)
+  <|> do pragma "warning"
+         msg <- simpleStr
+         pure (Warn msg)
   <|> do pragma "extern"
          pure ExternFn
 
