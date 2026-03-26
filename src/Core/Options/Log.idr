@@ -153,6 +153,7 @@ knownTopics = [
     ("repl.eval", Nothing),
     ("resugar.var", Just "Resugaring variables"),
     ("resugar.sectionL", Just "Resugaring left sections"),
+    ("rewrite.rule", Just "Registration of %%rewrite definitional rewrite rules"),
     ("specialise", Just "Generating a partially-evaluated specialised version of a function"),
     ("specialise.declare", Just "Declaring our intention to specialise a function"),
     ("specialise.fail", Just "Generating the specialised function failed"),

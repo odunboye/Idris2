@@ -575,6 +575,7 @@ mutual
        PFixity : PFixityData -> PDeclNoFC' nm
        PNamespace : Namespace -> List (PDecl' nm) -> PDeclNoFC' nm
        PTransform : String -> PTerm' nm -> PTerm' nm -> PDeclNoFC' nm
+       PRewriteRule : String -> PDeclNoFC' nm
        PRunElabDecl : PTerm' nm -> PDeclNoFC' nm
        PDirective : Directive -> PDeclNoFC' nm
        PBuiltin : BuiltinType -> Name -> PDeclNoFC' nm
@@ -1211,6 +1212,7 @@ Show PDeclNoFC where
   show (PFixity {}) = "PFixity"
   show (PNamespace {}) = "PNamespace"
   show (PTransform {}) = "PTransform"
+  show (PRewriteRule {}) = "PRewriteRule"
   show (PRunElabDecl {}) = "PRunElabDecl"
   show (PDirective {}) = "PDirective"
   show (PBuiltin {}) = "PBuiltin"

@@ -9,6 +9,7 @@ import Core.Context.Log
 import Core.Env
 import Core.FC
 import Core.Record
+import Core.Transform
 import Core.UnivSolver
 import Core.Value
 
@@ -397,6 +398,25 @@ mutual
            argNFs <- traverse (evalClosureWithOpts fullDefs defaultOpts) (map snd args)
            allM (\(argNF, etaNF) => convGen q i fullDefs env argNF etaNF) (zip argNFs etaNFs)
 
+  -- Try %%rewrite transforms when two NApp terms fail structural conversion.
+  -- Quotes both NFs, applies registered transforms, re-normalises and retries.
+  tryTransformNApp : {auto c : Ref Ctxt Defs} ->
+                     {vars : _} ->
+                     Ref QVar Int -> Bool -> Defs -> Env Term vars ->
+                     NF vars -> NF vars -> Core Bool
+  tryTransformNApp q i defs env x y
+      = do empty <- clearDefs defs
+           xtm <- quote empty env x
+           ytm <- quote empty env y
+           xtm' <- applyTransforms env xtm
+           ytm' <- applyTransforms env ytm
+           let changed = not (eqTerm xtm xtm') || not (eqTerm ytm ytm')
+           if changed
+              then do fullDefs <- get Ctxt
+                      convGen q i fullDefs env
+                          !(nf fullDefs env xtm') !(nf fullDefs env ytm')
+              else pure False
+
   export
   Convert NF where
     -- η-equality for single-constructor record types (place early for priority).
@@ -433,7 +453,10 @@ mutual
         = if !(chkConvHead q inf defs env val val')
              then do i <- getInfPos val
                      allConv q inf defs env (drop i args1) (drop i args2)
-             else chkConvCaseBlock fc q inf defs env val args1 val' args2
+             else do blockConv <- chkConvCaseBlock fc q inf defs env val args1 val' args2
+                     if blockConv
+                        then pure True
+                        else tryTransformNApp q inf defs env (NApp fc val args) (NApp fc val' args')
         where
           getInfPos : NHead vars -> Core NatSet
           getInfPos (NRef _ n)
@@ -499,7 +522,21 @@ mutual
                 then pure False   -- definitively wrong concrete levels
                 else pure True    -- UVar involved: optimistic, solver handles it
             Nothing    => pure True
-    convGen q i defs env x y = pure False
+    -- Last resort: apply any registered %%rewrite transforms to both sides,
+    -- re-normalise, and retry.  The eqTerm guard prevents looping when no
+    -- transform fires.
+    convGen q i defs env x y
+        = do empty <- clearDefs defs
+             xtm <- quote empty env x
+             ytm <- quote empty env y
+             xtm' <- applyTransforms env xtm
+             ytm' <- applyTransforms env ytm
+             let changed = not (eqTerm xtm xtm') || not (eqTerm ytm ytm')
+             if changed
+                then do fullDefs <- get Ctxt
+                        convGen q i fullDefs env
+                            !(nf fullDefs env xtm') !(nf fullDefs env ytm')
+                else pure False
 
   export
   Convert Term where

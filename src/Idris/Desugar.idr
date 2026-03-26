@@ -24,6 +24,7 @@ import Parser.Support.Escaping
 
 import TTImp.BindImplicits
 import TTImp.Parser
+import TTImp.ProcessRewriteRule
 import TTImp.ProcessType
 import TTImp.TTImp
 import TTImp.Utils
@@ -1377,6 +1378,8 @@ mutual
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs
            pure [ITransform ts.fc (UN $ Basic n) blhs rhs']
+  desugarDecl ps rr@(MkWithData _ $ PRewriteRule n)
+      = pure [IPragma rr.fc [] (\_, _ => processRewriteRule rr.fc (UN $ Basic n))]
   desugarDecl ps el@(MkWithData _ $ PRunElabDecl tm)
       = do tm' <- desugar AnyExpr ps tm
            pure [IRunElabDecl el.fc tm']

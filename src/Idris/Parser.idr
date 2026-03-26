@@ -1689,6 +1689,13 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            rhs <- expr pnowith fname indents
            pure (PTransform n lhs rhs)
 
+  rewriteRuleDecl : Rule PDeclNoFC
+  rewriteRuleDecl
+      = do decoratedPragma fname "rewrite"
+           commit
+           n <- simpleStr
+           pure (PRewriteRule n)
+
   runElabDecl : Rule PDeclNoFC
   runElabDecl
       = do
@@ -2042,6 +2049,7 @@ topDecl fname indents
   <|> fcBounds builtinDecl
   <|> fcBounds runElabDecl
   <|> fcBounds transformDecl
+  <|> fcBounds rewriteRuleDecl
   <|> fcBounds cgDirectiveDecl
       -- If the user tries to add import after some declarations, then show a more informative error.
   <|> do kw <- bounds $ keyword "import"

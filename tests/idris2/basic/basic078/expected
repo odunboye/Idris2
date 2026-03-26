@@ -1,0 +1,5 @@
+plusZeroRight: n + 0 = n (propositionally)
+%rewrite promotes it to definitional equality
+testRefl _ = Refl  -- typechecks (n + 0 = n definitional)
+coerced xs = xs    -- typechecks (Vect (n+0) Nat = Vect n Nat)
+OK
