@@ -183,6 +183,18 @@ findBindableNamesQuot env used (IQuote fc x) = []
 findBindableNamesQuot env used (IQuoteName fc x) = []
 findBindableNamesQuot env used (IQuoteDecl fc xs) = []
 findBindableNamesQuot env used (IRunElab fc _ x) = []
+-- Row 41: Guarded recursion / clock variables
+findBindableNamesQuot env used (IClockType fc) = []
+findBindableNamesQuot env used (ILater fc c ty)
+    = findBindableNamesQuot env used ![c, ty]
+findBindableNamesQuot env used (INext fc c arg)
+    = findBindableNamesQuot env used ![c, arg]
+findBindableNamesQuot env used (ITickAbs fc c body)
+    = findBindableNamesQuot (c :: env) used body
+findBindableNamesQuot env used (ITickApp fc fn c)
+    = findBindableNamesQuot env used ![fn, c]
+findBindableNamesQuot env used (IFix fc c body)
+    = findBindableNamesQuot env used ![c, body]
 
 export
 findUniqueBindableNames :
@@ -618,6 +630,7 @@ getArgName defs x bound allvars ty
             CharType => ["c","d"]
             DoubleType => ["dbl"]
             WorldType => ["wrld", "w"]
+            ClockType => ["k", "clk"]  -- Row 41
     findNamesM ty = pure Nothing
 
     findNames : NF vars -> Core (List String)

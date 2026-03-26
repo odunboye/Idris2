@@ -169,6 +169,7 @@ getDocsForPrimitive constant = do
   primTyDoc CharType = "Primitive type of characters"
   primTyDoc DoubleType = "Primitive type of double-precision floating-points"
   primTyDoc WorldType = "Primitive type of tokens for IO actions"
+  primTyDoc ClockType = "Primitive type of clocks for guarded recursion"
 
   primDoc : Constant -> Doc IdrisDocAnn
   primDoc (I i) = "Primitive signed int value (backend-dependent precision)"

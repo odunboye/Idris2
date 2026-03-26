@@ -164,6 +164,13 @@ mutual
        -- with-disambiguation
        PWithUnambigNames : FC -> List (FC, Name) -> PTerm' nm -> PTerm' nm
 
+       -- Row 41: Guarded recursion / clock variables
+       PLater : FC -> (clock : PTerm' nm) -> (ty : PTerm' nm) -> PTerm' nm
+       PNext : FC -> (clock : PTerm' nm) -> (arg : PTerm' nm) -> PTerm' nm
+       PTickAbs : FC -> (clock : Name) -> (body : PTerm' nm) -> PTerm' nm
+       PTickApp : FC -> (fn : PTerm' nm) -> (clock : PTerm' nm) -> PTerm' nm
+       PFix : FC -> (clock : PTerm' nm) -> (body : PTerm' nm) -> PTerm' nm
+
   export
   getPTermLoc : PTerm' nm -> FC
   getPTermLoc (PRef fc _) = fc
@@ -220,6 +227,12 @@ mutual
   getPTermLoc (PPostfixAppPartial fc _) = fc
   getPTermLoc (PUnifyLog fc _ _) = fc
   getPTermLoc (PWithUnambigNames fc _ _) = fc
+  -- Row 41: Guarded recursion / clock variables
+  getPTermLoc (PLater fc _ _) = fc
+  getPTermLoc (PNext fc _ _) = fc
+  getPTermLoc (PTickAbs fc _ _) = fc
+  getPTermLoc (PTickApp fc _ _) = fc
+  getPTermLoc (PFix fc _ _) = fc
 
   public export
   PFieldUpdate : Type
@@ -994,6 +1007,17 @@ parameters {0 nm : Type} (toName : nm -> Name)
         = concatMap (\n => "." ++ show n) fields
   showPTermPrec d (PWithUnambigNames fc ns rhs)
         = "with " ++ show ns ++ " " ++ showPTermPrec d rhs
+  -- Row 41: Guarded recursion / clock variables
+  showPTermPrec d (PLater fc c ty)
+        = "(Later " ++ showPTermPrec d c ++ " " ++ showPTermPrec d ty ++ ")"
+  showPTermPrec d (PNext fc c arg)
+        = "(next " ++ showPTermPrec d c ++ " " ++ showPTermPrec d arg ++ ")"
+  showPTermPrec d (PTickAbs fc c body)
+        = "(\\tick " ++ show c ++ " => " ++ showPTermPrec d body ++ ")"
+  showPTermPrec d (PTickApp fc fn c)
+        = "(" ++ showPTermPrec d fn ++ " @ " ++ showPTermPrec d c ++ ")"
+  showPTermPrec d (PFix fc c body)
+        = "(fix " ++ showPTermPrec d c ++ " " ++ showPTermPrec d body ++ ")"
 
   showOpPrec d (OpSymbols op) = showPrec d (toName op)
   showOpPrec d (Backticked op) = "`\{showPrec d (toName op)}`"

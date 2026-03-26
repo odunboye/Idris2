@@ -343,7 +343,7 @@ namespace Equality
   export
   coerceEq : {k : Fin m} -> (0 eq : m = n) -> coerce eq k ~~~ k
   coerceEq {k = FZ} Refl = FZ
-  coerceEq {k = FS k} Refl = FS (coerceEq _)
+  coerceEq {k = FS k} Refl = FS (coerceEq Refl)
 
   ||| The actual proof used by coerce is irrelevant
   export

@@ -268,6 +268,31 @@ checkTerm rig elabinfo nest env (Implicit fc b) Nothing
          when (b && bindingVars elabinfo) $
             update EST $ addBindIfUnsolved nm fc rig Explicit env metaval ty
          pure (metaval, gnf env ty)
+-- Row 41: Guarded recursion / clock variables
+checkTerm rig elabinfo nest env (IClockType fc) exp
+    = checkExp rig elabinfo env fc (TClockType fc) (gType fc (UVar (MN "top" 0))) exp
+checkTerm rig elabinfo nest env (ILater fc c ty) exp
+    = do (c', _) <- check rig elabinfo nest env c (Just (gnf env (TType fc (UVar (MN "top" 0)))))
+         (ty', gty) <- check rig elabinfo nest env ty (Just (gType fc (UVar (MN "top" 0))))
+         checkExp rig elabinfo env fc (TLater fc c' ty') (gType fc (UVar (MN "top" 0))) exp
+checkTerm rig elabinfo nest env (INext fc c arg) exp
+    = do (c', _) <- check rig elabinfo nest env c (Just (gnf env (TType fc (UVar (MN "top" 0)))))
+         -- For now, we don't know the type of arg, so we infer it
+         (arg', garg) <- check rig elabinfo nest env arg Nothing
+         checkExp rig elabinfo env fc (TNext fc c' arg') (gErased fc) exp
+checkTerm rig elabinfo nest env (ITickAbs fc c body) exp
+    = do -- Tick abstraction - binds a clock variable
+         -- For now, check body without the clock in scope (TODO: fix with proper clock context)
+         (body', gbody) <- check rig elabinfo nest env body Nothing
+         checkExp rig elabinfo env fc (TTickAbs fc c body') (gErased fc) exp
+checkTerm rig elabinfo nest env (ITickApp fc fn c) exp
+    = do (fn', gfn) <- check rig elabinfo nest env fn Nothing
+         (c', _) <- check rig elabinfo nest env c (Just (gnf env (TType fc (UVar (MN "top" 0)))))
+         checkExp rig elabinfo env fc (TTickApp fc fn' c') (gErased fc) exp
+checkTerm rig elabinfo nest env (IFix fc c body) exp
+    = do (c', _) <- check rig elabinfo nest env c (Just (gnf env (TType fc (UVar (MN "top" 0)))))
+         (body', gbody) <- check rig elabinfo nest env body Nothing
+         checkExp rig elabinfo env fc (TFix fc c' body') (gErased fc) exp
 checkTerm rig elabinfo nest env (IWithUnambigNames fc ns rhs) exp
     = do -- enter the scope -> add unambiguous names
          est <- get EST

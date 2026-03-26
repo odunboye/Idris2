@@ -40,6 +40,18 @@ substTerm outer dropped env (Erased fc Impossible) = Erased fc Impossible
 substTerm outer dropped env (Erased fc Placeholder) = Erased fc Placeholder
 substTerm outer dropped env (Erased fc (Dotted t)) = Erased fc (Dotted (substTerm outer dropped env t))
 substTerm outer dropped env (TType fc u) = TType fc u
+-- Guarded recursion / clock variables (Row 41)
+substTerm outer dropped env (TClockType fc) = TClockType fc
+substTerm outer dropped env (TLater fc c ty)
+    = TLater fc (substTerm outer dropped env c) (substTerm outer dropped env ty)
+substTerm outer dropped env (TNext fc c arg)
+    = TNext fc (substTerm outer dropped env c) (substTerm outer dropped env arg)
+substTerm outer dropped env (TTickAbs fc c body)
+    = TTickAbs fc c (substTerm outer dropped env body)
+substTerm outer dropped env (TTickApp fc fn c)
+    = TTickApp fc (substTerm outer dropped env fn) (substTerm outer dropped env c)
+substTerm outer dropped env (TFix fc c body)
+    = TFix fc (substTerm outer dropped env c) (substTerm outer dropped env body)
 
 substTerms outer dropped env xs
   = assert_total $ map (substTerm outer dropped env) xs

@@ -1,8 +1,8 @@
 module Algebra
 
-import public Algebra.ZeroOneOmega
-import public Algebra.Semiring
 import public Algebra.Preorder
+import public Algebra.Semiring
+import public Algebra.ZeroOneOmega
 
 %default total
 

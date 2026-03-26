@@ -201,6 +201,18 @@ mutual
       = Erased fc (map (applyAssignToTerm assign) why)
   applyAssignToTerm assign (TType fc u)
       = TType fc (applyAssign assign u)
+  -- Guarded recursion / clock variables (Row 41)
+  applyAssignToTerm assign (TClockType fc) = TClockType fc
+  applyAssignToTerm assign (TLater fc c ty)
+      = TLater fc (applyAssignToTerm assign c) (applyAssignToTerm assign ty)
+  applyAssignToTerm assign (TNext fc c arg)
+      = TNext fc (applyAssignToTerm assign c) (applyAssignToTerm assign arg)
+  applyAssignToTerm assign (TTickAbs fc c body)
+      = TTickAbs fc c (applyAssignToTerm assign body)
+  applyAssignToTerm assign (TTickApp fc fn c)
+      = TTickApp fc (applyAssignToTerm assign fn) (applyAssignToTerm assign c)
+  applyAssignToTerm assign (TFix fc c body)
+      = TFix fc (applyAssignToTerm assign c) (applyAssignToTerm assign body)
 
   covering
   applyAssignToBinder : UnivAssignment -> Binder (Term vars) -> Binder (Term vars)

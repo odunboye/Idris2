@@ -88,6 +88,7 @@ modules =
     Core.Reflect,
     Core.SchemeEval,
     Core.Termination.CallGraph,
+    Core.Termination.Guarded,
     Core.Termination.SizeChange,
     Core.Termination.Positivity,
     Core.Termination.Productivity,

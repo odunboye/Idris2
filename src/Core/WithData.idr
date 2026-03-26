@@ -118,12 +118,12 @@ NoFC : a -> WithFC a
 NoFC = MkFCVal EmptyFC
 
 export
-(.withFC) : (o : OriginDesc) => WithBounds t -> WithFC t
-x.withFC = MkFCVal x.toFC x.val
+withFC : (o : OriginDesc) => WithBounds t -> WithFC t
+withFC x = MkFCVal (toFC x) x.val
 
 export
-(.addFC) : (o : OriginDesc) => WithBounds (WithData ls t) -> WithData (FC' :: ls) t
-(.addFC) x = x.toFC :+ x.val
+addFC : (o : OriginDesc) => WithBounds (WithData ls t) -> WithData (FC' :: ls) t
+addFC x = toFC x :+ x.val
 
 ------------------------------------------------------------------------------------------
 -- Helpers for documentation information

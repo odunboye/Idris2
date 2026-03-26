@@ -6,6 +6,7 @@ import Core.Normalise
 import Core.Value
 
 import Core.Termination.CallGraph
+import Core.Termination.Guarded
 import Core.Termination.Positivity
 import Core.Termination.Productivity
 import Core.Termination.SizeChange
@@ -67,6 +68,8 @@ checkIfGuarded fc n
 -- Check whether a function is terminating, and record in the context.
 -- For corecursive definitions (return type is `Inf A`) the productivity
 -- checker is used instead of the size-change termination checker.
+-- For definitions using guarded recursion (containing TFix), the guarded
+-- recursion checker is used.
 export
 checkTerminating : {auto c : Ref Ctxt Defs} ->
                    FC -> Name -> Core Terminating
@@ -78,10 +81,13 @@ checkTerminating loc n
                  do defs <- get Ctxt
                     mgdef <- lookupCtxtExact n (gamma defs)
                     let corecursive = maybe False isCorecursive mgdef
+                    let guarded = maybe False isGuardedRecursive mgdef
                     tot' <- if corecursive
                                then do logC "totality.productivity" 6 $
                                            pure $ "  (corecursive — using productivity check)"
                                        calcProductive loc n
+                               else if guarded
+                               then calcGuarded loc n
                                else calcTerminating loc n
                     setTerminating loc n tot'
                     pure tot'

@@ -608,6 +608,17 @@ mutual
                foldl (\r, (fc, proj) => PApp fc (PRef fc proj) r) var projs
   desugarB side ps (PWithUnambigNames fc ns rhs)
       = IWithUnambigNames fc ns <$> desugarB side ps rhs
+  -- Row 41: Guarded recursion / clock variables
+  desugarB side ps (PLater fc c ty)
+      = ILater fc <$> desugarB side ps c <*> desugarB side ps ty
+  desugarB side ps (PNext fc c arg)
+      = INext fc <$> desugarB side ps c <*> desugarB side ps arg
+  desugarB side ps (PTickAbs fc c body)
+      = ITickAbs fc c <$> desugarB side ps body
+  desugarB side ps (PTickApp fc fn c)
+      = ITickApp fc <$> desugarB side ps fn <*> desugarB side ps c
+  desugarB side ps (PFix fc c body)
+      = IFix fc <$> desugarB side ps c <*> desugarB side ps body
 
   desugarUpdate : {auto s : Ref Syn SyntaxInfo} ->
                   {auto b : Ref Bang BangData} ->

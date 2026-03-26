@@ -463,6 +463,18 @@ mkLocals outer bs (Erased fc Impossible) = Erased fc Impossible
 mkLocals outer bs (Erased fc Placeholder) = Erased fc Placeholder
 mkLocals outer bs (Erased fc (Dotted t)) = Erased fc (Dotted (mkLocals outer bs t))
 mkLocals outer bs (TType fc u) = TType fc u
+-- Guarded recursion / clock variables (Row 41)
+mkLocals outer bs (TClockType fc) = TClockType fc
+mkLocals outer bs (TLater fc c ty)
+    = TLater fc (mkLocals outer bs c) (mkLocals outer bs ty)
+mkLocals outer bs (TNext fc c arg)
+    = TNext fc (mkLocals outer bs c) (mkLocals outer bs arg)
+mkLocals outer bs (TTickAbs fc c body)
+    = TTickAbs fc c (mkLocals outer bs body)
+mkLocals outer bs (TTickApp fc fn c)
+    = TTickApp fc (mkLocals outer bs fn) (mkLocals outer bs c)
+mkLocals outer bs (TFix fc c body)
+    = TFix fc (mkLocals outer bs c) (mkLocals outer bs body)
 
 export
 refsToLocals : Bounds bound -> Term vars -> Term (bound ++ vars)
@@ -497,7 +509,24 @@ substName x new (TDelay fc y t z)
     = TDelay fc y (substName x new t) (substName x new z)
 substName x new (TForce fc r y)
     = TForce fc r (substName x new y)
-substName x new tm = tm
+-- Guarded recursion / clock variables (Row 41)
+substName x new (TClockType fc) = TClockType fc
+substName x new (TLater fc c ty)
+    = TLater fc (substName x new c) (substName x new ty)
+substName x new (TNext fc c arg)
+    = TNext fc (substName x new c) (substName x new arg)
+substName x new (TTickAbs fc c body)
+    = TTickAbs fc c (substName x new body)
+substName x new (TTickApp fc fn c)
+    = TTickApp fc (substName x new fn) (substName x new c)
+substName x new (TFix fc c body)
+    = TFix fc (substName x new c) (substName x new body)
+-- Catch-all for simple terms
+substName x new (Local fc r idx y) = Local fc r idx y
+substName x new (Ref fc nt name) = Ref fc nt name
+substName x new (PrimVal fc c) = PrimVal fc c
+substName x new (Erased fc i) = Erased fc i
+substName x new (TType fc u) = TType fc u
 
 export
 addMetas : (usingResolved : Bool) -> NameMap Bool -> Term vars -> NameMap Bool
@@ -523,6 +552,18 @@ addMetas res ns (TForce fc r x) = addMetas res ns x
 addMetas res ns (PrimVal fc c) = ns
 addMetas res ns (Erased fc i) = foldr (flip $ addMetas res) ns i
 addMetas res ns (TType fc u) = ns
+-- Guarded recursion / clock variables (Row 41)
+addMetas res ns (TClockType fc) = ns
+addMetas res ns (TLater fc c ty)
+    = addMetas res (addMetas res ns c) ty
+addMetas res ns (TNext fc c arg)
+    = addMetas res (addMetas res ns c) arg
+addMetas res ns (TTickAbs fc c body)
+    = addMetas res ns body
+addMetas res ns (TTickApp fc fn c)
+    = addMetas res (addMetas res ns fn) c
+addMetas res ns (TFix fc c body)
+    = addMetas res (addMetas res ns c) body
 
 -- Get the metavariable names in a term
 export
@@ -558,6 +599,18 @@ addRefs ua at ns (TForce fc r x) = addRefs ua at ns x
 addRefs ua at ns (PrimVal fc c) = ns
 addRefs ua at ns (Erased fc i) = foldr (flip $ addRefs ua at) ns i
 addRefs ua at ns (TType fc u) = ns
+-- Guarded recursion / clock variables (Row 41)
+addRefs ua at ns (TClockType fc) = ns
+addRefs ua at ns (TLater fc c ty)
+    = addRefs ua at (addRefs ua at ns c) ty
+addRefs ua at ns (TNext fc c arg)
+    = addRefs ua at (addRefs ua at ns c) arg
+addRefs ua at ns (TTickAbs fc c body)
+    = addRefs ua at ns body
+addRefs ua at ns (TTickApp fc fn c)
+    = addRefs ua at (addRefs ua at ns fn) c
+addRefs ua at ns (TFix fc c body)
+    = addRefs ua at (addRefs ua at ns c) body
 
 -- As above, but for references. Also flag whether a name is under an
 -- 'assert_total' because we may need to know that in coverage/totality

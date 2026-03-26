@@ -36,6 +36,13 @@ onPRefs f = go neutral where
   go acc (PrimVal fc c) = acc
   go acc (Erased fc imp) = acc
   go acc (TType fc u) = acc
+  -- Guarded recursion / clock variables (Row 41)
+  go acc (TClockType fc) = acc
+  go acc (TLater fc c ty) = go (go acc c) ty
+  go acc (TNext fc c arg) = go (go acc c) arg
+  go acc (TTickAbs fc c body) = go acc body
+  go acc (TTickApp fc fn c) = go (go acc fn) c
+  go acc (TFix fc c body) = go (go acc c) body
 
   gos acc [] = acc
   gos acc (x :: xs) = gos (go acc x) xs
@@ -65,6 +72,13 @@ onConstants f = go neutral where
   go acc (PrimVal fc c) = acc <+> f c
   go acc (Erased fc imp) = acc
   go acc (TType fc u) = acc
+  -- Guarded recursion / clock variables (Row 41)
+  go acc (TClockType fc) = acc
+  go acc (TLater fc c ty) = go (go acc c) ty
+  go acc (TNext fc c arg) = go (go acc c) arg
+  go acc (TTickAbs fc c body) = go acc body
+  go acc (TTickApp fc fn c) = go (go acc fn) c
+  go acc (TFix fc c body) = go (go acc c) body
 
   gos acc [] = acc
   gos acc (x :: xs) = gos (go acc x) xs
@@ -96,6 +110,13 @@ mapTermM f t = act t where
   go t@(PrimVal fc c) = pure t
   go t@(Erased fc imp) = pure t
   go t@(TType fc u) = pure t
+  -- Guarded recursion / clock variables (Row 41)
+  go (TClockType fc) = pure (TClockType fc)
+  go (TLater fc c ty) = TLater fc <$> act c <*> act ty
+  go (TNext fc c arg) = TNext fc <$> act c <*> act arg
+  go (TTickAbs fc c body) = TTickAbs fc c <$> act body
+  go (TTickApp fc fn c) = TTickApp fc <$> act fn <*> act c
+  go (TFix fc c body) = TFix fc <$> act c <*> act body
 
 export
 mapTerm : ({vars : _} -> Term vars -> Term vars) ->
@@ -119,3 +140,10 @@ mapTerm f t = act t where
   go t@(PrimVal fc c) = t
   go t@(Erased fc imp) = t
   go t@(TType fc u) = t
+  -- Guarded recursion / clock variables (Row 41)
+  go (TClockType fc) = TClockType fc
+  go (TLater fc c ty) = TLater fc (act c) (act ty)
+  go (TNext fc c arg) = TNext fc (act c) (act arg)
+  go (TTickAbs fc c body) = TTickAbs fc c (act body)
+  go (TTickApp fc fn c) = TTickApp fc (act fn) (act c)
+  go (TFix fc c body) = TFix fc (act c) (act body)

@@ -309,6 +309,14 @@ mutual
     = unelabTy' umode nest env t
   unelabTy' umode nest env (Erased fc _) = pure (Implicit fc True, gErased fc)
   unelabTy' umode nest env (TType fc _) = pure (IType fc Nothing, gType fc (UVar (MN "top" 0)))
+  -- Guarded recursion / clock variables (Row 41)
+  -- TODO: Add proper surface syntax for these
+  unelabTy' umode nest env (TClockType fc) = pure (IType fc Nothing, gType fc (UVar (MN "top" 0)))
+  unelabTy' umode nest env (TLater fc c ty) = pure (Implicit fc True, gErased fc)
+  unelabTy' umode nest env (TNext fc c arg) = pure (Implicit fc True, gErased fc)
+  unelabTy' umode nest env (TTickAbs fc c body) = pure (Implicit fc True, gErased fc)
+  unelabTy' umode nest env (TTickApp fc fn c) = pure (Implicit fc True, gErased fc)
+  unelabTy' umode nest env (TFix fc c body) = pure (Implicit fc True, gErased fc)
 
   unelabPi : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->

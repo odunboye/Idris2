@@ -92,6 +92,19 @@ mutual
         = do tag 30; toBuf fc; toBuf ns; toBuf rhs
     toBuf (IAutoApp fc fn arg)
         = do tag 31; toBuf fc; toBuf fn; toBuf arg
+    -- Row 41: Guarded recursion / clock variables
+    toBuf (IClockType fc)
+        = do tag 32; toBuf fc
+    toBuf (ILater fc c ty)
+        = do tag 33; toBuf fc; toBuf c; toBuf ty
+    toBuf (INext fc c arg)
+        = do tag 34; toBuf fc; toBuf c; toBuf arg
+    toBuf (ITickAbs fc c body)
+        = do tag 35; toBuf fc; toBuf c; toBuf body
+    toBuf (ITickApp fc fn c)
+        = do tag 36; toBuf fc; toBuf fn; toBuf c
+    toBuf (IFix fc c body)
+        = do tag 37; toBuf fc; toBuf c; toBuf body
 
     fromBuf
         = case !getTag of
@@ -186,6 +199,19 @@ mutual
                31 => do fc <- fromBuf; fn <- fromBuf
                         arg <- fromBuf
                         pure (IAutoApp fc fn arg)
+               -- Row 41: Guarded recursion / clock variables
+               32 => do fc <- fromBuf
+                        pure (IClockType fc)
+               33 => do fc <- fromBuf; c <- fromBuf; ty <- fromBuf
+                        pure (ILater fc c ty)
+               34 => do fc <- fromBuf; c <- fromBuf; arg <- fromBuf
+                        pure (INext fc c arg)
+               35 => do fc <- fromBuf; c <- fromBuf; body <- fromBuf
+                        pure (ITickAbs fc c body)
+               36 => do fc <- fromBuf; fn <- fromBuf; c <- fromBuf
+                        pure (ITickApp fc fn c)
+               37 => do fc <- fromBuf; c <- fromBuf; body <- fromBuf
+                        pure (IFix fc c body)
                _ => corrupt "RawImp"
 
   export

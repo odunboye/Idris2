@@ -162,6 +162,19 @@ data Term : Scoped where
      Erased : FC -> WhyErased (Term vars) -> Term vars
      TType : FC -> UnivLevel -> -- universe level
              Term vars
+     -- Guarded recursion / clock variables (Row 41)
+     -- Clock type
+     TClockType : FC -> Term vars
+     -- Later modality: ▶κ A
+     TLater : FC -> (clock : Term vars) -> (ty : Term vars) -> Term vars
+     -- next κ a : introduce guarded value
+     TNext : FC -> (clock : Term vars) -> (arg : Term vars) -> Term vars
+     -- Tick abstraction: λ̲κ. t  (binds a clock variable)
+     TTickAbs : FC -> (clock : Name) -> (body : Term vars) -> Term vars
+     -- Tick application: t @κ
+     TTickApp : FC -> (fn : Term vars) -> (clock : Term vars) -> Term vars
+     -- Guarded fixpoint: fix κ f
+     TFix : FC -> (clock : Term vars) -> (body : Term vars) -> Term vars
 
 %name Term t, u
 
@@ -196,6 +209,13 @@ insertNames out ns (Erased fc Impossible) = Erased fc Impossible
 insertNames out ns (Erased fc Placeholder) = Erased fc Placeholder
 insertNames out ns (Erased fc (Dotted t)) = Erased fc (Dotted (insertNames out ns t))
 insertNames out ns (TType fc u) = TType fc u
+-- Guarded recursion / clock variables (Row 41)
+insertNames out ns (TClockType fc) = TClockType fc
+insertNames out ns (TLater fc c ty) = TLater fc (insertNames out ns c) (insertNames out ns ty)
+insertNames out ns (TNext fc c arg) = TNext fc (insertNames out ns c) (insertNames out ns arg)
+insertNames out ns (TTickAbs fc c body) = TTickAbs fc c (insertNames out ns body)
+insertNames out ns (TTickApp fc fn c) = TTickApp fc (insertNames out ns fn) (insertNames out ns c)
+insertNames out ns (TFix fc c body) = TFix fc (insertNames out ns c) (insertNames out ns body)
 
 export
 compatTerm : CompatibleVars xs ys -> Term xs -> Term ys
@@ -266,6 +286,18 @@ mutual
   shrinkTerm (Erased fc Impossible) prf = Just (Erased fc Impossible)
   shrinkTerm (Erased fc (Dotted t)) prf = Erased fc . Dotted <$> shrinkTerm t prf
   shrinkTerm (TType fc u) prf = Just (TType fc u)
+  -- Guarded recursion / clock variables (Row 41)
+  shrinkTerm (TClockType fc) prf = Just (TClockType fc)
+  shrinkTerm (TLater fc c ty) prf
+     = Just (TLater fc !(shrinkTerm c prf) !(shrinkTerm ty prf))
+  shrinkTerm (TNext fc c arg) prf
+     = Just (TNext fc !(shrinkTerm c prf) !(shrinkTerm arg prf))
+  shrinkTerm (TTickAbs fc c body) prf
+     = Just (TTickAbs fc c !(shrinkTerm body prf))
+  shrinkTerm (TTickApp fc fn c) prf
+     = Just (TTickApp fc !(shrinkTerm fn prf) !(shrinkTerm c prf))
+  shrinkTerm (TFix fc c body) prf
+     = Just (TFix fc !(shrinkTerm c prf) !(shrinkTerm body prf))
 
 
 mutual
@@ -302,6 +334,13 @@ mutual
   thinTerm (Erased fc Placeholder) th = Erased fc Placeholder
   thinTerm (Erased fc (Dotted t)) th = Erased fc (Dotted (thinTerm t th))
   thinTerm (TType fc u) th = TType fc u
+  -- Guarded recursion / clock variables (Row 41)
+  thinTerm (TClockType fc) th = TClockType fc
+  thinTerm (TLater fc c ty) th = TLater fc (thinTerm c th) (thinTerm ty th)
+  thinTerm (TNext fc c arg) th = TNext fc (thinTerm c th) (thinTerm arg th)
+  thinTerm (TTickAbs fc c body) th = TTickAbs fc c (thinTerm body th)
+  thinTerm (TTickApp fc fn c) th = TTickApp fc (thinTerm fn th) (thinTerm c th)
+  thinTerm (TFix fc c body) th = TFix fc (thinTerm c th) (thinTerm body th)
 
 export
 GenWeaken Term where
@@ -452,6 +491,13 @@ getLoc (TForce fc _ _) = fc
 getLoc (PrimVal fc _) = fc
 getLoc (Erased fc i) = fc
 getLoc (TType fc _) = fc
+-- Guarded recursion / clock variables (Row 41)
+getLoc (TClockType fc) = fc
+getLoc (TLater fc _ _) = fc
+getLoc (TNext fc _ _) = fc
+getLoc (TTickAbs fc _ _) = fc
+getLoc (TTickApp fc _ _) = fc
+getLoc (TFix fc _ _) = fc
 
 export
 Eq LazyReason where

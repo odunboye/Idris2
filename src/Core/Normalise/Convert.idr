@@ -124,6 +124,13 @@ tryUpdate ms (TForce fc r tm) = pure $ TForce fc r !(tryUpdate ms tm)
 tryUpdate ms (PrimVal fc c) = pure $ PrimVal fc c
 tryUpdate ms (Erased fc a) = Erased fc <$> traverse (tryUpdate ms) a
 tryUpdate ms (TType fc u) = pure $ TType fc u
+-- Guarded recursion / clock variables (Row 41)
+tryUpdate ms (TClockType fc) = pure $ TClockType fc
+tryUpdate ms (TLater fc c ty) = pure $ TLater fc !(tryUpdate ms c) !(tryUpdate ms ty)
+tryUpdate ms (TNext fc c arg) = pure $ TNext fc !(tryUpdate ms c) !(tryUpdate ms arg)
+tryUpdate ms (TTickAbs fc c body) = pure $ TTickAbs fc c !(tryUpdate ms body)
+tryUpdate ms (TTickApp fc fn c) = pure $ TTickApp fc !(tryUpdate ms fn) !(tryUpdate ms c)
+tryUpdate ms (TFix fc c body) = pure $ TFix fc !(tryUpdate ms c) !(tryUpdate ms body)
 
 mutual
   allConvNF : {auto c : Ref Ctxt Defs} ->

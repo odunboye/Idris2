@@ -130,6 +130,14 @@ mutual
        -- with-disambiguation
        IWithUnambigNames : FC -> List (FC, Name) -> RawImp' nm -> RawImp' nm
 
+       -- Row 41: Guarded recursion / clock variables
+       IClockType : FC -> RawImp' nm                              -- Clock type
+       ILater : FC -> (clock : RawImp' nm) -> (ty : RawImp' nm) -> RawImp' nm  -- Later κ A
+       INext : FC -> (clock : RawImp' nm) -> (arg : RawImp' nm) -> RawImp' nm  -- next κ e
+       ITickAbs : FC -> (clock : Name) -> (body : RawImp' nm) -> RawImp' nm    -- \tick κ => e
+       ITickApp : FC -> (fn : RawImp' nm) -> (clock : RawImp' nm) -> RawImp' nm -- e @tick κ
+       IFix : FC -> (clock : RawImp' nm) -> (body : RawImp' nm) -> RawImp' nm  -- fix κ f
+
   %name RawImp' t, u
 
   public export
@@ -212,6 +220,13 @@ mutual
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
       show (IWithUnambigNames fc ns rhs) = "(%with " ++ show ns ++ " " ++ show rhs ++ ")"
+      -- Row 41: Guarded recursion / clock variables
+      show (IClockType fc) = "Clock"
+      show (ILater fc c ty) = "(%later " ++ show c ++ " " ++ show ty ++ ")"
+      show (INext fc c arg) = "(%next " ++ show c ++ " " ++ show arg ++ ")"
+      show (ITickAbs fc c body) = "(%tickabs " ++ show c ++ " " ++ show body ++ ")"
+      show (ITickApp fc fn c) = "(%tickapp " ++ show fn ++ " " ++ show c ++ ")"
+      show (IFix fc c body) = "(%fix " ++ show c ++ " " ++ show body ++ ")"
 
   export
   covering
@@ -903,6 +918,13 @@ getFC (IRunElab x _ _) = x
 getFC (IAs x _ _ _ _) = x
 getFC (Implicit x _) = x
 getFC (IWithUnambigNames x _ _) = x
+-- Row 41: Guarded recursion / clock variables
+getFC (IClockType x) = x
+getFC (ILater x _ _) = x
+getFC (INext x _ _) = x
+getFC (ITickAbs x _ _) = x
+getFC (ITickApp x _ _) = x
+getFC (IFix x _ _) = x
 
 namespace ImpDecl
 

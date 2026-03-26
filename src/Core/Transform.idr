@@ -82,6 +82,13 @@ tryReplace ms (Erased fc Impossible) = pure (Erased fc Impossible)
 tryReplace ms (Erased fc Placeholder) = pure (Erased fc Placeholder)
 tryReplace ms (Erased fc (Dotted t)) = Erased fc . Dotted <$> tryReplace ms t
 tryReplace ms (TType fc u) = pure (TType fc u)
+-- Guarded recursion / clock variables (Row 41)
+tryReplace ms (TClockType fc) = pure (TClockType fc)
+tryReplace ms (TLater fc c ty) = do c' <- tryReplace ms c; ty' <- tryReplace ms ty; pure (TLater fc c' ty')
+tryReplace ms (TNext fc c arg) = do c' <- tryReplace ms c; arg' <- tryReplace ms arg; pure (TNext fc c' arg')
+tryReplace ms (TTickAbs fc c body) = Nothing  -- TODO: weaken ms for binder
+tryReplace ms (TTickApp fc fn c) = do fn' <- tryReplace ms fn; c' <- tryReplace ms c; pure (TTickApp fc fn' c')
+tryReplace ms (TFix fc c body) = do c' <- tryReplace ms c; body' <- tryReplace ms body; pure (TFix fc c' body')
 
 covering
 tryApply : Transform -> Term vs -> Maybe (Term vs)

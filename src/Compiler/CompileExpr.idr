@@ -188,6 +188,14 @@ toCExpTm n (PrimVal fc $ PrT c) = pure $ CCon fc (UN $ Basic $ show c) TYCON Not
 toCExpTm n (PrimVal fc c) = pure $ CPrimVal fc c -- Non-type constant
 toCExpTm n (Erased fc _) = pure $ CErased fc
 toCExpTm n (TType fc _) = pure $ CCon fc (UN (Basic "Type")) TYCON Nothing []
+-- Guarded recursion / clock variables (Row 41)
+-- TODO: These will need proper runtime support
+toCExpTm n (TClockType fc) = pure $ CErased fc
+toCExpTm n (TLater fc c ty) = pure $ CErased fc  -- Runtime: thunk
+toCExpTm n (TNext fc c arg) = pure $ CDelay fc LInf !(toCExp n arg)  -- Runtime: delay
+toCExpTm n (TTickAbs fc c body) = pure $ CErased fc  -- Runtime: compile-time construct
+toCExpTm n (TTickApp fc fn c) = pure $ CForce fc LInf !(toCExp n fn)  -- Runtime: force
+toCExpTm n (TFix fc c body) = pure $ CErased fc  -- Runtime: should be unfolded
 
 toCExp n tm
     = case getFnArgs tm of

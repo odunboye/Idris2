@@ -47,6 +47,7 @@ sizeEq _ _ = False
 
 -- Remove all force and delay annotations which are nothing to do with
 -- coinduction meaning that all Delays left guard coinductive calls.
+export
 delazy : Defs -> Term vars -> Term vars
 delazy defs (TDelayed fc r tm)
     = let tm' = delazy defs tm in
@@ -92,6 +93,34 @@ mutual
       = findSC defs env g pats tm
   findSC defs env g pats (TForce _ _ tm)
       = findSC defs env Unguarded pats tm
+  -- Row 41: Guarded recursion / clock variables
+  -- TLater marks a guarded context for the given clock
+  findSC defs env g pats (TLater fc c ty)
+      = do -- Check the clock argument
+           scs1 <- findSC defs env g pats c
+           -- The type is in a guarded context (but we don't track clocks yet)
+           scs2 <- findSC defs env Guarded pats ty
+           pure (scs1 ++ scs2)
+  -- TNext introduces a guarded value, argument should be guarded
+  findSC defs env g pats (TNext fc c arg)
+      = do scs1 <- findSC defs env g pats c
+           scs2 <- findSC defs env Guarded pats arg
+           pure (scs1 ++ scs2)
+  -- TTickAbs binds a clock variable
+  findSC defs env g pats (TTickAbs fc c body)
+      = findSC defs env g pats body
+  -- TTickApp applies a function to a clock
+  findSC defs env g pats (TTickApp fc fn c)
+      = do scs1 <- findSC defs env g pats fn
+           scs2 <- findSC defs env g pats c
+           pure (scs1 ++ scs2)
+  -- TFix is the fixpoint - body should have guarded recursive calls
+  findSC defs env g pats (TFix fc c body)
+      = do -- Check the clock argument
+           scs1 <- findSC defs env g pats c
+           -- The body is checked in a guarded context
+           scs2 <- findSC defs env Guarded pats body
+           pure (scs1 ++ scs2)
   findSC defs env g pats tm
       = do let (fn, args) = getFnArgs tm
            False <- isAssertTotal fn
@@ -327,6 +356,13 @@ mutual
           urhs (Erased fc Placeholder) = Erased fc Placeholder
           urhs (Erased fc (Dotted t)) = Erased fc (Dotted (updateRHS ms t))
           urhs (TType fc u) = TType fc u
+          -- Guarded recursion / clock variables (Row 41)
+          urhs (TClockType fc) = TClockType fc
+          urhs (TLater fc c ty) = TLater fc (updateRHS ms c) (updateRHS ms ty)
+          urhs (TNext fc c arg) = TNext fc (updateRHS ms c) (updateRHS ms arg)
+          urhs (TTickAbs fc c body) = TTickAbs fc c (updateRHS ms body)
+          urhs (TTickApp fc fn c) = TTickApp fc (updateRHS ms fn) (updateRHS ms c)
+          urhs (TFix fc c body) = TFix fc (updateRHS ms c) (updateRHS ms body)
 
           lookupTm : Term vs -> List (Term vs, Term vs') -> Maybe (Term vs')
           lookupTm tm [] = Nothing

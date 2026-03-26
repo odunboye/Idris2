@@ -77,6 +77,13 @@ mutual
       = Implicit fc b
     map f (IWithUnambigNames fc ns t)
       = IWithUnambigNames fc ns (map f t)
+    -- Row 41: Guarded recursion / clock variables
+    map f (IClockType fc) = IClockType fc
+    map f (ILater fc c ty) = ILater fc (map f c) (map f ty)
+    map f (INext fc c arg) = INext fc (map f c) (map f arg)
+    map f (ITickAbs fc c body) = ITickAbs fc c (map f body)
+    map f (ITickApp fc fn c) = ITickApp fc (map f fn) (map f c)
+    map f (IFix fc c body) = IFix fc (map f c) (map f body)
 
   export
   Functor ImpClause' where

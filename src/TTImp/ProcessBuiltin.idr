@@ -130,6 +130,13 @@ isStrict (TForce _ _ tm) = isStrict tm
 isStrict (PrimVal {}) = True
 isStrict (Erased {}) = True
 isStrict (TType {}) = True
+-- Guarded recursion / clock variables (Row 41)
+isStrict (TClockType {}) = True
+isStrict (TLater _ c ty) = isStrict c && isStrict ty
+isStrict (TNext _ c arg) = isStrict c && isStrict arg
+isStrict (TTickAbs _ _ body) = isStrict body
+isStrict (TTickApp _ fn c) = isStrict fn && isStrict c
+isStrict (TFix _ c body) = isStrict c && isStrict body
 
 ||| Get the name and definition of a list of names.
 getConsGDef :

@@ -284,6 +284,28 @@ compileStk svs stk (Erased fc why)
   = do why' <- compileWhyErased svs stk why
        pure $ Vector (-6) [toScheme fc, toSchemeWhy why']
 compileStk svs stk (TType fc u) = pure $ Vector (-7) [toScheme fc, toScheme u]
+-- Guarded recursion / clock variables (Row 41)
+compileStk svs stk (TClockType fc) = pure $ Vector (-16) [toScheme fc]
+compileStk svs stk (TLater fc c ty)
+    = do c' <- compileStk svs [] c
+         ty' <- compileStk svs [] ty
+         pure $ Vector (-17) [toScheme fc, c', ty']
+compileStk svs stk (TNext fc c arg)
+    = do c' <- compileStk svs [] c
+         arg' <- compileStk svs [] arg
+         pure $ Vector (-18) [toScheme fc, c', arg']
+compileStk svs stk (TTickAbs fc c body)
+    = do -- Tick abstraction body doesn't have clock in scope
+         body' <- compileStk svs [] body
+         pure $ Vector (-19) [toScheme fc, toScheme c, body']
+compileStk svs stk (TTickApp fc fn c)
+    = do fn' <- compileStk svs [] fn
+         c' <- compileStk svs [] c
+         pure $ Vector (-20) [toScheme fc, fn', c']
+compileStk svs stk (TFix fc c body)
+    = do c' <- compileStk svs [] c
+         body' <- compileStk svs [] body
+         pure $ Vector (-21) [toScheme fc, c', body']
 
 export
 compile : Ref Sym Integer =>

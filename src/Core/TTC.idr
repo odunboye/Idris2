@@ -208,6 +208,7 @@ TTC PrimType where
   toBuf CharType    = tag 11
   toBuf DoubleType  = tag 12
   toBuf WorldType   = tag 13
+  toBuf ClockType   = tag 14  -- Row 41
 
   fromBuf = case !getTag of
     0  => pure IntType
@@ -224,6 +225,7 @@ TTC PrimType where
     11 => pure CharType
     12 => pure DoubleType
     13 => pure WorldType
+    14 => pure ClockType  -- Row 41
     _  => corrupt "PrimType"
 
 export
@@ -395,6 +397,14 @@ mutual
         = tag 10
     toBuf (TType fc u)
         = do tag 11; toBuf u
+    -- Guarded recursion / clock variables (Row 41)
+    -- Use high tags to avoid conflict with local variable encoding (13 + idx)
+    toBuf (TClockType fc) = tag 250
+    toBuf (TLater fc c ty) = do tag 251; toBuf c; toBuf ty
+    toBuf (TNext fc c arg) = do tag 252; toBuf c; toBuf arg
+    toBuf (TTickAbs fc c body) = do tag 253; toBuf c; toBuf body
+    toBuf (TTickApp fc fn c) = do tag 254; toBuf fn; toBuf c
+    toBuf (TFix fc c body) = do tag 255; toBuf c; toBuf body
 
     fromBuf {vars}
         = case !getTag of
@@ -430,6 +440,18 @@ mutual
                12 => do fn <- fromBuf
                         args <- fromBuf
                         pure (apply emptyFC fn args)
+               -- Guarded recursion / clock variables (Row 41)
+               250 => pure (TClockType emptyFC)
+               251 => do c <- fromBuf; ty <- fromBuf
+                         pure (TLater emptyFC c ty)
+               252 => do c <- fromBuf; arg <- fromBuf
+                         pure (TNext emptyFC c arg)
+               253 => do c <- fromBuf; body <- fromBuf
+                         pure (TTickAbs emptyFC c body)
+               254 => do fn <- fromBuf; c <- fromBuf
+                         pure (TTickApp emptyFC fn c)
+               255 => do c <- fromBuf; body <- fromBuf
+                         pure (TFix emptyFC c body)
                idxp => do c <- fromBuf
                           let idx : Nat = fromInteger (cast (idxp - 13))
                           let Just name = getAt idx vars

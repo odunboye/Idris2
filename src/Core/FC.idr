@@ -154,8 +154,8 @@ boundToFC : OriginDesc -> WithBounds t -> FC
 boundToFC mbModIdent b = MkFC mbModIdent (start b) (end b)
 
 export
-(.toFC) : (o : OriginDesc) => WithBounds t -> FC
-x.toFC = boundToFC o x
+toFC : (o : OriginDesc) => WithBounds t -> FC
+toFC x = boundToFC o x
 
 export
 boundToFC' : OriginDesc -> Bounds -> FC

@@ -14,10 +14,10 @@ public export
 data OptionType = BOOL | STRING | ATOM
 
 public export
-(.sem) : OptionType -> Type
-BOOL   .sem = Bool
-STRING .sem = String
-ATOM   .sem = String
+sem : OptionType -> Type
+sem BOOL   = Bool
+sem STRING = String
+sem ATOM   = String
 
 %unbound_implicits off
 public export
@@ -25,10 +25,10 @@ record REPLOption where
   constructor MkOption
   name : String
   type : OptionType
-  val  : type.sem
+  val  : sem type
 %unbound_implicits on
 
-sexpOptionVal : {type : OptionType} -> type.sem -> SExp
+sexpOptionVal : {type : OptionType} -> sem type -> SExp
 sexpOptionVal {type = BOOL  } = toSExp
 sexpOptionVal {type = STRING} = toSExp
 sexpOptionVal {type = ATOM  } = toSExp

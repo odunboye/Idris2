@@ -122,3 +122,10 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapTTImp (IUnifyLog fc x t) = f $ IUnifyLog fc x (mapTTImp t)
   mapTTImp (Implicit fc bindIfUnsolved) = f $ Implicit fc bindIfUnsolved
   mapTTImp (IWithUnambigNames fc xs t) = f $ IWithUnambigNames fc xs (mapTTImp t)
+  -- Row 41: Guarded recursion / clock variables
+  mapTTImp (IClockType fc) = f $ IClockType fc
+  mapTTImp (ILater fc c ty) = f $ ILater fc (mapTTImp c) (mapTTImp ty)
+  mapTTImp (INext fc c arg) = f $ INext fc (mapTTImp c) (mapTTImp arg)
+  mapTTImp (ITickAbs fc c body) = f $ ITickAbs fc c (mapTTImp body)
+  mapTTImp (ITickApp fc fn c) = f $ ITickApp fc (mapTTImp fn) (mapTTImp c)
+  mapTTImp (IFix fc c body) = f $ IFix fc (mapTTImp c) (mapTTImp body)

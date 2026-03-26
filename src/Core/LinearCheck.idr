@@ -366,6 +366,30 @@ mutual
       -- LinearCheck doesn't need to recurse into universe levels
       = do log "quantity" 15 "lcheck TType"
            pure (TType fc u, gType fc (USucc u), [])
+  -- Guarded recursion / clock variables (Row 41)
+  lcheck rig erase env (TClockType fc)
+      = pure (TClockType fc, gType fc (UVar (MN "top" 0)), [])
+  lcheck rig erase env (TLater fc c ty)
+      = do (c', _, uc) <- lcheck rig erase env c
+           (ty', _, uty) <- lcheck rig erase env ty
+           pure (TLater fc c' ty', gType fc (UVar (MN "top" 0)), uc ++ uty)
+  lcheck rig erase env (TNext fc c arg)
+      = do (c', _, uc) <- lcheck rig erase env c
+           (arg', gty, uarg) <- lcheck rig erase env arg
+           pure (TNext fc c' arg', gErased fc, uc ++ uarg)
+  lcheck rig erase env (TTickAbs fc c body)
+      = do -- Clock variables don't extend the term environment
+           (body', gty, _) <- lcheck rig erase env body
+           -- Clock variables are erased, so don't include usage
+           pure (TTickAbs fc c body', gErased fc, [])
+  lcheck rig erase env (TTickApp fc fn c)
+      = do (fn', gty, ufn) <- lcheck rig erase env fn
+           (c', _, uc) <- lcheck rig erase env c
+           pure (TTickApp fc fn' c', gErased fc, ufn ++ uc)
+  lcheck rig erase env (TFix fc c body)
+      = do (c', _, uc) <- lcheck rig erase env c
+           (body', gty, ubody) <- lcheck rig erase env body
+           pure (TFix fc c' body', gErased fc, uc ++ ubody)
 
   lcheckBinder : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->

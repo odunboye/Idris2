@@ -649,6 +649,35 @@ mutual
              ns' <- reflect fc defs lhs env ns
              t' <- reflect fc defs lhs env t
              appCon fc defs (reflectionttimp "IWithUnambigNames") [fc', ns', t']
+    -- Row 41: Guarded recursion / clock variables
+    reflect fc defs lhs env (IClockType tfc)
+        = do fc' <- reflect fc defs lhs env tfc
+             appCon fc defs (reflectionttimp "IClockType") [fc']
+    reflect fc defs lhs env (ILater tfc c ty)
+        = do fc' <- reflect fc defs lhs env tfc
+             c' <- reflect fc defs lhs env c
+             ty' <- reflect fc defs lhs env ty
+             appCon fc defs (reflectionttimp "ILater") [fc', c', ty']
+    reflect fc defs lhs env (INext tfc c arg)
+        = do fc' <- reflect fc defs lhs env tfc
+             c' <- reflect fc defs lhs env c
+             arg' <- reflect fc defs lhs env arg
+             appCon fc defs (reflectionttimp "INext") [fc', c', arg']
+    reflect fc defs lhs env (ITickAbs tfc c body)
+        = do fc' <- reflect fc defs lhs env tfc
+             c' <- reflect fc defs lhs env c
+             body' <- reflect fc defs lhs env body
+             appCon fc defs (reflectionttimp "ITickAbs") [fc', c', body']
+    reflect fc defs lhs env (ITickApp tfc fn c)
+        = do fc' <- reflect fc defs lhs env tfc
+             fn' <- reflect fc defs lhs env fn
+             c' <- reflect fc defs lhs env c
+             appCon fc defs (reflectionttimp "ITickApp") [fc', fn', c']
+    reflect fc defs lhs env (IFix tfc c body)
+        = do fc' <- reflect fc defs lhs env tfc
+             c' <- reflect fc defs lhs env c
+             body' <- reflect fc defs lhs env body
+             appCon fc defs (reflectionttimp "IFix") [fc', c', body']
 
   export
   Reflect IFieldUpdate where

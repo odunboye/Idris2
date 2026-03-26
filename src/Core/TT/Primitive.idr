@@ -29,6 +29,7 @@ data PrimType
     | CharType
     | DoubleType
     | WorldType
+    | ClockType  -- Row 41: Guarded recursion clock type
 
 %name PrimType pty
 
@@ -89,6 +90,7 @@ isConstantType (UN (Basic n)) = case n of
   "Char"    => Just CharType
   "Double"  => Just DoubleType
   "%World"  => Just WorldType
+  "Clock"   => Just ClockType  -- Row 41
   _ => Nothing
 isConstantType _ = Nothing
 
@@ -109,6 +111,7 @@ primTypeEq StringType StringType = Just Refl
 primTypeEq CharType CharType = Just Refl
 primTypeEq DoubleType DoubleType = Just Refl
 primTypeEq WorldType WorldType = Just Refl
+primTypeEq ClockType ClockType = Just Refl  -- Row 41
 primTypeEq _ _ = Nothing
 
 export
@@ -147,6 +150,7 @@ Show PrimType where
   show CharType = "Char"
   show DoubleType = "Double"
   show WorldType = "%World"
+  show ClockType = "Clock"  -- Row 41
 
 export
 Show Constant where
@@ -182,6 +186,7 @@ Pretty IdrisSyntax PrimType where
     CharType => "Char"
     DoubleType => "Double"
     WorldType => "%World"
+    ClockType => "Clock"  -- Row 41
 
 export
 Pretty IdrisSyntax Constant where
@@ -205,6 +210,7 @@ Eq PrimType where
   CharType == CharType = True
   DoubleType == DoubleType = True
   WorldType == WorldType = True
+  ClockType == ClockType = True  -- Row 41
   _ == _ = False
 
 export
@@ -245,6 +251,7 @@ Ord PrimType where
       tag CharType    = 12
       tag DoubleType  = 13
       tag WorldType   = 14
+      tag ClockType   = 15  -- Row 41
 
 export
 Ord Constant where
@@ -299,6 +306,7 @@ primTypeTag Int8Type = 13
 primTypeTag Int16Type = 14
 primTypeTag Int32Type = 15
 primTypeTag Int64Type = 16
+primTypeTag ClockType = 17  -- Row 41
 
 ||| Precision of integral types.
 public export

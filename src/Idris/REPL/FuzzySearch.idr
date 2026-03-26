@@ -126,6 +126,13 @@ fuzzySearch expr = do
     fromMaybe [] ((:: []) <$> parseNameOrConst (PPrimVal fc c)) ++ ns
   doFind ns (Erased fc i) = ns
   doFind ns (TType fc _) = AType :: ns
+  -- Guarded recursion / clock variables (Row 41)
+  doFind ns (TClockType fc) = ns
+  doFind ns (TLater fc c ty) = doFind (doFind ns c) ty
+  doFind ns (TNext fc c arg) = doFind (doFind ns c) arg
+  doFind ns (TTickAbs fc c body) = doFind ns body
+  doFind ns (TTickApp fc fn c) = doFind (doFind ns fn) c
+  doFind ns (TFix fc c body) = doFind (doFind ns c) body
 
   toFullNames' : NameOrConst -> Core NameOrConst
   toFullNames' (AName x) = AName <$> toFullNames x

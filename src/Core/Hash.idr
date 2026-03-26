@@ -188,6 +188,19 @@ mutual
         = hashWithSalt h 10
     hashWithSalt h (TType fc u)
         = hashWithSalt h 11 `hashWithSalt` u
+    -- Guarded recursion / clock variables (Row 41)
+    hashWithSalt h (TClockType fc)
+        = hashWithSalt h 12
+    hashWithSalt h (TLater fc c ty)
+        = h `hashWithSalt` 13 `hashWithSalt` c `hashWithSalt` ty
+    hashWithSalt h (TNext fc c arg)
+        = h `hashWithSalt` 14 `hashWithSalt` c `hashWithSalt` arg
+    hashWithSalt h (TTickAbs fc c body)
+        = h `hashWithSalt` 15 `hashWithSalt` c `hashWithSalt` body
+    hashWithSalt h (TTickApp fc fn c)
+        = h `hashWithSalt` 16 `hashWithSalt` fn `hashWithSalt` c
+    hashWithSalt h (TFix fc c body)
+        = h `hashWithSalt` 17 `hashWithSalt` c `hashWithSalt` body
 
   export
   Hashable Pat where
@@ -299,6 +312,7 @@ Hashable PrimType where
     CharType    => h `hashWithSalt` 12
     DoubleType  => h `hashWithSalt` 13
     WorldType   => h `hashWithSalt` 14
+    ClockType   => h `hashWithSalt` 15  -- Row 41
 
 export
 Hashable Constant where

@@ -558,6 +558,15 @@ tryInstantiate {newvars} loc mode env mname mref num mdef locs otm tm
     updateIVars ivs (Erased fc Placeholder) = Just (Erased fc Placeholder)
     updateIVars ivs (Erased fc (Dotted t)) = Erased fc . Dotted <$> updateIVars ivs t
     updateIVars ivs (TType fc u) = Just (TType fc u)
+    -- Guarded recursion / clock variables (Row 41)
+    updateIVars ivs (TClockType fc) = Just (TClockType fc)
+    updateIVars ivs (TLater fc c ty) = Just (TLater fc !(updateIVars ivs c) !(updateIVars ivs ty))
+    updateIVars ivs (TNext fc c arg) = Just (TNext fc !(updateIVars ivs c) !(updateIVars ivs arg))
+    updateIVars ivs (TTickAbs fc c body)
+        = do body' <- updateIVars ivs body
+             Just (TTickAbs fc c body')
+    updateIVars ivs (TTickApp fc fn c) = Just (TTickApp fc !(updateIVars ivs fn) !(updateIVars ivs c))
+    updateIVars ivs (TFix fc c body) = Just (TFix fc !(updateIVars ivs c) !(updateIVars ivs body))
 
     mkDef : {vs, newvars : _} ->
             List (Var newvars) ->

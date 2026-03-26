@@ -140,6 +140,7 @@ cPrimType StringType = "String"
 cPrimType CharType = "Char"
 cPrimType DoubleType = "Double"
 cPrimType WorldType = "void"
+cPrimType ClockType = "void"  -- Row 41: Clock is erased at runtime
 
 ||| Generate scheme for a primitive function.
 cOp : {0 arity : Nat} -> PrimFn arity -> Vect arity String -> String

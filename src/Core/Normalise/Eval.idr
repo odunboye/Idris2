@@ -160,6 +160,29 @@ parameters (defs : Defs) (topopts : EvalOpts)
     eval env locs (Erased fc a) stk
       = NErased fc <$> traverse @{%search} @{CORE} (\ t => eval env locs t stk) a
     eval env locs (TType fc u) stk = pure $ NType fc u
+    -- Guarded recursion / clock variables (Row 41)
+    eval env locs (TClockType fc) stk = pure $ NPrimVal fc (PrT ClockType)
+    eval env locs (TLater fc c ty) stk
+        = pure $ NApp fc (NRef Func (NS builtinNS (UN $ Basic "Later"))) 
+                         ((fc, mkClosure topopts locs env c) ::
+                          (fc, mkClosure topopts locs env ty) :: stk)
+    eval env locs (TNext fc c arg) stk
+        = pure $ NApp fc (NRef Func (NS builtinNS (UN $ Basic "next")))
+                         ((fc, mkClosure topopts locs env c) ::
+                          (fc, mkClosure topopts locs env arg) :: stk)
+    eval env locs (TTickAbs fc c body) stk
+        = pure $ NBind fc c (Lam emptyFC top Explicit 
+                                  (mkClosure topopts [] env (TType emptyFC UZero)))
+                            (\defs', arg => evalWithOpts defs' topopts
+                                                    env locs body stk)
+    eval env locs (TTickApp fc fn c) stk
+        = do fn' <- eval env locs fn []
+             c' <- eval env locs c []
+             applyToStack env fn' ((fc, MkNFClosure topopts env c') :: stk)
+    eval env locs (TFix fc c body) stk
+        = eval env locs 
+           (App fc (App fc (Ref fc Func (NS builtinNS (UN $ Basic "fix")))
+                          c) body) stk
 
     -- Apply an evaluated argument (perhaps cached from an earlier evaluation)
     -- to a stack

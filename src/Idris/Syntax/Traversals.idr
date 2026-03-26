@@ -188,6 +188,22 @@ mapPTermM f = goPTerm where
     goPTerm (PWithUnambigNames fc ns rhs) =
       PWithUnambigNames fc ns <$> goPTerm rhs
       >>= f
+    -- Row 41: Guarded recursion / clock variables
+    goPTerm (PLater fc c ty) =
+      PLater fc <$> goPTerm c <*> goPTerm ty
+      >>= f
+    goPTerm (PNext fc c arg) =
+      PNext fc <$> goPTerm c <*> goPTerm arg
+      >>= f
+    goPTerm (PTickAbs fc c body) =
+      PTickAbs fc c <$> goPTerm body
+      >>= f
+    goPTerm (PTickApp fc fn c) =
+      PTickApp fc <$> goPTerm fn <*> goPTerm c
+      >>= f
+    goPTerm (PFix fc c body) =
+      PFix fc <$> goPTerm c <*> goPTerm body
+      >>= f
 
     goOpBinder : OperatorLHSInfo (PTerm' nm) -> Core (OperatorLHSInfo (PTerm' nm))
     goOpBinder (NoBinder lhs) = NoBinder <$> goPTerm lhs
@@ -506,6 +522,17 @@ mapPTerm f = goPTerm where
     goPTerm t@(PPostfixAppPartial fc fields) = f t
     goPTerm (PWithUnambigNames fc ns rhs)
       = f $ PWithUnambigNames fc ns (goPTerm rhs)
+    -- Row 41: Guarded recursion / clock variables
+    goPTerm (PLater fc c ty)
+      = f $ PLater fc (goPTerm c) (goPTerm ty)
+    goPTerm (PNext fc c arg)
+      = f $ PNext fc (goPTerm c) (goPTerm arg)
+    goPTerm (PTickAbs fc c body)
+      = f $ PTickAbs fc c (goPTerm body)
+    goPTerm (PTickApp fc fn c)
+      = f $ PTickApp fc (goPTerm fn) (goPTerm c)
+    goPTerm (PFix fc c body)
+      = f $ PFix fc (goPTerm c) (goPTerm body)
 
     goPFieldUpdate : PFieldUpdate' nm -> PFieldUpdate' nm
     goPFieldUpdate (PSetField p t)    = PSetField p $ goPTerm t
@@ -675,3 +702,9 @@ substFC fc = mapPTerm $ \case
   PPostfixAppPartial _ xs => PPostfixAppPartial fc xs
   PUnifyLog _ x y => PUnifyLog fc x y
   PWithUnambigNames _ xs x => PWithUnambigNames fc xs x
+  -- Row 41: Guarded recursion / clock variables
+  PLater _ c ty => PLater fc c ty
+  PNext _ c arg => PNext fc c arg
+  PTickAbs _ c body => PTickAbs fc c body
+  PTickApp _ fn c => PTickApp fc fn c
+  PFix _ c body => PFix fc c body

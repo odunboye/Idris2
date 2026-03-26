@@ -62,6 +62,13 @@ mutual
   -- Type u : Type (u+1)  — the key universe stratification rule
   chk env (TType fc u) = pure (gType fc (USucc u))
   chk env (Erased fc _) = pure (gErased fc)
+  -- Guarded recursion / clock variables (Row 41)
+  chk env (TClockType fc) = pure (gType fc (UVar (MN "top" 0)))
+  chk env (TLater fc c ty) = pure (gType fc (UVar (MN "top" 0)))  -- Later κ A : Type
+  chk env (TNext fc c arg) = pure (gErased fc)  -- next κ a : Later κ A
+  chk env (TTickAbs fc c body) = pure (gErased fc)  -- λ̲κ. t : (κ : Clock) -> A
+  chk env (TTickApp fc fn c) = pure (gErased fc)  -- t @κ : A
+  chk env (TFix fc c body) = pure (gErased fc)  -- fix κ f : A
 
   chkMeta : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->

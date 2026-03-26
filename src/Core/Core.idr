@@ -928,6 +928,13 @@ mapTermM f = goTerm where
     goTerm tm@(PrimVal {}) = f tm
     goTerm tm@(Erased {}) = f tm
     goTerm tm@(TType {}) = f tm
+    -- Guarded recursion / clock variables (Row 41)
+    goTerm tm@(TClockType {}) = f tm
+    goTerm (TLater fc c ty) = f =<< TLater fc <$> goTerm c <*> goTerm ty
+    goTerm (TNext fc c arg) = f =<< TNext fc <$> goTerm c <*> goTerm arg
+    goTerm (TTickAbs fc c body) = f =<< TTickAbs fc c <$> goTerm body
+    goTerm (TTickApp fc fn c) = f =<< TTickApp fc <$> goTerm fn <*> goTerm c
+    goTerm (TFix fc c body) = f =<< TFix fc <$> goTerm c <*> goTerm body
 
 
 export

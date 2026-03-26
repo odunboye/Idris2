@@ -85,6 +85,7 @@ Guardedness checker (row 36)
 Universe polymorphism (row 39)
     └── Scoped variable generalization (row 40) — most useful once explicit levels exist
 
+
 Interactive elaborator hints (row 2) — delivery via row 1 (mature LSP); elaborator side feeds from row 7 (proof search) + row 20 (first-class tactics)
 Interactive type-directed search (row 3) — shares searchByType core with row 2; REPL :search has no blockers
 Mature reflection (row 19) — unblocked, self-contained; gates first-class tactics (row 20) + reflection-based static analysis (row 21)

@@ -22,10 +22,10 @@ import Idris.Parser.Let
 %default covering
 
 fcBounds : OriginDesc => Rule a -> Rule (WithFC a)
-fcBounds a = (.withFC) <$> bounds a
+fcBounds a = withFC <$> bounds a
 
 addFCBounds : OriginDesc => Rule (WithData ls a) -> Rule (WithData (FC' :: ls) a)
-addFCBounds a = (.addFC) <$> bounds a
+addFCBounds a = addFC <$> bounds a
 
 decorate : {a : Type} -> OriginDesc -> Decoration -> Rule a -> Rule a
 decorate fname decor rule = do
@@ -141,6 +141,8 @@ atom fname
          pure (PPrimVal (boundToFC fname x) WorldVal)
   <|> do x <- bounds $ decorate fname Typ  $ pragma "World"
          pure (PPrimVal (boundToFC fname x) $ PrT WorldType)
+  <|> do x <- bounds $ decorate fname Typ  $ pragma "Clock"
+         pure (PPrimVal (boundToFC fname x) $ PrT ClockType)
   <|> do x <- bounds $ decoratedPragma fname "search"
          pure (PSearch (boundToFC fname x) 50)
 
@@ -364,7 +366,7 @@ mutual
                        pure $
                          let fc = boundToFC fname (mergeBounds l r)
                              opFC = virtualiseFC fc -- already been highlighted: we don't care
-                         in POp fc (map NoBinder l.withFC)
+                         in POp fc (map NoBinder (withFC l))
                                    (MkFCVal opFC (OpSymbols $ UN $ Basic "="))
                                    r.val
                else fail "= not allowed")
@@ -378,7 +380,7 @@ mutual
                         pure (op, e)
                  (op, r) <- pure b.val
                  let fc = boundToFC fname (mergeBounds l b)
-                 pure (POp fc (map NoBinder l.withFC) op r))
+                 pure (POp fc (map NoBinder (withFC l)) op r))
                <|> pure l.val
 
   opExpr : ParseOpts -> OriginDesc -> IndentInfo -> Rule PTerm
@@ -564,6 +566,50 @@ mutual
             actD (toNonEmptyFC $ boundToFC fname s, Keyword, Nothing)
             pure (PBracketed (boundToFC fname (mergeBounds s end)) e)
 
+  -- Row 41: Guarded recursion / clock variables - Parser syntax
+  -- Later κ A - Later modality type
+  laterExpr : OriginDesc -> IndentInfo -> Rule PTerm
+  laterExpr fname indents
+      = do b <- bounds $ do
+                  decoratedKeyword fname "Later"
+                  commit
+                  c <- simpleExpr fname indents
+                  ty <- simpleExpr fname indents
+                  pure (c, ty)
+           pure $ let (c, ty) = b.val in PLater (boundToFC fname b) c ty
+
+  -- next κ e - Introduce guarded value
+  nextExpr : OriginDesc -> IndentInfo -> Rule PTerm
+  nextExpr fname indents
+      = do b <- bounds $ do
+                  decoratedKeyword fname "next"
+                  commit
+                  c <- simpleExpr fname indents
+                  arg <- simpleExpr fname indents
+                  pure (c, arg)
+           pure $ let (c, arg) = b.val in PNext (boundToFC fname b) c arg
+
+  -- @(tick κ) - Tick application (prefix form)
+  tickAppExpr : OriginDesc -> IndentInfo -> Rule PTerm
+  tickAppExpr fname indents
+      = do b <- bounds $ do
+                  decoratedSymbol fname "@"
+                  commit
+                  c <- simpleExpr fname indents
+                  pure c
+           pure $ PTickApp (boundToFC fname b) (PRef (boundToFC fname b) (UN (Basic "_"))) b.val
+
+  -- fix κ f - Guarded fixpoint
+  fixExpr : OriginDesc -> IndentInfo -> Rule PTerm
+  fixExpr fname indents
+      = do b <- bounds $ do
+                  decoratedKeyword fname "fix"
+                  commit
+                  c <- simpleExpr fname indents
+                  body <- simpleExpr fname indents
+                  pure (c, body)
+           pure $ let (c, body) = b.val in PFix (boundToFC fname b) c body
+
   simpleExpr : OriginDesc -> IndentInfo -> Rule PTerm
   simpleExpr fname indents
     = do  -- x.y.z
@@ -596,6 +642,10 @@ mutual
                   pure (t, mns)
            pure (PIdiom (boundToFC fname b) (snd b.val) (fst b.val))
     <|> squashExpr
+    <|> laterExpr fname indents
+    <|> nextExpr fname indents
+    <|> tickAppExpr fname indents
+    <|> fixExpr fname indents
     <|> atom fname
     <|> record_ fname indents
     <|> singlelineStr pdef fname indents
@@ -814,14 +864,24 @@ mutual
     <|> do decoratedSymbol fname "\\"
            commit
            switch <- optional (bounds $ decoratedKeyword fname "case")
-           case switch of
-             Nothing => continueLamClauses <|> continueLamImpossible <|> continueLam
-             Just r  => continueLamCase r
+           tickSwitch <- optional (bounds $ exactIdent "tick")
+           case (switch, tickSwitch) of
+             (Just r, _)  => continueLamCase r
+             (Nothing, Just _)  => continueTickAbs
+             (Nothing, Nothing) => continueLamClauses <|> continueLamImpossible <|> continueLam
 
      where
        bindIrrelLam : PTerm -> WithFC Name -> PTerm -> PTerm
        bindIrrelLam ty nm sc =
          PLam nm.fc erased Irrelevant (PRef nm.fc nm.val) ty sc
+
+       continueTickAbs : Rule PTerm
+       continueTickAbs = do
+           c <- decoratedSimpleBinderUName fname
+           commitSymbol fname "=>"
+           mustContinue indents Nothing
+           scope <- typeExpr pdef fname indents
+           pure $ PTickAbs (virtualiseFC (getPTermLoc scope)) c scope
 
        continueLamImpossible : Rule PTerm
        continueLamImpossible = do
@@ -1310,7 +1370,7 @@ tyDecls declName predoc fname indents
                     ty <- the (Rule PTerm) (typeExpr pdef fname indents)
                     pure $ MkPTy docns predoc ty
          atEnd indents
-         pure $ bs.withFC
+         pure $ withFC bs
 
 withFlags : OriginDesc -> EmptyRule (List WithFlag)
 withFlags fname
@@ -1431,7 +1491,7 @@ simpleCon fname ret indents
                                    (pure . MkPTy (singleton ("", cname)) cdoc <$> conType)
                          )
          atEnd indents
-         pure b.withFC
+         pure (withFC b)
 
 simpleData : OriginDesc -> WithBounds t ->
              WithBounds Name -> IndentInfo -> Rule PDataDecl

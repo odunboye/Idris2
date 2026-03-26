@@ -546,6 +546,8 @@ Reify PrimType where
                   => pure DoubleType
              (UN (Basic "WorldType"), [])
                   => pure WorldType
+             (UN (Basic "ClockType"), [])
+                  => pure ClockType
              _ => cantReify val "PrimType"
   reify defs val = cantReify val "PrimType"
 
@@ -630,6 +632,8 @@ Reflect PrimType where
       = getCon fc defs (reflectiontt "DoubleType")
   reflect fc defs lhs env WorldType
       = getCon fc defs (reflectiontt "WorldType")
+  reflect fc defs lhs env ClockType
+      = getCon fc defs (reflectiontt "ClockType")
 
 export
 Reflect Constant where

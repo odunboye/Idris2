@@ -562,6 +562,7 @@ castTo StringType = castString
 castTo CharType = castChar
 castTo DoubleType = castDouble
 castTo WorldType = const Nothing
+castTo ClockType = const Nothing  -- Row 41: Clock cannot be cast
 
 export
 getOp : {0 arity : Nat} -> PrimFn arity ->

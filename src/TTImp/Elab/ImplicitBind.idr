@@ -202,6 +202,13 @@ swapVars (Erased fc Impossible) = Erased fc Impossible
 swapVars (Erased fc Placeholder) = Erased fc Placeholder
 swapVars (Erased fc (Dotted t)) = Erased fc $ Dotted (swapVars t)
 swapVars (TType fc u) = TType fc u
+-- Guarded recursion / clock variables (Row 41)
+swapVars (TClockType fc) = TClockType fc
+swapVars (TLater fc c ty) = TLater fc (swapVars c) (swapVars ty)
+swapVars (TNext fc c arg) = TNext fc (swapVars c) (swapVars arg)
+swapVars (TTickAbs fc c body) = believe_me (TTickAbs fc c body)  -- Binder: variable swapping is complex
+swapVars (TTickApp fc fn c) = TTickApp fc (swapVars fn) (swapVars c)
+swapVars (TFix fc c body) = TFix fc (swapVars c) (swapVars body)
 
 -- Push an explicit pi binder as far into a term as it'll go. That is,
 -- move it under implicit binders that don't depend on it, and stop

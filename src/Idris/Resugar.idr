@@ -406,6 +406,19 @@ mutual
 
   toPTerm p (IWithUnambigNames fc ns rhs) =
     PWithUnambigNames fc ns <$> toPTerm startPrec rhs
+  -- Row 41: Guarded recursion / clock variables
+  toPTerm p (IClockType fc) =
+    pure $ PRef fc (MkKindedName (Just (TyCon 0)) (UN (Basic "Clock")) (UN (Basic "Clock")))
+  toPTerm p (ILater fc c ty) =
+    pure $ PImplicit fc  -- TODO: Add proper surface syntax
+  toPTerm p (INext fc c arg) =
+    pure $ PImplicit fc  -- TODO: Add proper surface syntax
+  toPTerm p (ITickAbs fc c body) =
+    pure $ PImplicit fc  -- TODO: Add proper surface syntax
+  toPTerm p (ITickApp fc fn c) =
+    pure $ PImplicit fc  -- TODO: Add proper surface syntax
+  toPTerm p (IFix fc c body) =
+    pure $ PImplicit fc  -- TODO: Add proper surface syntax
 
   mkApp : {auto c : Ref Ctxt Defs} ->
           {auto s : Ref Syn SyntaxInfo} ->

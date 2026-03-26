@@ -444,6 +444,22 @@ mutual
     prettyPrec d (PWithUnambigNames fc ns rhs) =
       parenthesise (d > startPrec) $ group $
         with_ <++> cast (prettyList $ map snd ns) <+> line <+> pretty rhs
+    -- Row 41: Guarded recursion / clock variables
+    prettyPrec d (PLater fc c ty) =
+      parenthesise (d > startPrec) $
+        "Later" <++> pretty c <++> pretty ty
+    prettyPrec d (PNext fc c arg) =
+      parenthesise (d > startPrec) $
+        "next" <++> pretty c <++> pretty arg
+    prettyPrec d (PTickAbs fc c body) =
+      parenthesise (d > startPrec) $
+        "\\tick" <++> pretty0 c <++> "=>" <++> pretty body
+    prettyPrec d (PTickApp fc fn c) =
+      parenthesise (d > startPrec) $
+        pretty fn <++> "@" <++> pretty c
+    prettyPrec d (PFix fc c body) =
+      parenthesise (d > startPrec) $
+        "fix" <++> pretty c <++> pretty body
 
 export
 render : {auto o : Ref ROpts REPLOpts} -> Doc IdrisAnn -> Core String
