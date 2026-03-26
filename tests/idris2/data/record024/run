@@ -1,0 +1,3 @@
+. ../../../testutils.sh
+
+idris2 --exec main Row38Copatterns.idr

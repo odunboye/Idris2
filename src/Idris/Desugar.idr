@@ -23,7 +23,12 @@ import Idris.Desugar.Mutual
 
 import Parser.Support.Escaping
 
+import Core.Value
+
+import Data.SortedSet
+
 import TTImp.BindImplicits
+import TTImp.Elab.Record
 import TTImp.Parser
 import TTImp.ProcessRewriteRule
 import TTImp.ProcessType
@@ -1093,6 +1098,58 @@ mutual
           "Remove modifiers " ++ showModifiers totalities ++
           ", resulting in the default totality of " ++ showModifiers [def]
 
+  -- Synthesize a copattern definition group into a single record-construction clause.
+  -- A copattern definition like
+  --   fn .field1 = e1
+  --   fn .field2 = e2
+  -- is desugared to: fn = MkRecord e1 e2
+  -- using the declared return type of `fn` to identify the record constructor.
+  desugarCopatGroup :
+      {auto s : Ref Syn SyntaxInfo} ->
+      {auto c : Ref Ctxt Defs} ->
+      {auto u : Ref UST UState} ->
+      {auto m : Ref MD Metadata} ->
+      {auto o : Ref ROpts REPLOpts} ->
+      FC -> List Name -> Name ->
+      List (Name, Name, PTerm, List PDecl) ->
+      Core (List ImpDecl)
+  desugarCopatGroup fc ps fname copats = do
+      defs <- get Ctxt
+      fname' <- inCurrentNS fname
+      mty <- case !(lookupTyExact fname' (gamma defs)) of
+                 Just ty => pure (the (Maybe _) (Just ty))
+                 Nothing => lookupTyExact fname (gamma defs)
+      case mty of
+          Nothing => throw (GenericMsg fc
+              "No type declaration for copattern definition of \{show fname}")
+          Just ty => do
+              nfty <- nf defs Env.empty ty
+              let Just tyName = the (Maybe Name) $ case nfty of
+                                     NTCon _ n _ _ => Just n
+                                     _ => Nothing
+                    | Nothing => throw (GenericMsg fc
+                        "Return type of \{show fname} must be a record type for a copattern definition")
+              Just conName <- findConName defs tyName
+                  | Nothing => throw (GenericMsg fc
+                      "\{show tyName} is not a single-constructor record type")
+              Just (fieldInfo, _) <- findFieldsAndTypeArgs defs conName
+                  | Nothing => throw (GenericMsg fc
+                      "Cannot determine fields of constructor \{show conName}")
+              -- Only positional (explicit) fields
+              let explFields = mapMaybe (\(nm, imp, _) =>
+                      case imp of Nothing => Just nm; Just _ => Nothing) fieldInfo
+              -- Build RHS: MkRecord rhs1 rhs2 ... (hole for missing fields)
+              let rhsList = map (\f =>
+                      case find (\(_, fld, _, _) => nameRoot fld == f) copats of
+                          Just (_, _, rhs, _) => rhs
+                          Nothing => PHole fc False ("_copat_hole_" ++ f))
+                      explFields
+              let synRHS = papply fc (PRef fc conName) rhsList
+              let allWheres = concatMap (\(_, _, _, ws) => ws) copats
+              (nm, clause) <- desugarClause ps False
+                                  (MkPatClause fc (PRef fc fname) synRHS allWheres)
+              pure [IDef fc (fromJust nm) [clause]]
+
   -- Given a high level declaration, return a list of TTImp declarations
   -- which process it, and update any necessary state on the way.
   export
@@ -1110,13 +1167,40 @@ mutual
            pure $ flip (map {f = List, b = ImpDecl}) types $ \ty' =>
                       IClaim (MkFCVal claim.fc $ MkIClaimData rig vis opts ty')
 
-  desugarDecl ps (MkWithData fc (PDef clauses))
+  desugarDecl ps decl@(MkWithData _ (PDef clauses))
   -- The clauses won't necessarily all be from the same function, so split
   -- after desugaring, by function name, using collectDefs from RawImp
-      = do ncs <- traverse (desugarClause ps False) clauses
-           defs <- traverse (uncurry $ toIDef . fromJust) ncs
-           pure (collectDefs defs)
+      = let fc = decl.fc in
+        case traverse isCopatClause clauses of
+          Just copats =>
+            -- All clauses are copattern clauses (fn .field = rhs form)
+            case nub (map (\(fn,_,_,_) => fn) copats) of
+                [fname] => desugarCopatGroup fc ps fname copats
+                _ => throw (GenericMsg fc
+                    "Copattern clauses must all be for the same function")
+          Nothing =>
+            do -- Reject any partial mixing of copattern and regular clauses
+               let copFns = mapMaybe copatHead clauses
+               case copFns of
+                 (fn :: _) => throw (GenericMsg fc
+                     "Cannot mix copattern and regular clauses for \{show fn}")
+                 [] => pure ()
+               -- Normal path
+               ncs  <- traverse (desugarClause ps False) clauses
+               defs <- traverse (uncurry $ toIDef . fromJust) ncs
+               pure (collectDefs defs)
     where
+      -- Detect a bare copattern clause: fn .field = rhs
+      isCopatClause : PClause -> Maybe (Name, Name, PTerm, List PDecl)
+      isCopatClause (MkPatClause _ (PPostfixApp _ (PRef _ fn) [(_, fld)]) rhs ws)
+          = Just (fn, fld, rhs, ws)
+      isCopatClause _ = Nothing
+
+      -- Detect if a clause has a postfix projection at outermost LHS position
+      copatHead : PClause -> Maybe Name
+      copatHead (MkPatClause _ (PPostfixApp _ (PRef _ fn) [_]) _ _) = Just fn
+      copatHead _ = Nothing
+
       toIDef : Name -> ImpClause -> Core ImpDecl
       toIDef nm (PatClause fc lhs rhs)
           = pure $ IDef fc nm [PatClause fc lhs rhs]

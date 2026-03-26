@@ -70,12 +70,14 @@ toRHS' loc (Constr mn con args)
 toRHS : FC -> Rec -> RawImp
 toRHS fc r = snd (toRHS' fc r)
 
+export
 findConName : Defs -> Name -> Core (Maybe Name)
 findConName defs tyn
     = case !(lookupDefExact tyn (gamma defs)) of
            Just (TCon _ _ _ _ _ (Just [con]) _) => pure (Just con)
            _ => pure Nothing
 
+export
 findFieldsAndTypeArgs : {auto c : Ref Ctxt Defs} ->
                         Defs -> Name ->
                         Core $ Maybe (List (String, Maybe Name, Maybe Name), SortedSet Name)
