@@ -1696,6 +1696,17 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            n <- simpleStr
            pure (PRewriteRule n)
 
+  -- %variable n1 n2 ... : T
+  -- Registers generalizable names with an explicit kind annotation.
+  variableDecl : Rule PDeclNoFC
+  variableDecl
+      = do decoratedPragma fname "variable"
+           commit
+           ns <- some (decoratedSimpleBinderUName fname)
+           decoratedSymbol fname ":"
+           ty <- typeExpr pdef fname indents
+           pure (PVariable (forget ns) ty)
+
   runElabDecl : Rule PDeclNoFC
   runElabDecl
       = do
@@ -2050,6 +2061,7 @@ topDecl fname indents
   <|> fcBounds runElabDecl
   <|> fcBounds transformDecl
   <|> fcBounds rewriteRuleDecl
+  <|> fcBounds variableDecl
   <|> fcBounds cgDirectiveDecl
       -- If the user tries to add import after some declarations, then show a more informative error.
   <|> do kw <- bounds $ keyword "import"

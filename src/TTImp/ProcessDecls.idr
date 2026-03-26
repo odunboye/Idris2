@@ -164,21 +164,21 @@ processTTImpDecls {vars} nest env decls
   where
     bindConNames : ImpTy -> Core ImpTy
     bindConNames ty
-        = traverse (bindTypeNames ty.fc [] (toList vars)) ty
+        = traverse (bindTypeNames ty.fc [] [] (toList vars)) ty
 
     bindDataNames : ImpData -> Core ImpData
     bindDataNames (MkImpData fc n t opts cons)
-        = do t' <- traverseOpt (bindTypeNames fc [] (toList vars)) t
+        = do t' <- traverseOpt (bindTypeNames fc [] [] (toList vars)) t
              cons' <- traverse bindConNames cons
              pure (MkImpData fc n t' opts cons')
     bindDataNames (MkImpLater fc n t)
-        = do t' <- bindTypeNames fc [] (toList vars) t
+        = do t' <- bindTypeNames fc [] [] (toList vars) t
              pure (MkImpLater fc n t')
 
     -- bind implicits to make raw TTImp source a bit friendlier
     bindNames : ImpDecl -> Core ImpDecl
     bindNames (IClaim dat@(MkWithData fc (MkIClaimData c vis opts ty)))
-        = do ty' <- bindTypeNames dat.fc [] (toList vars) ty.val
+        = do ty' <- bindTypeNames dat.fc [] [] (toList vars) ty.val
              pure (IClaim (MkWithData fc (MkIClaimData c vis opts ({val := ty'} ty))))
     bindNames (IData fc vis mbtot d)
         = do d' <- bindDataNames d

@@ -164,15 +164,28 @@ addUsing uimpls tm
     tag : Int -> List a -> List (Int, a) -- to check uniqueness of resulting uimps
     tag t xs = zip (map (+t) [0..cast (length xs)]) xs
 
+-- Like addUsing, but for `%variable` declarations.
+-- Variable bindings use `top` (unrestricted) rig so names are accessible
+-- in function bodies as well as type signatures.
+addVariables : List (Name, RawImp) -> RawImp -> RawImp
+addVariables vars tm
+    = let freeNames = nub (findIBindVars tm)
+          relevant  = mapMaybe (\n => map (n,) (lookup n vars)) freeNames
+      in foldr addOne tm relevant
+  where
+    addOne : (Name, RawImp) -> RawImp -> RawImp
+    addOne (n, ty) body = IPi (getFC ty) top Implicit (Just n) ty body
+
 export
 bindTypeNames : {auto c : Ref Ctxt Defs} ->
                 FC -> List (Maybe Name, RawImp) ->
+                List (Name, RawImp) ->
                 List Name -> RawImp-> Core RawImp
-bindTypeNames fc uimpls env tm
+bindTypeNames fc uimpls vars env tm
     = if !isUnboundImplicits
              then do ns <- findUniqueBindableNames fc True env [] tm
                      let btm = doBind ns tm
-                     pure (addUsing uimpls btm)
+                     pure (addVariables vars (addUsing uimpls btm))
              else pure tm
 
 export

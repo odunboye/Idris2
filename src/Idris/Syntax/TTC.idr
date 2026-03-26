@@ -124,5 +124,5 @@ TTC SyntaxInfo where
                    [] (fromList ifs)
                    empty (fromList defdstrs)
                    bhs
-                   [] start
+                   [] empty start
                    hnames

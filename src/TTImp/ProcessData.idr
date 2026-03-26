@@ -403,7 +403,7 @@ processData : {vars : _} ->
               ImpData -> Core ()
 processData {vars} eopts nest env fc def_vis mbtot (MkImpLater dfc n_in ty_raw)
     = do n <- inCurrentNS n_in
-         ty_raw <- bindTypeNames fc [] (toList vars) ty_raw
+         ty_raw <- bindTypeNames fc [] [] (toList vars) ty_raw
 
          defs <- get Ctxt
          -- Check 'n' is undefined
@@ -450,7 +450,7 @@ processData {vars} eopts nest env fc def_vis mbtot (MkImpData dfc n_in mty_raw o
          defs <- get Ctxt
 
          mmetasfullty <- flip traverseOpt mty_raw $ \ ty_raw => do
-           ty_raw <- bindTypeNames fc [] (toList vars) ty_raw
+           ty_raw <- bindTypeNames fc [] [] (toList vars) ty_raw
 
            u <- uniVar fc
            (ty, _) <-

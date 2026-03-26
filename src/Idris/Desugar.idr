@@ -7,6 +7,7 @@ import Core.Unify
 
 import Libraries.Data.List.Extra
 import Libraries.Data.ANameMap
+import Libraries.Data.NameMap
 
 import Idris.Doc.String
 import Idris.Error
@@ -903,6 +904,7 @@ mutual
           do addDocString n.val (d ++ doc)
              syn <- get Syn
              pure $ Mk [pty.fc, n] !(bindTypeNames pty.fc (usingImpl syn)
+                                                 (toList (variables syn))
                                                  ps !(desugar AnyExpr ps ty))
 
   -- Attempt to get the function name from a function pattern. For example,
@@ -996,13 +998,14 @@ mutual
            pure $ MkImpData fc n
                    !(flip traverseOpt tycon $ \ tycon => do
                       tycon <- desugar AnyExpr ps tycon
-                      bindTypeNames fc (usingImpl syn) ps tycon)
+                      bindTypeNames fc (usingImpl syn) (toList (variables syn)) ps tycon)
                    opts
                    (concat mm)
   desugarData ps doc (MkPLater fc n tycon)
       = do addDocString n doc
            syn <- get Syn
            pure $ MkImpLater fc n !(bindTypeNames fc (usingImpl syn)
+                                                  (toList (variables syn))
                                                   ps !(desugar AnyExpr ps tycon))
 
   desugarField : {auto s : Ref Syn SyntaxInfo} ->
@@ -1018,7 +1021,7 @@ mutual
            addDocStringNS ns (toRF n.val) field.doc
            syn <- get Syn
            p' <- traverse (desugar AnyExpr ps) field.val.info
-           ty' <- bindTypeNames field.fc (usingImpl syn) ps !(desugar AnyExpr ps field.val.boundType)
+           ty' <- bindTypeNames field.fc (usingImpl syn) (toList (variables syn)) ps !(desugar AnyExpr ps field.val.boundType)
            pure (Mk [field.fc, field.rig, n] (MkPiBindData p' ty'))
 
         where
@@ -1158,7 +1161,7 @@ mutual
       = do syn <- get Syn
            let oldu = usingImpl syn
            uimpls' <- traverse (\ ntm => do tm' <- desugar AnyExpr ps (snd ntm)
-                                            btm <- bindTypeNames use.fc oldu ps tm'
+                                            btm <- bindTypeNames use.fc oldu (toList (variables syn)) ps tm'
                                             pure (fst ntm, btm)) uimpls
            put Syn ({ usingImpl := uimpls' ++ oldu } syn)
            uds' <- traverse (desugarDecl ps) uds
@@ -1380,6 +1383,13 @@ mutual
            pure [ITransform ts.fc (UN $ Basic n) blhs rhs']
   desugarDecl ps rr@(MkWithData _ $ PRewriteRule n)
       = pure [IPragma rr.fc [] (\_, _ => processRewriteRule rr.fc (UN $ Basic n))]
+  desugarDecl ps vd@(MkWithData _ $ PVariable ns ty)
+      = do syn <- get Syn
+           ty' <- desugar AnyExpr ps ty
+           bty <- bindTypeNames vd.fc (usingImpl syn) (toList (variables syn)) ps ty'
+           let newEntries = fromList (map (\n => (n, bty)) ns)
+           update Syn { variables $= mergeWith (\_,r => r) newEntries }
+           pure []
   desugarDecl ps el@(MkWithData _ $ PRunElabDecl tm)
       = do tm' <- desugar AnyExpr ps tm
            pure [IRunElabDecl el.fc tm']

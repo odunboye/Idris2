@@ -576,6 +576,11 @@ mutual
        PNamespace : Namespace -> List (PDecl' nm) -> PDeclNoFC' nm
        PTransform : String -> PTerm' nm -> PTerm' nm -> PDeclNoFC' nm
        PRewriteRule : String -> PDeclNoFC' nm
+       -- %variable n1 n2 ... : T — register generalizable variable names
+       -- with an explicit kind annotation. The names are auto-bound as
+       -- implicit Pi binders (with type T) whenever they appear free in
+       -- a subsequent type signature, for the rest of the module.
+       PVariable : List Name -> PTerm' nm -> PDeclNoFC' nm
        PRunElabDecl : PTerm' nm -> PDeclNoFC' nm
        PDirective : Directive -> PDeclNoFC' nm
        PBuiltin : BuiltinType -> Name -> PDeclNoFC' nm
@@ -1041,6 +1046,10 @@ record SyntaxInfo where
                            -- to be bracketed when solved)
                            -- TODO: use Set instead List
   usingImpl : List (Maybe Name, RawImp)
+  -- Names declared via `%variable n : T`. Unlike `usingImpl` (which uses
+  -- erased/quantity-0 rig), variable bindings use top (unrestricted) rig so
+  -- the names are usable in function bodies as well as type signatures.
+  variables : NameMap RawImp
   startExpr : RawImp
   holeNames : List String -- hole names in the file
 
@@ -1109,6 +1118,7 @@ initSyntax
                initDocStrings
                []
                []
+               empty
                (IVar EmptyFC (UN $ Basic "main"))
                []
 
@@ -1213,6 +1223,7 @@ Show PDeclNoFC where
   show (PNamespace {}) = "PNamespace"
   show (PTransform {}) = "PTransform"
   show (PRewriteRule {}) = "PRewriteRule"
+  show (PVariable {}) = "PVariable"
   show (PRunElabDecl {}) = "PRunElabDecl"
   show (PDirective {}) = "PDirective"
   show (PBuiltin {}) = "PBuiltin"
