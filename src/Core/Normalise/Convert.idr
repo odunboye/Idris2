@@ -18,6 +18,44 @@ import Libraries.Data.List.SizeOf
 
 %default covering
 
+-- Row 42: Definitional proof irrelevance for squash-like types.
+-- True if the constructor type has AT LEAST ONE Irrelevant-mode Pi binder
+-- (`.(x : a)` dot-pattern notation) and NO Explicit Pi binders.
+-- Implicit/AutoImplicit/DefImplicit binders are skipped.
+-- This ensures plain unit types (e.g. `data Tag = MkTag`) are NOT treated
+-- as proof-irrelevant — only genuine squash-like types are.
+export
+allExplicitErased : {vars : _} -> Term vars -> Bool
+allExplicitErased tm = go False tm
+  where
+    go : Bool -> Term any -> Bool
+    go found (Bind _ _ (Pi _ _ Implicit _) sc)        = go found sc
+    go found (Bind _ _ (Pi _ _ AutoImplicit _) sc)    = go found sc
+    go found (Bind _ _ (Pi _ _ (DefImplicit _) _) sc) = go found sc
+    go found (Bind _ _ (Pi _ _ Irrelevant _) sc)      = go True sc
+    go found (Bind _ _ (Pi _ _ Explicit _) _)          = False
+    go found _                                          = found
+
+-- True if the named data constructor is proof-irrelevant:
+-- every explicit Pi binder in its type is erased (rig 0).
+export
+isProofIrrelevantCon : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core Bool
+isProofIrrelevantCon defs nm
+    = do Just gdef <- lookupCtxtExact nm (gamma defs)
+             | Nothing => pure False
+         pure (allExplicitErased (type gdef))
+
+-- True if the named type constructor is proof-irrelevant: it has exactly
+-- one data constructor and that constructor is proof-irrelevant.
+export
+isProofIrrelevantTyCon : {auto c : Ref Ctxt Defs} -> Defs -> Name -> Core Bool
+isProofIrrelevantTyCon defs nm
+    = do Just gdef <- lookupCtxtExact nm (gamma defs)
+             | Nothing => pure False
+         let TCon _ _ _ _ _ (Just [con]) _ = definition gdef
+             | _ => pure False
+         isProofIrrelevantCon defs con
+
 public export
 interface Convert tm where
   convert : {auto c : Ref Ctxt Defs} ->
@@ -456,7 +494,12 @@ mutual
              else do blockConv <- chkConvCaseBlock fc q inf defs env val args1 val' args2
                      if blockConv
                         then pure True
-                        else tryTransformNApp q inf defs env (NApp fc val args) (NApp fc val' args')
+                        else do r <- tryTransformNApp q inf defs env (NApp fc val args) (NApp fc val' args')
+                                if r then pure True
+                                     else do mty <- headTyConName val
+                                             case mty of
+                                               Just nm => isProofIrrelevantTyCon defs nm
+                                               Nothing => pure False
         where
           getInfPos : NHead vars -> Core NatSet
           getInfPos (NRef _ n)
@@ -474,9 +517,24 @@ mutual
           args2 : List (Closure vars)
           args2 = map snd args'
 
+          -- For a local-variable head, look up its type from the environment
+          -- and return the outermost type constructor name (if any).
+          -- This enables type-directed proof irrelevance: two neutral terms of
+          -- the same proof-irrelevant type are definitionally equal (Row 42).
+          headTyConName : NHead vars -> Core (Maybe Name)
+          headTyConName (NLocal _ _ p)
+              = do let ty = binderType (getBinder p env)
+                   tyNF <- nf defs env ty
+                   case tyNF of
+                     NTCon _ nm _ _ => pure (Just nm)
+                     _ => pure Nothing
+          headTyConName _ = pure Nothing
+
     convGen q i defs env (NDCon _ nm tag _ args) (NDCon _ nm' tag' _ args')
         = if tag == tag'
-             then allConv q i defs env (map snd args) (map snd args')
+             then if !(isProofIrrelevantCon defs nm)
+                     then pure True   -- Row 42: definitional proof irrelevance
+                     else allConv q i defs env (map snd args) (map snd args')
              else pure False
     convGen q i defs env (NTCon _ nm _ args) (NTCon _ nm' _ args')
         = if nm == nm'
