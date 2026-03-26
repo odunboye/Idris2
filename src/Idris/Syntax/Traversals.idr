@@ -321,6 +321,15 @@ mapPTermM f = goPTerm where
     goPDecl (PRunElabDecl a) = PRunElabDecl <$> goPTerm a
     goPDecl (PDirective d) = pure (PDirective d)
     goPDecl p@(PBuiltin {}) = pure p
+    goPDecl (PPatSyn doc vis n params body bidir) = 
+      PPatSyn doc vis n <$> traverse goParam params <*> goPTerm body <*> pure bidir
+      where
+        goParam : (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm) -> 
+                  Core (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm)
+        goParam (n, rig, info, ty) = do
+          info' <- traverse goPTerm info
+          ty' <- goPTerm ty
+          pure (n, rig, info', ty')
 
     goPTypeDecl : PTypeDeclData' nm -> Core (PTypeDeclData' nm)
     goPTypeDecl (MkPTy n d t) = MkPTy n d <$> goPTerm t
@@ -600,6 +609,12 @@ mapPTerm f = goPTerm where
     goPDecl (PRunElabDecl a) = PRunElabDecl $ goPTerm a
     goPDecl (PDirective d) = PDirective d
     goPDecl p@(PBuiltin {}) = p
+    goPDecl (PPatSyn doc vis n params body bidir) = 
+      PPatSyn doc vis n (map goParam params) (goPTerm body) bidir
+      where
+        goParam : (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm) -> 
+                  (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm)
+        goParam (n, rig, info, ty) = (n, rig, map goPTerm info, goPTerm ty)
 
     goPBinder : PBinder' nm -> PBinder' nm
     goPBinder (MkPBinder info bind) = MkPBinder (goPiInfo info) (goBasicMultiBinder bind)

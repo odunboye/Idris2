@@ -122,6 +122,12 @@ mutual
     map f (IPragma fc xs k) = IPragma fc xs k
     map f (ILog x) = ILog x
     map f (IBuiltin fc ty n) = IBuiltin fc ty n
+    map f (IPatSyn fc vis n params body bidir)
+      = IPatSyn fc vis n (map (mapParam f) params) (map f body) bidir
+      where
+        mapParam : (nm -> nm') -> (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm) ->
+                   (Name, RigCount, PiInfo (RawImp' nm'), RawImp' nm')
+        mapParam g (n, rig, info, ty) = (n, rig, map (map g) info, map g ty)
 
   export
   Functor FnOpt' where

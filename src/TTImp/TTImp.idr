@@ -505,6 +505,12 @@ mutual
                  ImpDecl' nm
        ILog : Maybe (List String, Nat) -> ImpDecl' nm
        IBuiltin : FC -> BuiltinType -> Name -> ImpDecl' nm
+       IPatSyn : FC -> (vis : Visibility) ->
+                 Name -> -- pattern name
+                 List (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm) -> -- parameters
+                 RawImp' nm -> -- pattern body
+                 Bool -> -- bidirectional?
+                 ImpDecl' nm
 
   %name ImpDecl' decl
 
@@ -535,6 +541,7 @@ mutual
       [] => show lvl
       _  => concat (intersperse "." topic) ++ " " ++ show lvl
     show (IBuiltin _ type name) = "%builtin " ++ show type ++ " " ++ show name
+    show (IPatSyn _ _ name _ _ _) = "%pattern " ++ show name
 
 
 export
@@ -942,6 +949,7 @@ namespace ImpDecl
   getFC (IPragma fc _ _) = fc
   getFC (ILog _) = EmptyFC
   getFC (IBuiltin fc _ _) = fc
+  getFC (IPatSyn fc _ _ _ _ _) = fc
 
 public export
 data Arg' nm

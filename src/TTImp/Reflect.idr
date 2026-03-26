@@ -873,3 +873,5 @@ mutual
              appCon fc defs (reflectionttimp "ILog") [x']
     reflect fc defs lhs env (IBuiltin {})
         = throw (GenericMsg fc "Can't reflect a %builtin")
+    reflect fc defs lhs env (IPatSyn {})
+        = throw (GenericMsg fc "Can't reflect a pattern synonym")

@@ -58,7 +58,8 @@ cons = MkStream
 ||| ```
 public export
 repeat : {0 a : Type} -> (k : Clock) -> a -> Stream k a
-repeat k x = MkStream x (next k (repeat k x))  -- Guarded: recursive call is under next k
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
+repeat k x = assert_total $ MkStream x (next k (repeat k x))
 
 ||| Generate a stream by iterating a function.
 |||
@@ -70,15 +71,18 @@ repeat k x = MkStream x (next k (repeat k x))  -- Guarded: recursive call is und
 ||| ```
 public export
 iterate : {0 a : Type} -> (k : Clock) -> (a -> a) -> a -> Stream k a
-iterate k f x = MkStream x (next k (iterate k f (f x)))  -- Guarded: recursive call is under next k
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
+iterate k f x = assert_total $ MkStream x (next k (iterate k f (f x)))
 
 ||| Generate a stream from a seed value and a generator function.
 public export
 unfold : {0 a, s : Type} ->
          (k : Clock) -> (s -> (a, s)) -> s -> Stream k a
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
 unfold k f s =
+  assert_total $
   let (x, s') = f s in
-  MkStream x (next k (unfold k f s'))  -- Guarded: recursive call is under next k
+  MkStream x (next k (unfold k f s'))
 
 ||| Create a stream by counting up from a starting number.
 public export
@@ -97,27 +101,28 @@ nats k = countFrom k 0
 ||| Map a function over every element of a stream.
 public export
 map : {k : Clock} -> {0 a, b : Type} -> (a -> b) -> Stream k a -> Stream k b
--- Guarded: recursive call is under next k. unsafeForce is safe here because
--- we immediately wrap the result in next k.
-map f s = MkStream (f s.head) (next k (map f (unsafeForce s.tail)))
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
+map f s = assert_total $ MkStream (f s.head) (next k (map f (unsafeForce s.tail)))
 
 ||| Zip two streams together element-wise.
 public export
 zipWith : {k : Clock} -> {0 a, b, c : Type} ->
           (a -> b -> c) -> Stream k a -> Stream k b -> Stream k c
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
 zipWith f s1 s2 =
+  assert_total $
   MkStream (f s1.head s2.head)
            (next k (zipWith f (unsafeForce s1.tail) (unsafeForce s2.tail)))
-           -- Guarded: recursive call is under next k
 
 ||| Zip three streams together element-wise.
 public export
 zipWith3 : {k : Clock} -> {0 a, b, c, d : Type} ->
            (a -> b -> c -> d) -> Stream k a -> Stream k b -> Stream k c -> Stream k d
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
 zipWith3 f s1 s2 s3 =
+  assert_total $
   MkStream (f s1.head s2.head s3.head)
            (next k (zipWith3 f (unsafeForce s1.tail) (unsafeForce s2.tail) (unsafeForce s3.tail)))
-           -- Guarded: recursive call is under next k
 
 ||| Zip two streams into a stream of pairs.
 public export
@@ -130,24 +135,27 @@ zip3 : {k : Clock} -> {0 a, b, c : Type} -> Stream k a -> Stream k b -> Stream k
 zip3 = zipWith3 (,,)
 
 ||| Take elements from a stream while a predicate holds.
+||| Partial: may not terminate if the predicate is always true.
 public export
+partial
 takeWhile : {k : Clock} -> {0 a : Type} -> (a -> Bool) -> Stream k a -> List a
--- Safe: recursion is structural on the stream's productivity (predicate-bounded),
--- unsafeForce is valid because takeWhile is not guarded-recursive.
 takeWhile p s = if p s.head
                   then s.head :: takeWhile p (unsafeForce s.tail)
                   else []
 
 ||| Drop elements from a stream while a predicate holds.
+||| Partial: may not terminate if the predicate is always true.
 public export
+partial
 dropWhile : {k : Clock} -> {0 a : Type} -> (a -> Bool) -> Stream k a -> Later k (Stream k a)
--- Safe: not guarded-recursive; terminates if the predicate eventually becomes False.
 dropWhile p s = if p s.head
                   then dropWhile p (unsafeForce s.tail)
                   else next _ s
 
 ||| Filter a stream (may not return if no elements satisfy the predicate).
+||| Partial: may diverge if no elements satisfy the predicate.
 public export
+partial
 filter : {k : Clock} -> {0 a : Type} -> (a -> Bool) -> Stream k a -> Later k (Stream k a)
 filter p s =
   if p s.head
@@ -197,8 +205,9 @@ prepend (x :: xs) s = MkStream x (next k (prepend xs s))
 ||| Interleave two streams element by element.
 public export
 interleave : {k : Clock} -> {0 a : Type} -> Stream k a -> Stream k a -> Stream k a
--- Guarded: recursive call is under next k.
+-- assert_total: guarded-productive — recursive call is under MkLater (next k)
 interleave s1 s2 =
+  assert_total $
   MkStream s1.head
            (next k (interleave s2 (unsafeForce s1.tail)))
 
@@ -211,9 +220,9 @@ public export
 fibs : (k : Clock) -> Stream k Nat
 fibs k = fibs' k 0 1
   where
+    -- assert_total: guarded-productive — recursive call is under MkLater (next k)
     fibs' : (k : Clock) -> Nat -> Nat -> Stream k Nat
-    -- Guarded: recursive call is under next k.
-    fibs' k a b = MkStream a (next k (fibs' k b (a + b)))
+    fibs' k a b = assert_total $ MkStream a (next k (fibs' k b (a + b)))
 
 ||| The stream of even numbers (0, 2, 4, 6, ...).
 public export
@@ -225,10 +234,10 @@ public export
 factorials : (k : Clock) -> Stream k Nat
 factorials k = factorials' k 1 1
   where
+    -- assert_total: guarded-productive — recursive call is under MkLater (next k)
     factorials' : (k : Clock) -> Nat -> Nat -> Stream k Nat
-    -- Guarded: recursive call is under next k.
     factorials' k n fact =
-      MkStream fact (next k (factorials' k (S n) (fact * (S n))))
+      assert_total $ MkStream fact (next k (factorials' k (S n) (fact * (S n))))
 
 ||| The stream of powers of 2 (1, 2, 4, 8, ...).
 public export

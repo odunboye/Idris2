@@ -12,6 +12,7 @@ import TTImp.Utils
 
 import Data.String
 import Libraries.Data.ANameMap
+import Libraries.Data.WithDefault
 
 %default covering
 
@@ -564,6 +565,17 @@ mutual
   toPDecl (IPragma {}) = pure Nothing
   toPDecl (ILog _) = pure Nothing
   toPDecl (IBuiltin fc type name) = pure $ Just $ MkFCVal fc $ PBuiltin type name
+  toPDecl (IPatSyn fc vis n params body bidir)
+      = do params' <- traverse toParam params
+           body' <- toPTerm startPrec body
+           pure $ Just $ MkFCVal fc $ PPatSyn "" (specified vis) n params' body' bidir
+      where
+        toParam : (Name, RigCount, PiInfo (RawImp' KindedName), RawImp' KindedName) ->
+                  Core (Name, RigCount, PiInfo (PTerm' KindedName), PTerm' KindedName)
+        toParam (n, rig, info, ty) = do
+          info' <- traverse (toPTerm startPrec) info
+          ty' <- toPTerm startPrec ty
+          pure (n, rig, info', ty')
 
 export
 cleanPTerm : {auto c : Ref Ctxt Defs} ->

@@ -95,6 +95,22 @@ TTC FixityInfo where
 
 
 export
+TTC PatSynInfo where
+  toBuf psi
+      = do toBuf psi.fc
+           toBuf psi.vis
+           toBuf psi.params
+           toBuf psi.body
+           toBuf psi.bidirectional
+  fromBuf
+      = do fc <- fromBuf
+           vis <- fromBuf
+           params <- fromBuf
+           body <- fromBuf
+           bidir <- fromBuf
+           pure $ MkPatSynInfo fc vis params body bidir
+
+export
 TTC SyntaxInfo where
   toBuf syn
       = do toBuf (ANameMap.toList (fixities syn))
@@ -109,6 +125,7 @@ TTC SyntaxInfo where
            toBuf (bracketholes syn)
            toBuf (startExpr syn)
            toBuf (holeNames syn)
+           toBuf (ANameMap.toList (patSyns syn))
 
   fromBuf
       = do fix <- fromBuf
@@ -119,6 +136,7 @@ TTC SyntaxInfo where
            bhs <- fromBuf
            start <- fromBuf
            hnames <- fromBuf
+           patsyns <- fromBuf
            pure $ MkSyntax (fromList fix)
                    [] (fromList moddstr) (fromList modexpts)
                    [] (fromList ifs)
@@ -126,3 +144,4 @@ TTC SyntaxInfo where
                    bhs
                    [] empty start
                    hnames
+                   (fromList patsyns)

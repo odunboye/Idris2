@@ -412,6 +412,8 @@ mutual
         = do tag 8; toBuf n
     toBuf (IBuiltin fc type name)
         = do tag 9; toBuf fc; toBuf type; toBuf name
+    toBuf (IPatSyn fc vis n params body bidir)
+        = do tag 10; toBuf fc; toBuf vis; toBuf n; toBuf params; toBuf body; toBuf bidir
     toBuf (IFail {})
         = pure ()
 
@@ -446,4 +448,7 @@ mutual
                        type <- fromBuf
                        name <- fromBuf
                        pure (IBuiltin fc type name)
+               10 => do fc <- fromBuf; vis <- fromBuf; n <- fromBuf
+                        params <- fromBuf; body <- fromBuf; bidir <- fromBuf
+                        pure (IPatSyn fc vis n params body bidir)
                _ => corrupt "ImpDecl"
