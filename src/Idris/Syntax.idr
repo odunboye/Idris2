@@ -597,6 +597,13 @@ mutual
        PRunElabDecl : PTerm' nm -> PDeclNoFC' nm
        PDirective : Directive -> PDeclNoFC' nm
        PBuiltin : BuiltinType -> Name -> PDeclNoFC' nm
+       PPatSyn : (doc : String) ->
+                 WithDefault Visibility Private ->
+                 Name -> -- pattern name
+                 List (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm) -> -- pattern parameters
+                 PTerm' nm -> -- pattern body
+                 Bool -> -- bidirectional?
+                 PDeclNoFC' nm
 
   public export
   PDeclNoFC : Type
@@ -1047,6 +1054,16 @@ record IFaceInfo where
      -- ^ name, whether a data method, and desugared type (without constraint)
   defaults : List (Name, List ImpClause)
 
+-- Pattern synonym information
+public export
+record PatSynInfo where
+  constructor MkPatSynInfo
+  fc : FC
+  vis : Visibility
+  params : List (Name, RigCount, PiInfo RawImp, RawImp) -- pattern parameters
+  body : RawImp -- pattern body
+  bidirectional : Bool -- can be used in expression position?
+
 -- If you update this, update 'extendSyn' in Desugar to keep it up to date
 -- when reading imports
 public export
@@ -1076,6 +1093,7 @@ record SyntaxInfo where
   variables : NameMap RawImp
   startExpr : RawImp
   holeNames : List String -- hole names in the file
+  patSyns : ANameMap PatSynInfo -- pattern synonyms
 
 export
 prefixes : SyntaxInfo -> ANameMap (FC, Nat)
@@ -1145,6 +1163,7 @@ initSyntax
                empty
                (IVar EmptyFC (UN $ Basic "main"))
                []
+               empty
 
   where
 
@@ -1251,4 +1270,5 @@ Show PDeclNoFC where
   show (PRunElabDecl {}) = "PRunElabDecl"
   show (PDirective {}) = "PDirective"
   show (PBuiltin {}) = "PBuiltin"
+  show (PPatSyn {}) = "PPatSyn"
 

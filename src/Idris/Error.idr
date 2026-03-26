@@ -603,6 +603,11 @@ perrorRaw (CaseCompile fc n (NotFullyApplied cn))
 perrorRaw (CaseCompile fc n (MatchErased (_ ** (env, tm))))
     = pure $ errorDesc (reflow "Attempt to match on erased argument" <++> code !(pshow env tm) <++> "in"
         <++> code (pretty0 !(prettyName n)) <+> dot) <+> line <+> !(ploc fc)
+perrorRaw (BadDotPattern fc env UserDotted x y)
+    = pure $ errorDesc (reflow "Dot pattern annotation" <++> code ".(" <+> code !(pshow env x) <+> code ")"
+        <++> reflow "is not valid here: this position is not uniquely determined by the type."
+        <+> line <+> reflow "The elaborator inferred" <++> code !(pshow env y)
+        <++> reflow "for this position.") <+> line <+> !(ploc fc)
 perrorRaw (BadDotPattern fc env reason x y)
     = pure $ errorDesc (reflow "Can't match on" <++> code !(pshow env x)
         <++> parens (pretty reason) <+> dot) <+> line <+> !(ploc fc)

@@ -88,16 +88,21 @@ extendSyn newsyn
          -- We keep the local private fixities since they are visible in the
          -- current file.
          let filteredFixities = removePrivate (fixities newsyn)
+         let filteredPatSyns = removePrivatePatSyn (patSyns newsyn)
          put Syn ({ fixities $= merge filteredFixities,
                     ifaces $= merge (ifaces newsyn),
                     modDocstrings $= mergeLeft (modDocstrings newsyn),
                     modDocexports $= mergeLeft (modDocexports newsyn),
                     defDocstrings $= merge (defDocstrings newsyn),
-                    bracketholes $= sortedNub . ((bracketholes newsyn) ++) }
+                    bracketholes $= sortedNub . ((bracketholes newsyn) ++),
+                    patSyns $= merge filteredPatSyns }
                   syn)
   where
     removePrivate : ANameMap FixityInfo -> ANameMap FixityInfo
     removePrivate = fromList . filter ((/= Private) . vis . snd) . toList
+    
+    removePrivatePatSyn : ANameMap PatSynInfo -> ANameMap PatSynInfo
+    removePrivatePatSyn = fromList . filter ((/= Private) . vis . snd) . toList
 
 mkPrec : Fixity -> Nat -> OpPrec
 mkPrec InfixL = AssocL
@@ -945,8 +950,11 @@ mutual
                   --   if we are actually looking at a headed thing!
   desugarLHS ps arg lhs =
     do rawlhs <- desugar LHS ps lhs
-       inm <- iunless arg $ getClauseFn rawlhs
-       (bound, blhs) <- bindNames arg rawlhs
+       -- Expand pattern synonyms in the LHS (TODO: temporarily disabled for debugging)
+       -- rawlhs' <- expandPatSyn rawlhs
+       let rawlhs' = rawlhs
+       inm <- iunless arg $ getClauseFn rawlhs'
+       (bound, blhs) <- bindNames arg rawlhs'
        log "desugar.lhs" 10 "Desugared \{show lhs} to \{show blhs}"
        iwhenJust inm $ \ nm =>
          when (nm `elem` bound) $ do
@@ -1535,6 +1543,93 @@ mutual
                       update Ctxt { options->foreignImpl $= (map (n',) calls ++) }
                     )]
   desugarDecl ps bt@(MkWithData _ $ PBuiltin type name) = pure [IBuiltin bt.fc type name]
+  desugarDecl ps synDecl@(MkWithData _ $ PPatSyn doc vis n params body bidir)
+      = do -- Desugar the pattern body
+           body' <- desugar AnyExpr ps body
+           -- Desugar parameter types (inline the transformation)
+           params' <- traverse (\(n', rig, info, ty) => 
+                                do ty' <- desugar AnyExpr ps ty
+                                   info' <- traverse (desugar AnyExpr ps) info
+                                   pure (n', rig, info', ty')) params
+           -- Register the pattern synonym in SyntaxInfo
+           let psi = MkPatSynInfo synDecl.fc (collapseDefault vis) params' body' bidir
+           syn <- get Syn
+           put Syn ({ patSyns $= addName n psi } syn)
+           pure [IPatSyn synDecl.fc (collapseDefault vis) n params' body' bidir]
+
+  -- Simple substitution of names with terms (used by expandPatSyn)
+  substitute : Name -> RawImp -> RawImp -> RawImp
+  substitute n arg (IVar fc n') = if n == n' then arg else IVar fc n'
+  substitute n arg (IApp fc f a) = IApp fc (substitute n arg f) (substitute n arg a)
+  substitute n arg (ILam fc rig info mn ty scope)
+      = if Just n == mn
+        then ILam fc rig info mn (substitute n arg ty) scope
+        else ILam fc rig info mn (substitute n arg ty) (substitute n arg scope)
+  substitute n arg tm = tm  -- Simplified: don't recurse into other constructors
+
+  substituteAll : List (Name, RawImp) -> RawImp -> RawImp
+  substituteAll [] tm = tm
+  substituteAll ((n, arg) :: rest) tm = substituteAll rest (substitute n arg tm)
+
+  -- Expand a pattern synonym with given arguments
+  expandPatSynInfo : PatSynInfo -> List RawImp -> Core RawImp
+  expandPatSynInfo psi [] = pure $ body psi
+  expandPatSynInfo psi args = do
+    -- Substitute parameters with arguments in the body
+    let substs = zip (map fst (params psi)) args
+    pure $ substituteAll substs (body psi)
+
+  tryExpand : {auto s : Ref Syn SyntaxInfo} ->
+              List Name -> FC -> Name -> List RawImp -> Core RawImp
+  tryExpand bound fc n args =
+    if n `elem` bound
+    then pure $ IVar fc n
+    else do
+      syn <- get Syn
+      case lookupExact n (patSyns syn) of
+        Nothing => pure $ IVar fc n
+        Just psi => expandPatSynInfo psi args
+
+  -- Helper for expanding pattern synonyms in clauses
+  expandClause : {auto s : Ref Syn SyntaxInfo} ->
+                 List Name -> ImpClause -> Core ImpClause
+  expandClause bound (PatClause fc lhs rhs)
+      = pure $ PatClause fc !(expandPatSyn lhs) !(expandPatSyn rhs)
+  expandClause bound (WithClause fc lhs rig wval prf flags cls)
+      = pure $ WithClause fc !(expandPatSyn lhs) rig 
+                 !(expandPatSyn wval) prf flags
+                 !(traverse (expandClause bound) cls)
+  expandClause bound (ImpossibleClause fc lhs)
+      = pure $ ImpossibleClause fc !(expandPatSyn lhs)
+
+  -- Expand pattern synonyms in a RawImp term
+  -- This substitutes pattern synonym applications with their bodies
+  expandPatSyn : {auto s : Ref Syn SyntaxInfo} ->
+                 RawImp -> Core RawImp
+  expandPatSyn tm = expandPatSyn' [] tm
+    where
+      expandPatSyn' : List Name -> RawImp -> Core RawImp
+      expandPatSyn' bound (IApp fc f a)
+          = do f' <- expandPatSyn' bound f
+               a' <- expandPatSyn' bound a
+               -- Check if f' is a pattern synonym constructor
+               case f' of
+                 IVar fc' n => tryExpand bound fc' n [a']
+                 _ => pure $ IApp fc f' a'
+      expandPatSyn' bound (IVar fc n) = tryExpand bound fc n []
+      expandPatSyn' bound (ILam fc rig info mn argTy scope)
+          = pure $ ILam fc rig info mn !(expandPatSyn' bound argTy)
+                         !(expandPatSyn' (maybe bound (:: bound) mn) scope)
+      expandPatSyn' bound (ILet fc lhsFC rig n nTy nVal scope)
+          = pure $ ILet fc lhsFC rig n !(expandPatSyn' bound nTy)
+                          !(expandPatSyn' bound nVal)
+                          !(expandPatSyn' (n :: bound) scope)
+      expandPatSyn' bound (ICase fc opts scr ty cls)
+          = pure $ ICase fc opts !(expandPatSyn' bound scr) ty
+                     !(traverse (expandClause bound) cls)
+      expandPatSyn' bound (IAs fc nameFC side n pat)
+          = pure $ IAs fc nameFC side n !(expandPatSyn' (n :: bound) pat)
+      expandPatSyn' bound tm = pure tm  -- Catch-all for other constructors
 
   export
   desugarDo : {auto s : Ref Syn SyntaxInfo} ->

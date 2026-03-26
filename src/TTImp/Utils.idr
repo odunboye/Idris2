@@ -42,6 +42,7 @@ rawImpFromDecl decl = case decl of
     IPragma _ _ f => []
     ILog k => []
     IBuiltin {} => []
+    IPatSyn fc1 vis n params body bidir => body :: map (\(_, _, _, ty) => ty) params
   where getParamTy : ImpParameter' RawImp -> RawImp
         getParamTy binder = binder.val.boundType
         getFromClause : ImpClause -> List RawImp
@@ -195,6 +196,8 @@ findBindableNamesQuot env used (ITickApp fc fn c)
     = findBindableNamesQuot env used ![fn, c]
 findBindableNamesQuot env used (IFix fc c body)
     = findBindableNamesQuot env used ![c, body]
+-- Catch-all for all other constructors
+findBindableNamesQuot env used _ = []
 
 export
 findUniqueBindableNames :

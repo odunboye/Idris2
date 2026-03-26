@@ -657,6 +657,7 @@ mutual
                   decoratedSymbol fname ")"
                   pure t
            pure (PDotted (boundToFC fname b) b.val)
+
     <|> do b <- bounds $ do
                   decoratedSymbol fname "`("
                   t <- typeExpr pdef fname indents
@@ -2040,6 +2041,30 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            paramss <- many (continue indents >> recordParam)
            recordBody doc vis mbtot col n paramss
 
+  ||| Pattern synonym declarations
+  ||| BNF:
+  ||| patSynDecl := 'pattern' name params* '=' term
+  patSynDecl : Rule PDeclNoFC
+  patSynDecl
+      = do doc   <- optDocumentation fname
+           vis   <- visibility fname
+           decoratedKeyword fname "pattern"
+           n     <- mustWork (decoratedDataTypeName fname)
+           -- Parse pattern parameters (typed binders)
+           params <- many (continue indents >> patSynParam)
+           decoratedSymbol fname "="
+           body  <- mustWork (opExpr pdef fname indents)
+           pure (PPatSyn doc vis n params body False)
+    where
+      patSynParam : Rule (Name, RigCount, PiInfo PTerm, PTerm)
+      patSynParam
+          = parens fname $ do
+              rig <- multiplicity fname
+              n <- decoratedSimpleBinderUName fname
+              decoratedSymbol fname ":"
+              ty <- opExpr pdef fname indents
+              pure (n, rig, Explicit, ty)
+
   ||| Parameter blocks
   ||| BNF:
   ||| paramDecls := 'parameters' (oldParamDecls | newParamDecls) indentBlockDefs
@@ -2105,6 +2130,7 @@ topDecl fname indents
     = do id <- anyReservedIdent
          the (Rule PDecl) $ fatalLoc id.bounds "Cannot begin a declaration with a reserved identifier"
   <|> fcBounds dataDecl
+  <|> fcBounds patSynDecl
   <|> fcBounds (PClaim <$> localClaim)
   <|> fcBounds (PDirective <$> directive)
   <|> fcBounds implDecl

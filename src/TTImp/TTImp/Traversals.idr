@@ -71,6 +71,8 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapImpDecl (IPragma fc ns g) = IPragma fc ns g
   mapImpDecl (ILog x) = ILog x
   mapImpDecl (IBuiltin fc x n) = IBuiltin fc x n
+  mapImpDecl (IPatSyn fc vis n params body bi)
+    = IPatSyn fc vis n (map (map (map (map mapTTImp))) params) (mapTTImp body) bi
 
   export
   mapIFieldUpdate : IFieldUpdate' nm -> IFieldUpdate' nm

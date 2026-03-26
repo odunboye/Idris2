@@ -110,6 +110,7 @@ knownTopics = [
     ("elab.def.local", Nothing),
     ("elab.delay", Nothing),
     ("elab.failing", Just "Elaborating a 'failing' block."),
+    ("elab.patsyn", Just "Elaborating a pattern synonym declaration."),
     ("elab.hole", Nothing),
     ("elab.implicits", Nothing),
     ("elab.implementation", Nothing),
