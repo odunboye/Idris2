@@ -2,13 +2,13 @@ module Core.Termination.Guarded
 
 -- Guarded recursion checker for clock-based guarded types (Row 41).
 --
--- A definition uses guarded recursion if it contains a 'TFix' constructor.
--- For such definitions, we need to ensure that recursive self-calls are
--- guarded by a 'TLater' constructor for the same clock.
+-- A definition uses guarded recursion if any of its clause RHSs contain
+-- a 'TFix' or 'TNext' constructor. For such definitions we ensure recursive
+-- self-calls are guarded by a 'TLater' or 'TNext' for the same clock.
 --
 -- Implementation: Track clock variables during size-change analysis.
 -- When we see 'TFix κ body', we record κ as the clock to check.
--- 'TLater κ' transitions us into a guarded context for that clock.
+-- 'TLater κ' and 'TNext κ' transition us into a guarded context for that clock.
 -- Recursive calls outside a guarded context are reported as unguarded.
 
 import Core.Case.CaseTree
@@ -41,10 +41,14 @@ usesGuardedRecursion (TTickAbs fc c body) = usesGuardedRecursion body
 usesGuardedRecursion (TTickApp fc fn c) = usesGuardedRecursion fn || usesGuardedRecursion c
 usesGuardedRecursion _ = False
 
--- True iff the definition uses guarded recursion
+-- True iff the definition body contains guarded recursion (TFix or TNext terms).
+-- Checks the RHS of each pattern clause, not the type signature.
 export
 isGuardedRecursive : GlobalDef -> Bool
-isGuardedRecursive gdef = usesGuardedRecursion (type gdef)
+isGuardedRecursive gdef =
+  case definition gdef of
+    PMDef _ _ _ _ pats => any (\(_ ** (_, _, rhs)) => usesGuardedRecursion rhs) pats
+    _ => False
 
 -- Guardedness state for clock-indexed guarded recursion
 -- Similar to Guardedness in CallGraph but tracks which clock we're checking
