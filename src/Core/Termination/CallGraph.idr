@@ -14,8 +14,10 @@ import Data.String
 
 %default covering
 
+public export
 data Guardedness = Toplevel | Unguarded | Guarded | InDelay
 
+export
 Show Guardedness where
   show Toplevel = "Toplevel"
   show Unguarded = "Unguarded"
@@ -396,12 +398,34 @@ findCalls defs (_ ** (env, lhs, rhs_in))
         rhs <- normaliseOpts tcOnly defs env rhs_in
         findSC defs env Toplevel pargs (delazy defs rhs)
 
+-- Like findCalls but with a configurable initial Guardedness.
+-- Use Guarded (instead of Toplevel) for coinductive/corecursive definitions
+-- so that a TDelay at the top level counts as a productivity guard.
+export
+findCallsFrom : {auto c : Ref Ctxt Defs} ->
+                Defs -> Guardedness ->
+                (vars ** (Env Term vars, Term vars, Term vars)) ->
+                Core (List SCCall)
+findCallsFrom defs g0 (_ ** (env, lhs, rhs_in))
+   = do let pargs = getArgs (delazy defs lhs)
+        rhs <- normaliseOpts tcOnly defs env rhs_in
+        findSC defs env g0 pargs (delazy defs rhs)
+
 getSC : {auto c : Ref Ctxt Defs} ->
         Defs -> Def -> Core (List SCCall)
 getSC defs (PMDef _ args _ _ pats)
    = do sc <- traverse (findCalls defs) pats
         pure $ nub (concat sc)
 getSC defs _ = pure []
+
+-- Like getSC but with a configurable initial Guardedness.
+export
+getSCFrom : {auto c : Ref Ctxt Defs} ->
+            Defs -> Guardedness -> Def -> Core (List SCCall)
+getSCFrom defs g0 (PMDef _ args _ _ pats)
+   = do sc <- traverse (findCallsFrom defs g0) pats
+        pure $ nub (concat sc)
+getSCFrom defs _ _ = pure []
 
 export
 calculateSizeChange : {auto c : Ref Ctxt Defs} ->

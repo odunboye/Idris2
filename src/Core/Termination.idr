@@ -7,6 +7,7 @@ import Core.Value
 
 import Core.Termination.CallGraph
 import Core.Termination.Positivity
+import Core.Termination.Productivity
 import Core.Termination.SizeChange
 
 import Libraries.Data.NameMap
@@ -63,7 +64,9 @@ checkIfGuarded fc n
              then allGuarded ps
              else pure False
 
--- Check whether a function is terminating, and record in the context
+-- Check whether a function is terminating, and record in the context.
+-- For corecursive definitions (return type is `Inf A`) the productivity
+-- checker is used instead of the size-change termination checker.
 export
 checkTerminating : {auto c : Ref Ctxt Defs} ->
                    FC -> Name -> Core Terminating
@@ -72,7 +75,14 @@ checkTerminating loc n
          logC "totality.termination" 6 $ do pure $ "Checking termination: " ++ show !(toFullNames n)
          case isTerminating tot of
               Unchecked =>
-                 do tot' <- calcTerminating loc n
+                 do defs <- get Ctxt
+                    mgdef <- lookupCtxtExact n (gamma defs)
+                    let corecursive = maybe False isCorecursive mgdef
+                    tot' <- if corecursive
+                               then do logC "totality.productivity" 6 $
+                                           pure $ "  (corecursive — using productivity check)"
+                                       calcProductive loc n
+                               else calcTerminating loc n
                     setTerminating loc n tot'
                     pure tot'
               t => pure t

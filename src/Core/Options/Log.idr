@@ -160,6 +160,8 @@ knownTopics = [
     ("specialise.flags", Just "Listing the definition flags propagated to the specialised function"),
     ("totality", Nothing),
     ("totality.positivity", Nothing),
+    ("totality.productivity", Nothing),
+    ("totality.productivity.calc", Nothing),
     ("totality.requirement", Nothing),
     ("totality.termination", Nothing),
     ("totality.termination.calc", Nothing),

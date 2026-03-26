@@ -675,11 +675,13 @@ HasNames PartialReason where
   full gam (BadCall ns) = pure $ BadCall !(traverse (full gam) ns)
   full gam (BadPath init n) = pure $ BadPath !(traverse (traversePair (full gam)) init) !(full gam n)
   full gam (RecPath loop) = pure $ RecPath !(traverse (traversePair (full gam)) loop)
+  full gam (NotProductive calls) = pure $ NotProductive !(traverse (traversePair (full gam)) calls)
 
   resolved gam NotStrictlyPositive = pure NotStrictlyPositive
   resolved gam (BadCall ns) = pure $ BadCall !(traverse (resolved gam) ns)
   resolved gam (BadPath init n) = pure $ BadPath !(traverse (traversePair (resolved gam)) init) !(resolved gam n)
   resolved gam (RecPath loop) = pure $ RecPath !(traverse (traversePair (resolved gam)) loop)
+  resolved gam (NotProductive calls) = pure $ NotProductive !(traverse (traversePair (resolved gam)) calls)
 
 export
 HasNames Terminating where

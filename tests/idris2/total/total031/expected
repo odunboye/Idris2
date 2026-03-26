@@ -1,0 +1,20 @@
+1/1: Building tests.idris2.total.total031.Row36Productivity (tests/idris2/total/total031/Row36Productivity.idr)
+Error: badOnes is not total, possibly not terminating due to recursive path Main.badOnes
+
+tests.idris2.total.total031.Row36Productivity:21:1--21:21
+ 17 | ones : Stream Nat
+ 18 | ones = 1 :: Delay ones
+ 19 |
+ 20 | -- Not productive: recursive call is outside any Delay (inside map).
+ 21 | badOnes : Stream Nat
+      ^^^^^^^^^^^^^^^^^^^^
+
+Error: prodBad is not total, possibly not productive due to unguarded recursive call to Main.prodBad
+
+tests.idris2.total.total031.Row36Productivity:13:1--13:18
+ 09 | prodOk : Inf Nat
+ 10 | prodOk = Delay 42
+ 11 |
+ 12 | -- Not productive: direct self-reference with no Delay guard.
+ 13 | prodBad : Inf Nat
+      ^^^^^^^^^^^^^^^^^

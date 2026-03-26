@@ -278,6 +278,8 @@ data PartialReason
        -- sequence of mutually-recursive function calls leading to a non-terminating function
        | BadPath (List (FC, Name)) Name
        | RecPath (List (FC, Name))
+       -- corecursive call(s) not guarded by a Delay
+       | NotProductive (List (FC, Name))
 
 export
 Show PartialReason where
@@ -292,6 +294,10 @@ Show PartialReason where
       = "possibly not terminating due to function " ++ show n ++ " being reachable via " ++ showSep " -> " (map show init)
   show (RecPath loop)
       = "possibly not terminating due to recursive path " ++ showSep " -> " (map (show . snd) loop)
+  show (NotProductive [(_, n)])
+      = "possibly not productive due to unguarded recursive call to " ++ show n
+  show (NotProductive calls)
+      = "possibly not productive due to unguarded recursive calls to " ++ showSep ", " (map (show . snd) calls)
 
 export
 Pretty Void PartialReason where
@@ -308,6 +314,11 @@ Pretty Void PartialReason where
       <++> concatWith (surround (pretty " -> ")) (pretty <$> map snd init)
   pretty (RecPath loop)
     = reflow "possibly not terminating due to recursive path" <++> concatWith (surround (pretty " -> ")) (pretty <$> map snd loop)
+  pretty (NotProductive [(_, n)])
+    = reflow "possibly not productive due to unguarded recursive call to" <++> pretty n
+  pretty (NotProductive calls)
+    = reflow "possibly not productive due to unguarded recursive calls to"
+      <++> concatWith (surround (comma <+> space)) (pretty <$> map snd calls)
 
 public export
 data Terminating
