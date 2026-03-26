@@ -1,0 +1,5 @@
+. ../../../testutils.sh
+
+check WarnPragma.idr
+check WarnCrossModule.idr
+check WarnImporter.idr

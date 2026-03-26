@@ -1,0 +1,23 @@
+1/1: Building WarnPragma (WarnPragma.idr)
+Warning: oldAdd is superseded by newAdd
+
+WarnPragma:17:10--17:16
+ 13 |
+ 14 | -- Use it — should trigger the warning
+ 15 | export
+ 16 | result : Nat
+ 17 | result = oldAdd 3 4
+               ^^^^^^
+
+1/1: Building WarnCrossModule (WarnCrossModule.idr)
+2/2: Building WarnImporter (WarnImporter.idr)
+Warning: use newHelper instead
+
+WarnImporter:8:10--8:19
+ 4 |
+ 5 | -- Calling oldHelper should fire the warning from WarnCrossModule.
+ 6 | export
+ 7 | answer : String
+ 8 | answer = oldHelper "hello"
+              ^^^^^^^^^
+
