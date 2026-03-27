@@ -1,0 +1,6 @@
+package pattern-synonyms-example
+
+modules = Main
+
+executable = pattern-synonyms-example
+main = Main
