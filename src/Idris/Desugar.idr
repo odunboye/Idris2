@@ -950,11 +950,11 @@ mutual
                   --   if we are actually looking at a headed thing!
   desugarLHS ps arg lhs =
     do rawlhs <- desugar LHS ps lhs
-       -- Expand pattern synonyms in the LHS (TODO: temporarily disabled for debugging)
+       inm <- iunless arg $ getClauseFn rawlhs
+       -- DISABLED: expandPatSyn breaks pattern variable binding
        -- rawlhs' <- expandPatSyn rawlhs
-       let rawlhs' = rawlhs
-       inm <- iunless arg $ getClauseFn rawlhs'
-       (bound, blhs) <- bindNames arg rawlhs'
+       -- (bound, blhs) <- bindNames arg rawlhs'
+       (bound, blhs) <- bindNames arg rawlhs
        log "desugar.lhs" 10 "Desugared \{show lhs} to \{show blhs}"
        iwhenJust inm $ \ nm =>
          when (nm `elem` bound) $ do

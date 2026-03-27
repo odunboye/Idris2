@@ -197,7 +197,7 @@ keywords = ["data", "module", "where", "let", "in", "do", "record",
             "parameters", "with", "proof", "impossible", "case", "of",
             "if", "then", "else", "forall", "rewrite", "typebind", "autobind",
             "using", "interface", "implementation", "open", "import",
-            "public", "export", "private"] ++
+            "public", "export", "private", "pattern"] ++
             fixityKeywords ++
             ["total", "partial", "covering"]
 

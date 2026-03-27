@@ -2051,7 +2051,7 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            decoratedKeyword fname "pattern"
            n     <- mustWork (decoratedDataTypeName fname)
            -- Parse pattern parameters (typed binders)
-           params <- many (continue indents >> patSynParam)
+           params <- many patSynParam
            decoratedSymbol fname "="
            body  <- mustWork (opExpr pdef fname indents)
            pure (PPatSyn doc vis n params body False)
@@ -2061,9 +2061,11 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
           = parens fname $ do
               rig <- multiplicity fname
               n <- decoratedSimpleBinderUName fname
-              decoratedSymbol fname ":"
-              ty <- opExpr pdef fname indents
+              ty <- option (PInfer EmptyFC) 
+                           (decoratedSymbol fname ":" >> opExpr pdef fname indents)
               pure (n, rig, Explicit, ty)
+        <|> do n <- decoratedSimpleBinderUName fname
+               pure (n, top, Explicit, PInfer EmptyFC)
 
   ||| Parameter blocks
   ||| BNF:
@@ -2125,12 +2127,11 @@ cgDirectiveDecl
 -- Declared at the top
 -- topDecl : OriginDesc -> IndentInfo -> Rule (List PDecl)
 topDecl fname indents
-      -- Specifically check if the user has attempted to use a reserved identifier to begin their declaration to give improved error messages.
-      -- i.e. the claim "String : Type" is a parse error, but the underlying reason may not be clear to new users.
-    = do id <- anyReservedIdent
+      -- Pattern synonyms must be checked before anyReservedIdent since 'pattern' is a keyword
+    = fcBounds patSynDecl
+  <|> do id <- anyReservedIdent
          the (Rule PDecl) $ fatalLoc id.bounds "Cannot begin a declaration with a reserved identifier"
   <|> fcBounds dataDecl
-  <|> fcBounds patSynDecl
   <|> fcBounds (PClaim <$> localClaim)
   <|> fcBounds (PDirective <$> directive)
   <|> fcBounds implDecl
