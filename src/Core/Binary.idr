@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_03_26_01  -- Added Terminating, NoCoverage, NoPositivity pragmas
+ttcVersion = 2026032603  -- Added selective import specifications with renaming
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
