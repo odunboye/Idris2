@@ -495,8 +495,8 @@ mutual
       = do when br $ update Syn { bracketholes $= ((UN (Basic holename)) ::) }
            pure $ IHole fc holename
   desugarB side ps (PType fc) = pure $ IType fc Nothing
-  desugarB side ps (PAs fc nameFC vname pattern)
-      = pure $ IAs fc nameFC UseRight vname !(desugarB side ps pattern)
+  desugarB side ps (PAs fc nameFC vname pat)
+      = pure $ IAs fc nameFC UseRight vname !(desugarB side ps pat)
   desugarB side ps (PDotted fc x)
       = pure $ IMustUnify fc UserDotted !(desugarB side ps x)
   desugarB side ps (PImplicit fc) = pure $ Implicit fc True
