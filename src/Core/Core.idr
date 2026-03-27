@@ -85,6 +85,8 @@ data Warning : Type where
      ||| have the documentation for the definition printed with the warning.
      Deprecated : FC -> String -> Maybe (FC, Name) -> Warning
      GenericWarn : FC -> String -> Warning
+     ||| A name was declared (type signature) but never given a definition.
+     NeverDefined : FC -> Name -> Warning
 
 %name Warning wrn
 
@@ -233,6 +235,7 @@ Show Warning where
     show (ShadowingLocalBindings fc _) = show fc ++ ":Shadowing names"
     show (Deprecated fc name _) = show fc ++ ":Deprecated " ++ name
     show (GenericWarn fc msg) = show fc ++ msg
+    show (NeverDefined fc n) = show fc ++ ":declared but not defined: " ++ show n
 
 
 export
@@ -437,6 +440,7 @@ getWarningLoc (IncompatibleVisibility loc _ _ _) = loc
 getWarningLoc (ShadowingLocalBindings fc _) = fc
 getWarningLoc (Deprecated fc _ fcAndName) = fromMaybe fc (fst <$> fcAndName)
 getWarningLoc (GenericWarn fc _) = fc
+getWarningLoc (NeverDefined fc _) = fc
 
 export
 getErrorLoc : Error -> Maybe FC
@@ -532,6 +536,7 @@ killWarningLoc (ShadowingLocalBindings fc xs) =
     ShadowingLocalBindings emptyFC $ (\(n, _, _) => (n, emptyFC, emptyFC)) <$> xs
 killWarningLoc (Deprecated fc x y) = Deprecated emptyFC x (map ((emptyFC,) . snd) y)
 killWarningLoc (GenericWarn fc x) = GenericWarn emptyFC x
+killWarningLoc (NeverDefined fc n) = NeverDefined emptyFC n
 
 export
 killErrorLoc : Error -> Error
