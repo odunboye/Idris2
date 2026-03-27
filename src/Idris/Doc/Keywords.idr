@@ -115,6 +115,23 @@ totality = vcat $
       function from a total one by using the `assert_total` escape hatch.
     """]
 
+patternsyn : Doc IdrisDocAnn
+patternsyn = vcat $
+    header "Pattern synonyms" :: ""
+    :: map (indent 2) [
+    """
+    Pattern synonyms allow you to give names to patterns.
+    They can be used to make code more readable by abstracting over common patterns.
+    """, "",
+    """
+    ```idris
+    pattern Pair x y = MkPair x y
+
+    swap : (a, b) -> (b, a)
+    swap (Pair x y) = Pair y x
+    ```
+    """]
+
 visibility : Doc IdrisDocAnn
 visibility = vcat $
     header "Visibility" :: ""
@@ -622,6 +639,7 @@ keywordsDoc =
   :: "public" ::= visibility
   :: "export" ::= visibility
   :: "private" ::= visibility
+  :: "pattern" ::= patternsyn
   :: "infixl" ::= fixity
   :: "infixr" ::= fixity
   :: "infix" ::= fixity
