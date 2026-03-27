@@ -45,6 +45,8 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapFnOpt (SpecArgs ns) = SpecArgs ns
   mapFnOpt Terminating = Terminating
   mapFnOpt NoCoverage = NoCoverage
+  mapFnOpt Opaque = Opaque
+  mapFnOpt Reducible = Reducible
 
   export
   mapImpData : ImpData' nm -> ImpData' nm

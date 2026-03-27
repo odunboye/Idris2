@@ -1303,6 +1303,10 @@ mutual
            pure $ IFnOpt Terminating
     <|> do decoratedPragma fname "nocoverage"
            pure $ IFnOpt NoCoverage
+    <|> do decoratedPragma fname "opaque"
+           pure $ IFnOpt Opaque
+    <|> do decoratedPragma fname "reducible"
+           pure $ IFnOpt Reducible
     <|> do decoratedPragma fname "spec"
            ns <- sepBy (decoratedSymbol fname ",") name
            pure $ IFnOpt (SpecArgs ns)

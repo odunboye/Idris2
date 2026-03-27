@@ -328,6 +328,11 @@ parameters (defs : Defs) (topopts : EvalOpts)
              -- want to shortcut that second check, if we're evaluating
              -- everything, so don't let bind unless we need that log!
              let redok = redok1 || redok2
+             -- Never unfold a definition marked %opaque (Irreducible).
+             let redok = redok && not (res.reducibility == Irreducible)
+             -- Don't unfold SemireducibleInst definitions outside interface search.
+             let redok = redok && not (res.reducibility == SemireducibleInst
+                                       && not topopts.inSearch)
              checkTimer -- If we're going to time out anywhere, it'll be
                         -- when evaluating something recursive, so this is a
                         -- good place to check

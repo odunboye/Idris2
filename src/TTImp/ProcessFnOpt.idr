@@ -93,6 +93,16 @@ processFnOpt fc _ ndef NoCoverage
          setFlag fc ndef NoCoverage
          -- Mark as covering immediately so callers see this function as covering
          setCovering fc ndef IsCovering
+processFnOpt fc _ ndef Opaque
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact ndef (gamma defs)
+              | Nothing => undefinedName fc ndef
+         ignore $ addDef ndef ({ reducibility := Irreducible } gdef)
+processFnOpt fc _ ndef Reducible
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact ndef (gamma defs)
+              | Nothing => undefinedName fc ndef
+         ignore $ addDef ndef ({ reducibility := Reducible } gdef)
 processFnOpt fc _ ndef Macro
     = setFlag fc ndef Macro
 processFnOpt fc _ ndef (SpecArgs ns)

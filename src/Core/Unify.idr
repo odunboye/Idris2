@@ -1329,8 +1329,10 @@ mutual
                                  "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
-                  else do xnf <- nf defs env x
-                          ynf <- nf defs env y
+                  else do let opts = if umode mode == InSearch
+                                        then inSearchOpts else defaultOpts
+                          xnf <- nfOpts opts defs env x
+                          ynf <- nfOpts opts defs env y
                           unify mode loc env xnf ynf
     unifyWithLazyD _ _ mode loc env x y
           = do defs <- get Ctxt
@@ -1340,8 +1342,10 @@ mutual
                                  "Skipped unification (equal already): "
                                  ++ show x ++ " and " ++ show y
                           pure success
-                  else do xnf <- nf defs env x
-                          ynf <- nf defs env y
+                  else do let opts = if umode mode == InSearch
+                                        then inSearchOpts else defaultOpts
+                          xnf <- nfOpts opts defs env x
+                          ynf <- nfOpts opts defs env y
                           unifyWithLazy mode loc env xnf ynf
 
   export

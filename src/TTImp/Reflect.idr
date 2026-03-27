@@ -733,6 +733,8 @@ mutual
              appCon fc defs (reflectionttimp "SpecArgs") [r']
     reflect fc defs lhs env Terminating = getCon fc defs (reflectionttimp "Terminating")
     reflect fc defs lhs env NoCoverage = getCon fc defs (reflectionttimp "NoCoverage")
+    reflect fc defs lhs env Opaque = getCon fc defs (reflectionttimp "Opaque")
+    reflect fc defs lhs env Reducible = getCon fc defs (reflectionttimp "Reducible")
 
   export
   Reflect ImpTy where

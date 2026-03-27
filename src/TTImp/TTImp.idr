@@ -265,6 +265,13 @@ mutual
        SpecArgs : List Name -> FnOpt' nm
        Terminating : FnOpt' nm  -- skip termination checking
        NoCoverage : FnOpt' nm   -- skip coverage checking
+       ||| Mark a definition as opaque: its body will not be unfolded by
+       ||| the normaliser.  Elaboration succeeds but the definition is
+       ||| treated as an axiom at reduction time.
+       Opaque : FnOpt' nm
+       ||| Override a previous `%opaque` annotation, restoring full
+       ||| reducibility.  Useful for type aliases that must always reduce.
+       Reducible : FnOpt' nm
   %name FnOpt' fopt
 
   public export
@@ -304,6 +311,8 @@ mutual
     show (SpecArgs ns) = "%spec " ++ showSep " " (map show ns)
     show Terminating = "%terminating"
     show NoCoverage = "%nocoverage"
+    show Opaque = "%opaque"
+    show Reducible = "%reducible"
 
   export
   Eq FnOpt where
@@ -323,6 +332,8 @@ mutual
     (SpecArgs ns) == (SpecArgs ns') = ns == ns'
     Terminating == Terminating = True
     NoCoverage == NoCoverage = True
+    Opaque == Opaque = True
+    Reducible == Reducible = True
     _ == _ = False
 
   public export

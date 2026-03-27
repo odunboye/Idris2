@@ -359,6 +359,8 @@ mutual
     toBuf (ForeignExport cs) = do tag 15; toBuf cs
     toBuf Terminating = tag 18
     toBuf NoCoverage = tag 19
+    toBuf Opaque = tag 20
+    toBuf Reducible = tag 21
 
     fromBuf
         = case !getTag of
@@ -382,6 +384,8 @@ mutual
                15 => do cs <- fromBuf; pure (ForeignExport cs)
                18 => pure Terminating
                19 => pure NoCoverage
+               20 => pure Opaque
+               21 => pure Reducible
                _ => corrupt "FnOpt"
 
   export

@@ -312,6 +312,29 @@ Eq SchemeMode where
    BlockExport == BlockExport = True
    _ == _ = False
 
+||| How eagerly the normaliser is allowed to unfold a definition.
+|||
+||| * `Reducible`           — unfold freely (the default for all definitions).
+||| * `SemireducibleInst`   — unfold only during interface-resolution search,
+|||                           not during ordinary unification.
+||| * `Irreducible`         — never unfold the body; the name reduces only to
+|||                           itself.  Set via `%opaque`.
+public export
+data Reducibility = Reducible | SemireducibleInst | Irreducible
+
+export
+Show Reducibility where
+  show Reducible         = "Reducible"
+  show SemireducibleInst = "SemireducibleInst"
+  show Irreducible       = "Irreducible"
+
+export
+Eq Reducibility where
+  Reducible         == Reducible         = True
+  SemireducibleInst == SemireducibleInst = True
+  Irreducible       == Irreducible       = True
+  _                 == _                 = False
+
 public export
 record GlobalDef where
   constructor MkGlobalDef
@@ -328,6 +351,7 @@ record GlobalDef where
   localVars : Scope -- environment name is defined in
   visibility : WithDefault Visibility Private
   totality : Totality
+  reducibility : Reducibility
   isEscapeHatch : Bool
   flags : List DefFlag
   refersToM : Maybe (NameMap Bool)

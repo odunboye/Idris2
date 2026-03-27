@@ -642,6 +642,18 @@ TTC Totality where
            pure (MkTotality term cov)
 
 export
+TTC Reducibility where
+  toBuf Reducible         = tag 0
+  toBuf SemireducibleInst = tag 1
+  toBuf Irreducible       = tag 2
+
+  fromBuf = case !getTag of
+      0 => pure Reducible
+      1 => pure SemireducibleInst
+      2 => pure Irreducible
+      _ => corrupt "Reducibility"
+
+export
 {n : _} -> TTC (PrimFn n) where
   toBuf (Add ty) = do tag 0; toBuf ty
   toBuf (Sub ty) = do tag 1; toBuf ty
@@ -1199,6 +1211,7 @@ TTC GlobalDef where
                  toBuf (localVars gdef)
                  toBuf (visibility gdef)
                  toBuf (totality gdef)
+                 toBuf (reducibility gdef)
                  toBuf (isEscapeHatch gdef)
                  toBuf (flags gdef)
                  toBuf (invertible gdef)
@@ -1221,16 +1234,16 @@ TTC GlobalDef where
                       seargs <- fromBuf; specargs <- fromBuf
                       iargs <- fromBuf;
                       vars <- fromBuf
-                      vis <- fromBuf; tot <- fromBuf; hatch <- fromBuf
+                      vis <- fromBuf; tot <- fromBuf; red <- fromBuf; hatch <- fromBuf
                       fl <- fromBuf
                       inv <- fromBuf
                       c <- fromBuf
                       sc <- fromBuf
                       pure (MkGlobalDef loc name ty eargs seargs specargs iargs
                                         mul vars vis
-                                        tot hatch fl refs refsR inv c True def cdef Nothing sc Nothing)
+                                        tot red hatch fl refs refsR inv c True def cdef Nothing sc Nothing)
               else pure (MkGlobalDef loc name (Erased loc Placeholder) NatSet.empty NatSet.empty NatSet.empty NatSet.empty
-                                     mul Scope.empty (specified Public) unchecked False [] refs refsR
+                                     mul Scope.empty (specified Public) unchecked Reducible False [] refs refsR
                                      False False True def cdef Nothing [] Nothing)
 
 export

@@ -337,6 +337,7 @@ newDef fc n rig vars ty vis def
         , localVars = vars
         , visibility = vis
         , totality = unchecked
+        , reducibility = Reducible
         , isEscapeHatch = False
         , flags = []
         , refersToM = Nothing
@@ -1380,6 +1381,7 @@ addBuiltin n ty tot op
          , localVars = Scope.empty
          , visibility = specified Public
          , totality = tot
+         , reducibility = Reducible
          , isEscapeHatch = False
          , flags = [Inline]
          , refersToM = Nothing

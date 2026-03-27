@@ -18,6 +18,7 @@ record EvalOpts where
   removeAs : Bool -- reduce 'as' patterns (don't do this on LHS)
   evalAll : Bool -- evaluate everything, including private names
   tcInline : Bool -- inline for totality checking
+  inSearch : Bool -- unfolding during interface resolution (allows SemireducibleInst)
   fuel : Maybe Nat -- Limit for recursion depth
   reduceLimit : List (Name, Nat) -- reduction limits for given names. If not
                      -- present, no limit
@@ -31,6 +32,7 @@ defaultOpts = MkEvalOpts
     , removeAs = True
     , evalAll = False
     , tcInline = False
+    , inSearch = False
     , fuel = Nothing
     , reduceLimit = []
     , strategy = CBN
@@ -44,6 +46,7 @@ withHoles = MkEvalOpts
     , removeAs = False
     , evalAll = False
     , tcInline = False
+    , inSearch = False
     , fuel = Nothing
     , reduceLimit = []
     , strategy = CBN
@@ -57,6 +60,7 @@ withAll = MkEvalOpts
     , removeAs = True
     , evalAll = True
     , tcInline = False
+    , inSearch = False
     , fuel = Nothing
     , reduceLimit = []
     , strategy = CBN
@@ -70,6 +74,7 @@ withArgHoles = MkEvalOpts
     , removeAs = False
     , evalAll = False
     , tcInline = False
+    , inSearch = False
     , fuel = Nothing
     , reduceLimit = []
     , strategy = CBN
@@ -82,6 +87,12 @@ tcOnly = { tcInline := True } withArgHoles
 export
 onLHS : EvalOpts
 onLHS = { removeAs := False } defaultOpts
+
+-- opts for evaluation during interface / auto-implicit search:
+-- SemireducibleInst definitions are unfolded in this mode
+export
+inSearchOpts : EvalOpts
+inSearchOpts = { inSearch := True } defaultOpts
 
 export
 cbn : EvalOpts

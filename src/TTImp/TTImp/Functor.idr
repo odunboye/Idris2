@@ -148,6 +148,8 @@ mutual
     map f (SpecArgs ns) = SpecArgs ns
     map f Terminating = Terminating
     map f NoCoverage = NoCoverage
+    map f Opaque = Opaque
+    map f Reducible = Reducible
 
   export
   Functor ImpData' where
