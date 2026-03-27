@@ -1,9 +1,11 @@
 module TTImp.ProcessFnOpt
 
+import Core.Context
 import Core.Context.Log
 import Core.Env
 import Core.Normalise
 import Core.Options
+import Core.TT
 import Core.Value
 
 import TTImp.TTImp
@@ -78,6 +80,19 @@ processFnOpt fc _ ndef Invertible
 processFnOpt fc _ ndef (Totality tot)
     = do throwIfHasTotality fc ndef "Multiple totality modifiers"
          setFlag fc ndef (SetTotal tot)
+processFnOpt fc _ ndef Terminating
+    = do opts <- getSession
+         when opts.safeMode $
+           throw (SafeModuleViolation fc "%terminating is not permitted in a safe module")
+         setIsEscapeHatch fc ndef
+         setTotality fc ndef (MkTotality IsTerminating IsCovering)
+processFnOpt fc _ ndef NoCoverage
+    = do opts <- getSession
+         when opts.safeMode $
+           throw (SafeModuleViolation fc "%nocoverage is not permitted in a safe module")
+         setFlag fc ndef NoCoverage
+         -- Mark as covering immediately so callers see this function as covering
+         setCovering fc ndef IsCovering
 processFnOpt fc _ ndef Macro
     = setFlag fc ndef Macro
 processFnOpt fc _ ndef (SpecArgs ns)

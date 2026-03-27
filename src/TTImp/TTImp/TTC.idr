@@ -296,6 +296,7 @@ mutual
     toBuf UniqueSearch = tag 2
     toBuf External = tag 3
     toBuf NoNewtype = tag 4
+    toBuf NoPositivity = tag 5
 
     fromBuf
         = case !getTag of
@@ -305,6 +306,7 @@ mutual
                2 => pure UniqueSearch
                3 => pure External
                4 => pure NoNewtype
+               5 => pure NoPositivity
                _ => corrupt "DataOpt"
 
   export
@@ -355,6 +357,8 @@ mutual
     toBuf (Deprecate (Just msg)) = do tag 16; toBuf msg
     toBuf (Warn msg) = do tag 17; toBuf msg
     toBuf (ForeignExport cs) = do tag 15; toBuf cs
+    toBuf Terminating = tag 18
+    toBuf NoCoverage = tag 19
 
     fromBuf
         = case !getTag of
@@ -376,6 +380,8 @@ mutual
                16 => do msg <- fromBuf; pure (Deprecate (Just msg))
                17 => do msg <- fromBuf; pure (Warn msg)
                15 => do cs <- fromBuf; pure (ForeignExport cs)
+               18 => pure Terminating
+               19 => pure NoCoverage
                _ => corrupt "FnOpt"
 
   export

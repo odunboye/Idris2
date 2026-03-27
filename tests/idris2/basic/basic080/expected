@@ -1,8 +1,3 @@
-=== Row 42: Definitional Proof Irrelevance ===
-
-squashConcreteEq = Refl  -- MkSquash 42 = MkSquash 99
-irrelRefl p q = Refl    -- any p q : Squash a are definitionally equal
-squashEq x y = Refl    -- squash x = squash y
-funSquash f g = Refl   -- works for Squash of any type
-
-OK
+29
+42
+1

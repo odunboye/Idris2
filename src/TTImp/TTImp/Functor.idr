@@ -146,6 +146,8 @@ mutual
     map f (Totality tot) = Totality tot
     map f Macro = Macro
     map f (SpecArgs ns) = SpecArgs ns
+    map f Terminating = Terminating
+    map f NoCoverage = NoCoverage
 
   export
   Functor ImpData' where

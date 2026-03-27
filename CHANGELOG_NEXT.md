@@ -92,6 +92,17 @@ should target this file (`CHANGELOG_NEXT`).
 * Fixed missing handling of dotted patterns See
   [#3669](https://github.com/idris-lang/Idris2/issues/3669),
   [comment](https://github.com/idris-lang/Idris2/issues/3644#issuecomment-3286320272).
+
+* Added three new pragmas for controlling totality checks:
+  - `%terminating` — marks a function as terminating without checking.
+    More auditable than `assert_total` buried in the function body.
+  - `%nocoverage` — skips coverage checking for a function.
+    Allows intentional partial pattern matching.
+  - `%noPositivity` (as data option `[noPositivity]`) — skips positivity
+    checking for a data type. Useful for data types that are sound but
+    rejected by the strict positivity checker.
+  All three pragmas are banned by `--safe` mode.
+
 * Removed modules and functions moved to `base`:
   - `Libraries.Data.Fin` → `Data.Fin`
   - `Libraries.Data.IOArray` → `Data.IOArray`

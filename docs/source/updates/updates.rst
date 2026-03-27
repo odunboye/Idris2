@@ -435,6 +435,18 @@ can see if we try evaluating ``myShow True`` at the REPL:
 In fact, this is how interfaces are elaborated. However, ``%hint`` should be
 used with care. Too many hints can lead to a large search space!
 
+The ``noPositivity`` option disables the strict positivity check for a data type.
+This is useful for data types that are sound but rejected by the conservative
+positivity checker.
+
+.. code-block:: idris
+
+    %noPositivity
+    data Weird : Type where
+         MkWeird : ((Weird -> Bool) -> Bool) -> Weird
+
+Note that using ``noPositivity`` is an escape hatch and is banned in ``--safe`` mode.
+
 Record fields
 -------------
 

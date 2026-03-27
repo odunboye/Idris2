@@ -1874,6 +1874,18 @@ setExternal fc tyn u
          updateDef tyn (const (Just (TCon a ps ds fl' cons ms det)))
 
 export
+setNoPositivity : {auto c : Ref Ctxt Defs} ->
+                  FC -> Name -> Bool -> Core ()
+setNoPositivity fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => undefinedName fc tyn
+         let TCon a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setNoPositivity]"))
+         let fl' = { noPositivity := u } fl
+         updateDef tyn (const (Just (TCon a ps ds fl' cons ms det)))
+
+export
 addHintFor : {auto c : Ref Ctxt Defs} ->
              FC -> Name -> Name -> Bool -> Bool -> Core ()
 addHintFor fc tyn_in hintn_in direct loading

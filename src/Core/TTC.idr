@@ -1032,10 +1032,12 @@ TTC TypeFlags where
   toBuf l
       = do toBuf (uniqueAuto l)
            toBuf (external l)
+           toBuf (noPositivity l)
   fromBuf
       = do u <- fromBuf
            e <- fromBuf
-           pure (MkTypeFlags u e)
+           p <- fromBuf
+           pure (MkTypeFlags u e p)
 
 export
 TTC Def where
@@ -1127,6 +1129,8 @@ TTC DefFlag where
   toBuf AllGuarded = tag 10
   toBuf (ConType ci) = do tag 11; toBuf ci
   toBuf (Identity x) = do tag 12; toBuf x
+  toBuf Terminating = tag 18
+  toBuf NoCoverage = tag 19
 
   fromBuf
       = case !getTag of
@@ -1145,6 +1149,8 @@ TTC DefFlag where
              15 => pure (Deprecate Nothing)
              16 => do msg <- fromBuf; pure (Deprecate (Just msg))
              17 => do msg <- fromBuf; pure (Warn msg)
+             18 => pure Terminating
+             19 => pure NoCoverage
              _ => corrupt "DefFlag"
 
 export

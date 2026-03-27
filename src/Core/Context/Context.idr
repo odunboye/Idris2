@@ -56,10 +56,11 @@ record TypeFlags where
   constructor MkTypeFlags
   uniqueAuto : Bool  -- should 'auto' implicits check for uniqueness
   external : Bool -- defined externally (e.g. in a C or Scheme library)
+  noPositivity : Bool -- skip positivity checking
 
 export
 defaultFlags : TypeFlags
-defaultFlags = MkTypeFlags False False
+defaultFlags = MkTypeFlags False False False
 
 public export
 record HoleFlags where
@@ -235,6 +236,10 @@ data DefFlag
     | Identity Nat
          -- Is it the identity function at runtime?
          -- The nat represents which argument the function evaluates to
+    | Terminating
+         -- Skip termination checking for this definition (like assert_total)
+    | NoCoverage
+         -- Skip coverage checking for this definition
 %name DefFlag dflag
 
 export
@@ -253,6 +258,8 @@ Eq DefFlag where
     (==) AllGuarded AllGuarded = True
     (==) (ConType x) (ConType y) = x == y
     (==) (Identity x) (Identity y) = x == y
+    (==) Terminating Terminating = True
+    (==) NoCoverage NoCoverage = True
     (==) _ _ = False
 
 export
@@ -272,6 +279,8 @@ Show DefFlag where
   show AllGuarded = "allguarded"
   show (ConType ci) = "contype " ++ show ci
   show (Identity x) = "identity " ++ show x
+  show Terminating = "terminating"
+  show NoCoverage = "nocoverage"
 
 public export
 record SCCall where
