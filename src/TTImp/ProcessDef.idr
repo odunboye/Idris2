@@ -301,9 +301,35 @@ substitutePatSyn n arg (IAs fc nameFC side nm pat)
       else IAs fc nameFC side nm (substitutePatSyn n arg pat)
 substitutePatSyn n arg tm = tm
 
+-- Parallel (simultaneous) substitution to prevent variable capture in
+-- synonyms like {x → y, y → x}: applies all substitutions at once.
 substituteAllPatSyn : List (Name, RawImp) -> RawImp -> RawImp
 substituteAllPatSyn [] tm = tm
-substituteAllPatSyn ((n, arg) :: rest) tm = substituteAllPatSyn rest (substitutePatSyn n arg tm)
+substituteAllPatSyn substs tm = go tm
+  where
+    goAlt : AltType -> AltType
+    go : RawImp -> RawImp
+    goAlt (UniqueDefault d) = UniqueDefault (go d)
+    goAlt a = a
+    go (IVar fc n) = fromMaybe (IVar fc n) (lookup n substs)
+    go (IApp fc f a) = IApp fc (go f) (go a)
+    go (INamedApp fc f nm a) = INamedApp fc (go f) nm (go a)
+    go (IAutoApp fc f a) = IAutoApp fc (go f) (go a)
+    go (IWithApp fc f a) = IWithApp fc (go f) (go a)
+    go (IAlternative fc alt alts) = IAlternative fc (goAlt alt) (map go alts)
+    go (ILam fc rig info mn ty scope) =
+      case mn >>= \nm => lookup nm substs of
+        Just _ => ILam fc rig info mn (go ty) scope
+        Nothing => ILam fc rig info mn (go ty) (go scope)
+    go (ILet fc lhsFC rig nm nTy nVal scope) =
+      case lookup nm substs of
+        Just _ => ILet fc lhsFC rig nm (go nTy) (go nVal) scope
+        Nothing => ILet fc lhsFC rig nm (go nTy) (go nVal) (go scope)
+    go (IAs fc nameFC side nm pat) =
+      case lookup nm substs of
+        Just _ => IAs fc nameFC side nm pat
+        Nothing => IAs fc nameFC side nm (go pat)
+    go other = other
 
 expandPatSynInfo : PatSynInfo -> List RawImp -> Core RawImp
 expandPatSynInfo psi [] = pure $ body psi
