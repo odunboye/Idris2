@@ -1,5 +1,6 @@
 module TTImp.ProcessRecord
 
+import Core.Context
 import Core.Env
 import Core.Metadata
 import Core.UnifyState
@@ -316,6 +317,14 @@ elabRecord {vars} eopts fc env nest newns def_vis mbtot tn_in params0 opts conNa
                        "Prefix projection " ++ show lhs ++ " = " ++ show rhs
                      processDecl [] nest env
                          (IDef bfc unNameNS [PatClause bfc lhs rhs])
+
+                   -- Register RecordName.field as an alias for the projection
+                   -- This allows disambiguating fields: Request.headers vs Response.headers
+                   do let (ns, recName) = splitNS tn
+                      let recFieldName = NS ns (UN $ Basic fldNameStr)
+                      log "declare.record.projection.qualified" 5 $
+                        "Qualified projection " ++ show recFieldName ++ " -> " ++ show rfNameNS
+                      addContextAlias recFieldName rfNameNS
 
                    -- Move on to the next getter.
                    --
