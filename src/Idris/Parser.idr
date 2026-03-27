@@ -2063,13 +2063,7 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
     where
       patSynParam : Rule (Name, RigCount, PiInfo PTerm, PTerm)
       patSynParam
-          = parens fname $ do
-              rig <- multiplicity fname
-              n <- decoratedSimpleBinderUName fname
-              ty <- option (PInfer EmptyFC) 
-                           (decoratedSymbol fname ":" >> opExpr pdef fname indents)
-              pure (n, rig, Explicit, ty)
-        <|> do n <- decoratedSimpleBinderUName fname
+          = do n <- decoratedSimpleBinderUName fname
                pure (n, top, Explicit, PInfer EmptyFC)
 
   ||| Parameter blocks

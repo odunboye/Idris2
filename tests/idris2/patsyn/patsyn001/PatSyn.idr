@@ -1,10 +1,14 @@
 module PatSyn
 
+-- Simple pattern synonym
+pattern Unit = MkUnit
+
 data UnitType = MkUnit
 
--- Test: use constructor directly
+-- Test using the pattern synonym
 testUnit : UnitType -> Int
-testUnit MkUnit = 42
+testUnit Unit = 42
+testUnit _ = 0
 
 main : IO ()
 main = printLn (testUnit MkUnit)

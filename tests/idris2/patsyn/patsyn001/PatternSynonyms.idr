@@ -1,39 +1,46 @@
 -- Test file for pattern synonyms (Row 12)
--- Basic pattern synonym functionality
+-- Exercises parsing, LHS expansion, and RHS expansion.
 
 module PatternSynonyms
 
+import Builtin
+import Data.Bool
+import Data.Nat
+import Data.List
+
 %default total
 
--- Simple pattern synonym (no arguments)
-pattern Unit = MkUnit
+-- Zero-argument synonym (alias for a constructor)
+pattern Zero = Z
 
--- Pattern synonym with arguments  
-pattern Cons x xs = x :: xs
+-- One-argument synonym
+pattern Succ n = S n
 
--- Pattern synonym for pairs
-pattern MkPair a b = (a, b)
+-- Two-argument synonym
+pattern Cons h t = h :: t
 
--- Test functions using pattern synonyms
-isUnit : Unit -> Bool
-isUnit Unit = True
+-- Zero-argument synonym returning a pair
+pattern MyPair a b = MkPair a b
 
+-- Use in function signatures and LHS patterns
+isZero : Nat -> Bool
+isZero Zero = True
+isZero (Succ _) = False
+
+-- Synonym used in both LHS (deconstruct) and RHS (construct)
+pred : Nat -> Nat
+pred Zero = Zero
+pred (Succ n) = n
+
+-- Two-arg synonym on LHS
 isCons : List a -> Bool
 isCons (Cons _ _) = True
 isCons _ = False
 
-head : List a -> Maybe a
-head (Cons x _) = Just x
-head _ = Nothing
+-- Two-arg synonym on RHS
+prependOne : List Nat -> List Nat
+prependOne xs = Cons 1 xs
 
-fst : (a, b) -> a
-fst (MkPair x _) = x
-
-snd : (a, b) -> b
-snd (MkPair _ y) = y
-
--- Pattern synonyms can be used in case expressions
-testCase : List Nat -> Nat
-testCase xs = case xs of
-  Cons n _ => n
-  _ => 0
+-- Pair synonym on LHS and RHS
+swap : (a, b) -> (b, a)
+swap (MyPair x y) = MyPair y x

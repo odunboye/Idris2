@@ -35,6 +35,7 @@ import Data.Either
 import Data.List
 import Data.String
 import Data.Maybe
+import Libraries.Data.ANameMap
 import Libraries.Data.NameMap
 import Libraries.Data.WithDefault
 import Libraries.Text.PrettyPrint.Prettyprinter
@@ -278,6 +279,73 @@ combineLinear loc ((n, count) :: cs)
         = do newc <- combine c c'
              combineAll newc cs
 
+-- Substitution functions for pattern synonym expansion
+substitutePatSyn : Name -> RawImp -> RawImp -> RawImp
+substitutePatSyn n arg (IVar fc n') = if n == n' then arg else IVar fc n'
+substitutePatSyn n arg (IApp fc f a) = IApp fc (substitutePatSyn n arg f) (substitutePatSyn n arg a)
+substitutePatSyn n arg (INamedApp fc f nm a)
+    = INamedApp fc (substitutePatSyn n arg f) nm (substitutePatSyn n arg a)
+substitutePatSyn n arg (IAutoApp fc f a)
+    = IAutoApp fc (substitutePatSyn n arg f) (substitutePatSyn n arg a)
+substitutePatSyn n arg (IWithApp fc f a)
+    = IWithApp fc (substitutePatSyn n arg f) (substitutePatSyn n arg a)
+substitutePatSyn n arg (IAlternative fc alt alts)
+    = IAlternative fc (mapAlt alt) (map (substitutePatSyn n arg) alts)
+  where
+    mapAlt : AltType -> AltType
+    mapAlt (UniqueDefault d) = UniqueDefault (substitutePatSyn n arg d)
+    mapAlt a = a
+substitutePatSyn n arg (IAs fc nameFC side nm pat)
+    = if n == nm
+      then IAs fc nameFC side nm pat
+      else IAs fc nameFC side nm (substitutePatSyn n arg pat)
+substitutePatSyn n arg tm = tm
+
+substituteAllPatSyn : List (Name, RawImp) -> RawImp -> RawImp
+substituteAllPatSyn [] tm = tm
+substituteAllPatSyn ((n, arg) :: rest) tm = substituteAllPatSyn rest (substitutePatSyn n arg tm)
+
+expandPatSynInfo : PatSynInfo -> List RawImp -> Core RawImp
+expandPatSynInfo psi [] = pure $ body psi
+expandPatSynInfo psi args = 
+  do let substs = zip (map fst (params psi)) args
+     pure $ substituteAllPatSyn substs (body psi)
+
+-- Expand pattern synonyms in a RawImp term
+-- Collects full application spine before expanding synonyms.
+expandPatSyn : {auto s : Ref Syn SyntaxInfo} ->
+               RawImp -> Core RawImp
+expandPatSyn tm = expandPatSyn' tm
+  where
+    expandPatSyn' : RawImp -> Core RawImp
+    expandPatSyn' tm = go [] tm
+      where
+        reapply : RawImp -> List (FC, RawImp) -> RawImp
+        reapply f [] = f
+        reapply f ((fc, a) :: rest) = reapply (IApp fc f a) rest
+
+        go : List (FC, RawImp) -> RawImp -> Core RawImp
+        go spine (IApp fc f a) = do
+          a' <- expandPatSyn' a
+          go ((fc, a') :: spine) f
+        go spine (IVar fc n) = do
+          syn <- get Syn
+          -- Use lookupName to handle namespace-qualified uses
+          case lookupName n (patSyns syn) of
+            ((_, psi) :: _) =>
+              let nP = length (params psi)
+                  nS = length spine
+              in if nS < nP
+                 then pure $ reapply (IVar fc n) spine
+                 else do
+                   let (synArgs, extra) = splitAt nP spine
+                   expanded <- expandPatSynInfo psi (map snd synArgs)
+                   expanded' <- expandPatSyn' expanded
+                   pure $ reapply expanded' extra
+            [] => pure $ reapply (IVar fc n) spine
+        go spine (IBindVar fc n) = pure $ reapply (IBindVar fc n) spine
+        go spine other = pure $ reapply other spine
+
 export -- also used by Transforms
 checkLHS : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
@@ -305,7 +373,10 @@ checkLHS {vars} trans mult n opts nest env fc lhs_in
          setUnboundImplicits True
          (_, lhs_bound) <- bindNames False lhs_raw
          setUnboundImplicits autoimp
-         logRaw "declare.def.lhs" 30 "Raw LHS with implicits bound" lhs_bound
+         -- Expand pattern synonyms after binding names
+         lhs_expanded <- expandPatSyn lhs_bound
+         logRaw "declare.def.lhs" 30 "Raw LHS with implicits bound" lhs_expanded
+         let lhs_bound = lhs_expanded
 
          lhs <- if trans
                    then pure lhs_bound

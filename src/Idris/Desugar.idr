@@ -951,9 +951,6 @@ mutual
   desugarLHS ps arg lhs =
     do rawlhs <- desugar LHS ps lhs
        inm <- iunless arg $ getClauseFn rawlhs
-       -- DISABLED: expandPatSyn breaks pattern variable binding
-       -- rawlhs' <- expandPatSyn rawlhs
-       -- (bound, blhs) <- bindNames arg rawlhs'
        (bound, blhs) <- bindNames arg rawlhs
        log "desugar.lhs" 10 "Desugared \{show lhs} to \{show blhs}"
        iwhenJust inm $ \ nm =>
@@ -1206,7 +1203,9 @@ mutual
                  [] => pure ()
                -- Normal path
                ncs  <- traverse (desugarClause ps False) clauses
-               defs <- traverse (uncurry $ toIDef . fromJust) ncs
+               -- Expand pattern synonyms in each desugared clause (LHS and RHS)
+               ncs' <- traverse expandNC ncs
+               defs <- traverse (uncurry $ toIDef . fromJust) ncs'
                pure (collectDefs defs)
     where
       -- Detect a bare copattern clause: fn .field = rhs
@@ -1227,6 +1226,11 @@ mutual
           = pure $ IDef fc nm [WithClause fc lhs rig rhs prf flags cs]
       toIDef nm (ImpossibleClause fc lhs)
           = pure $ IDef fc nm [ImpossibleClause fc lhs]
+
+      expandNC : (IMaybe True Name, ImpClause) -> Core (IMaybe True Name, ImpClause)
+      expandNC (nm, cl) = do
+        cl' <- expandClause [] cl
+        pure (nm, cl')
 
   desugarDecl ps dat@(MkWithData _ $ PData doc vis mbtot ddecl)
       = pure [IData dat.fc vis mbtot !(desugarData ps doc ddecl)]
@@ -1557,15 +1561,38 @@ mutual
            put Syn ({ patSyns $= addName n psi } syn)
            pure [IPatSyn synDecl.fc (collapseDefault vis) n params' body' bidir]
 
-  -- Simple substitution of names with terms (used by expandPatSyn)
+  -- Substitution of a name with a term, used by expandPatSyn.
+  -- Recurses into all relevant RawImp constructors.
   substitute : Name -> RawImp -> RawImp -> RawImp
   substitute n arg (IVar fc n') = if n == n' then arg else IVar fc n'
   substitute n arg (IApp fc f a) = IApp fc (substitute n arg f) (substitute n arg a)
+  substitute n arg (INamedApp fc f nm a)
+      = INamedApp fc (substitute n arg f) nm (substitute n arg a)
+  substitute n arg (IAutoApp fc f a)
+      = IAutoApp fc (substitute n arg f) (substitute n arg a)
+  substitute n arg (IWithApp fc f a)
+      = IWithApp fc (substitute n arg f) (substitute n arg a)
+  substitute n arg (IAlternative fc alt alts)
+      = IAlternative fc (mapAlt alt) (map (substitute n arg) alts)
+    where
+      mapAlt : AltType -> AltType
+      mapAlt (UniqueDefault d) = UniqueDefault (substitute n arg d)
+      mapAlt a = a
   substitute n arg (ILam fc rig info mn ty scope)
       = if Just n == mn
         then ILam fc rig info mn (substitute n arg ty) scope
         else ILam fc rig info mn (substitute n arg ty) (substitute n arg scope)
-  substitute n arg tm = tm  -- Simplified: don't recurse into other constructors
+  substitute n arg (ILet fc lhsFC rig nm nTy nVal scope)
+      = if n == nm
+        then ILet fc lhsFC rig nm (substitute n arg nTy) (substitute n arg nVal) scope
+        else ILet fc lhsFC rig nm (substitute n arg nTy) (substitute n arg nVal) (substitute n arg scope)
+  substitute n arg (ICase fc opts scr ty cls)
+      = ICase fc opts (substitute n arg scr) ty cls
+  substitute n arg (IAs fc nameFC side nm pat)
+      = if n == nm
+        then IAs fc nameFC side nm pat
+        else IAs fc nameFC side nm (substitute n arg pat)
+  substitute n arg tm = tm  -- Leaf nodes: IPrimVal, IType, IHole, Implicit, etc.
 
   substituteAll : List (Name, RawImp) -> RawImp -> RawImp
   substituteAll [] tm = tm
@@ -1586,9 +1613,10 @@ mutual
     then pure $ IVar fc n
     else do
       syn <- get Syn
-      case lookupExact n (patSyns syn) of
-        Nothing => pure $ IVar fc n
-        Just psi => expandPatSynInfo psi args
+      -- Use lookupName to handle both exact and namespace-qualified uses
+      case lookupName n (patSyns syn) of
+        ((_, psi) :: _) => expandPatSynInfo psi args
+        [] => pure $ IVar fc n
 
   -- Helper for expanding pattern synonyms in clauses
   expandClause : {auto s : Ref Syn SyntaxInfo} ->
@@ -1608,28 +1636,54 @@ mutual
                  RawImp -> Core RawImp
   expandPatSyn tm = expandPatSyn' [] tm
     where
+      -- Collect application spine then expand.
+      -- spine is built innermost-first: head = first argument applied.
       expandPatSyn' : List Name -> RawImp -> Core RawImp
-      expandPatSyn' bound (IApp fc f a)
-          = do f' <- expandPatSyn' bound f
-               a' <- expandPatSyn' bound a
-               -- Check if f' is a pattern synonym constructor
-               case f' of
-                 IVar fc' n => tryExpand bound fc' n [a']
-                 _ => pure $ IApp fc f' a'
-      expandPatSyn' bound (IVar fc n) = tryExpand bound fc n []
-      expandPatSyn' bound (ILam fc rig info mn argTy scope)
-          = pure $ ILam fc rig info mn !(expandPatSyn' bound argTy)
-                         !(expandPatSyn' (maybe bound (:: bound) mn) scope)
-      expandPatSyn' bound (ILet fc lhsFC rig n nTy nVal scope)
-          = pure $ ILet fc lhsFC rig n !(expandPatSyn' bound nTy)
-                          !(expandPatSyn' bound nVal)
-                          !(expandPatSyn' (n :: bound) scope)
-      expandPatSyn' bound (ICase fc opts scr ty cls)
-          = pure $ ICase fc opts !(expandPatSyn' bound scr) ty
-                     !(traverse (expandClause bound) cls)
-      expandPatSyn' bound (IAs fc nameFC side n pat)
-          = pure $ IAs fc nameFC side n !(expandPatSyn' (n :: bound) pat)
-      expandPatSyn' bound tm = pure tm  -- Catch-all for other constructors
+      expandPatSyn' bound tm = go [] tm
+        where
+          reapply : RawImp -> List (FC, RawImp) -> RawImp
+          reapply f [] = f
+          reapply f ((fc, a) :: rest) = reapply (IApp fc f a) rest
+
+          goOther : RawImp -> Core RawImp
+          goOther (ILam fc rig info mn argTy scope)
+              = pure $ ILam fc rig info mn !(expandPatSyn' bound argTy)
+                             !(expandPatSyn' (maybe bound (:: bound) mn) scope)
+          goOther (ILet fc lhsFC rig n nTy nVal scope)
+              = pure $ ILet fc lhsFC rig n !(expandPatSyn' bound nTy)
+                              !(expandPatSyn' bound nVal)
+                              !(expandPatSyn' (n :: bound) scope)
+          goOther (ICase fc opts scr ty cls)
+              = pure $ ICase fc opts !(expandPatSyn' bound scr) ty
+                         !(traverse (expandClause bound) cls)
+          goOther (IAs fc nameFC side n pat)
+              = pure $ IAs fc nameFC side n !(expandPatSyn' (n :: bound) pat)
+          goOther other = pure other
+
+          go : List (FC, RawImp) -> RawImp -> Core RawImp
+          go spine (IApp fc f a) = do
+            a' <- expandPatSyn' bound a
+            go ((fc, a') :: spine) f
+          go spine (IVar fc n) =
+            if n `elem` bound
+            then pure $ reapply (IVar fc n) spine
+            else do
+              syn <- get Syn
+              case lookupExact n (patSyns syn) of
+                Nothing  => pure $ reapply (IVar fc n) spine
+                Just psi =>
+                  let nP = length (params psi)
+                      nS = length spine
+                  in if nS < nP
+                     then pure $ reapply (IVar fc n) spine
+                     else do
+                       let (synArgs, extra) = splitAt nP spine
+                       expanded <- expandPatSynInfo psi (map snd synArgs)
+                       expanded' <- expandPatSyn' bound expanded
+                       pure $ reapply expanded' extra
+          go spine other = do
+            other' <- goOther other
+            pure $ reapply other' spine
 
   export
   desugarDo : {auto s : Ref Syn SyntaxInfo} ->
