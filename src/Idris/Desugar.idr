@@ -1606,9 +1606,35 @@ mutual
         else IAs fc nameFC side nm (substitute n arg pat)
   substitute n arg tm = tm  -- Leaf nodes: IPrimVal, IType, IHole, Implicit, etc.
 
+  -- Parallel (simultaneous) substitution: apply all substitutions at once
+  -- so that {x → y, y → x} on `MkPair x y` gives `MkPair y x`, not `MkPair x x`.
   substituteAll : List (Name, RawImp) -> RawImp -> RawImp
   substituteAll [] tm = tm
-  substituteAll ((n, arg) :: rest) tm = substituteAll rest (substitute n arg tm)
+  substituteAll substs tm = go tm
+    where
+      goAlt : AltType -> AltType
+      go : RawImp -> RawImp
+      goAlt (UniqueDefault d) = UniqueDefault (go d)
+      goAlt a = a
+      go (IVar fc n) = fromMaybe (IVar fc n) (lookup n substs)
+      go (IApp fc f a) = IApp fc (go f) (go a)
+      go (INamedApp fc f nm a) = INamedApp fc (go f) nm (go a)
+      go (IAutoApp fc f a) = IAutoApp fc (go f) (go a)
+      go (IWithApp fc f a) = IWithApp fc (go f) (go a)
+      go (IAlternative fc alt alts) = IAlternative fc (goAlt alt) (map go alts)
+      go (ILam fc rig info mn ty scope) =
+        case mn >>= \nm => lookup nm substs of
+          Just _ => ILam fc rig info mn (go ty) scope
+          Nothing => ILam fc rig info mn (go ty) (go scope)
+      go (ILet fc lhsFC rig nm nTy nVal scope) =
+        case lookup nm substs of
+          Just _ => ILet fc lhsFC rig nm (go nTy) (go nVal) scope
+          Nothing => ILet fc lhsFC rig nm (go nTy) (go nVal) (go scope)
+      go (IAs fc nameFC side nm pat) =
+        case lookup nm substs of
+          Just _ => IAs fc nameFC side nm pat
+          Nothing => IAs fc nameFC side nm (go pat)
+      go other = other
 
   -- Expand a pattern synonym with given arguments
   expandPatSynInfo : PatSynInfo -> List RawImp -> Core RawImp
