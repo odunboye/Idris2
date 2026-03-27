@@ -1,0 +1,8 @@
+package record-fields
+
+modules = Person, Company, Main
+
+main = Main
+executable = record-fields-example
+
+depends = base >= 0.8.0
