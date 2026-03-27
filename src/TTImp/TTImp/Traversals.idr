@@ -43,6 +43,8 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapFnOpt (Totality treq) = Totality treq
   mapFnOpt Macro = Macro
   mapFnOpt (SpecArgs ns) = SpecArgs ns
+  mapFnOpt Terminating = Terminating
+  mapFnOpt NoCoverage = NoCoverage
 
   export
   mapImpData : ImpData' nm -> ImpData' nm

@@ -2,6 +2,7 @@ module Core.Coverage
 
 import Core.Case.CaseTree
 import Core.Case.Util
+import Core.Context
 import Core.Context.Log
 import Core.Env
 import Core.Normalise
@@ -385,7 +386,11 @@ getNonCoveringRefs fc n
     notCovering : Defs -> Name -> Core Bool
     notCovering defs n
         = case !(lookupCtxtExact n (gamma defs)) of
-               Just def => case isCovering (totality def) of
+               Just def => 
+                  -- If NoCoverage flag is set, consider the function as covering
+                  if NoCoverage `elem` flags def
+                     then pure False
+                     else case isCovering (totality def) of
                                 IsCovering => pure False
                                 _ => pure True
                _ => pure False

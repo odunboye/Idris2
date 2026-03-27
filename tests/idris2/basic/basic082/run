@@ -1,0 +1,4 @@
+. ../../../testutils.sh
+
+# Test that --safe rejects %terminating
+idris2 --safe SafeMode.idr 2>&1 | head -5

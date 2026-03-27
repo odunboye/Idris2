@@ -229,6 +229,36 @@ force a function to never be inlined when it is called, this pragma will force i
 
 Instruct the compiler to inline the function during totality checking.
 
+``%terminating``
+--------------------
+
+Mark the following function as terminating without checking. This is a declaration-level
+escape hatch similar to ``assert_total`` but more visible for code review.
+
+.. code-block:: idris
+
+   %terminating
+   ackermann : Nat -> Nat -> Nat
+   ackermann Z n = S n
+   ackermann (S m) Z = ackermann m (S Z)
+   ackermann (S m) (S n) = ackermann m (ackermann (S m) n)
+
+This pragma is banned in ``--safe`` mode.
+
+``%nocoverage``
+--------------------
+
+Skip coverage checking for the following function. This allows intentional
+partial pattern matching.
+
+.. code-block:: idris
+
+   %nocoverage
+   fromJust : Maybe a -> a
+   fromJust (Just x) = x
+
+This pragma is banned in ``--safe`` mode.
+
 ``%hide``
 --------------------
 

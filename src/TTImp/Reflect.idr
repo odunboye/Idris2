@@ -731,6 +731,8 @@ mutual
     reflect fc defs lhs env (SpecArgs r)
         = do r' <- reflect fc defs lhs env r
              appCon fc defs (reflectionttimp "SpecArgs") [r']
+    reflect fc defs lhs env Terminating = getCon fc defs (reflectionttimp "Terminating")
+    reflect fc defs lhs env NoCoverage = getCon fc defs (reflectionttimp "NoCoverage")
 
   export
   Reflect ImpTy where
@@ -749,6 +751,7 @@ mutual
     reflect fc defs lhs env UniqueSearch = getCon fc defs (reflectionttimp "UniqueSearch")
     reflect fc defs lhs env External = getCon fc defs (reflectionttimp "External")
     reflect fc defs lhs env NoNewtype = getCon fc defs (reflectionttimp "NoNewtype")
+    reflect fc defs lhs env NoPositivity = getCon fc defs (reflectionttimp "NoPositivity")
 
   export
   Reflect ImpData where
