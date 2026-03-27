@@ -466,6 +466,8 @@ mutual
        SearchTimeout : Integer -> Directive
        -- There is no nm on Directive
        ForeignImpl : Name -> List PTerm -> Directive
+       OpaqueHint : Name -> Directive    -- mark a definition as Irreducible
+       ReducibleHint : Name -> Directive -- restore a definition to Reducible
 
   public export
   RecordField' : Type -> Type

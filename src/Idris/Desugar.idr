@@ -1533,6 +1533,18 @@ mutual
              Extension e => pure [IPragma fc [] (\nest, env => setExtension e)]
              DefaultTotality tot => pure [IPragma fc [] (\_, _ => setDefaultTotalityOption tot)]
              SafeModule => pure [IPragma fc [] (\_, _ => updateSession ({ safeMode := True }))]
+             OpaqueHint n => pure [IPragma fc [] (\_, _ => do
+                               defs <- get Ctxt
+                               [(n', _, gdef)] <- lookupCtxtName n (gamma defs)
+                                 | [] => throw (UndefinedName fc n)
+                                 | xs => throw (AmbiguousName fc (map fst xs))
+                               ignore $ addDef n' ({ reducibility := Irreducible } gdef))]
+             ReducibleHint n => pure [IPragma fc [] (\_, _ => do
+                               defs <- get Ctxt
+                               [(n', _, gdef)] <- lookupCtxtName n (gamma defs)
+                                 | [] => throw (UndefinedName fc n)
+                                 | xs => throw (AmbiguousName fc (map fst xs))
+                               ignore $ addDef n' ({ reducibility := Reducible } gdef))]
              ForeignImpl n cs => do
                cs' <- traverse (desugar AnyExpr ps) cs
                pure [IPragma fc [] (\nest, env => do

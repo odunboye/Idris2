@@ -1,0 +1,7 @@
+. ../../../testutils.sh
+
+# Test 1: %opaque marks a definition irreducible; execution still works
+run Opaque.idr
+
+# Test 2: %opaque followed by %reducible restores reducibility
+check OpaqueReducible.idr
