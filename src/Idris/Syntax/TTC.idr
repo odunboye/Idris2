@@ -51,19 +51,34 @@ TTC Fixity where
              _ => corrupt "Fixity"
 
 export
+TTC ImportSpec where
+  toBuf Unrestricted = tag 0
+  toBuf (Hiding ns) = do tag 1; toBuf ns
+  toBuf (Explicit ns) = do tag 2; toBuf ns
+
+  fromBuf
+    = case !getTag of
+         0 => pure Unrestricted
+         1 => do ns <- fromBuf; pure (Hiding ns)
+         2 => do ns <- fromBuf; pure (Explicit ns)
+         _ => corrupt "ImportSpec"
+
+export
 TTC Import where
-  toBuf (MkImport loc reexport path nameAs)
+  toBuf (MkImport loc reexport path nameAs spec)
     = do toBuf loc
          toBuf reexport
          toBuf path
          toBuf nameAs
+         toBuf spec
 
   fromBuf
     = do loc <- fromBuf
          reexport <- fromBuf
          path <- fromBuf
          nameAs <- fromBuf
-         pure (MkImport loc reexport path nameAs)
+         spec <- fromBuf
+         pure (MkImport loc reexport path nameAs spec)
 
 export
 TTC BindingModifier where

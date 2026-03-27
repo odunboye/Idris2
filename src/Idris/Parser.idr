@@ -2198,10 +2198,38 @@ import_ fname indents
                          nsAs <- option (miAsNamespace ns)
                                         (do decorate fname Keyword $ exactIdent "as"
                                             decorate fname Namespace $ mustWork namespaceId)
-                         pure (reexp, ns, nsAs))
+                         spec <- importSpec fname
+                         pure (reexp, ns, nsAs, spec))
          atEnd indents
-         (reexp, ns, nsAs) <- pure b.val
-         pure (MkImport (boundToFC fname b) reexp ns nsAs)
+         (reexp, ns, nsAs, spec) <- pure b.val
+         pure (MkImport (boundToFC fname b) reexp ns nsAs spec)
+  where
+    -- Parse a single name with optional "as" rename
+    importName : Rule (Name, Maybe Name)
+    importName
+        = do n <- name
+             alias <- optional $ do exactIdent "as"
+                                    name
+             pure (n, alias)
+
+    -- Parse import specification: explicit list, hiding, or nothing
+    importSpec : OriginDesc -> EmptyRule ImportSpec
+    importSpec fname
+        = do mexpl <- optional $ do decoratedSymbol fname "("
+                                    names <- sepBy (decoratedSymbol fname ",") importName
+                                    decoratedSymbol fname ")"
+                                    pure (Explicit names)
+             case mexpl of
+                  Just expl => pure expl
+                  Nothing =>
+                    do mhid <- optional $ do exactIdent "hiding"
+                                             decoratedSymbol fname "("
+                                             names <- sepBy (decoratedSymbol fname ",") name
+                                             decoratedSymbol fname ")"
+                                             pure (Hiding names)
+                       case mhid of
+                            Just hid => pure hid
+                            Nothing => pure Unrestricted
 
 export
 progHdr : OriginDesc -> EmptyRule Module

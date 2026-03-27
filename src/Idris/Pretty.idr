@@ -478,8 +478,18 @@ renderWithDecorations f doc =
 
 export
 prettyImport : Import -> Doc IdrisSyntax
-prettyImport (MkImport loc reexport path nameAs)
+prettyImport (MkImport loc reexport path nameAs spec)
   = keyword "import"
     <+> ifThenElse reexport (space <+> keyword "public") ""
     <++> pretty0 path
     <+> ifThenElse (miAsNamespace path /= nameAs) (space <+> keyword "as" <++> pretty0 nameAs) ""
+    <+> prettySpec spec
+  where
+    prettyName : (Name, Maybe Name) -> Doc IdrisSyntax
+    prettyName (n, Nothing) = pretty0 n
+    prettyName (n, Just n') = pretty0 n <++> keyword "as" <++> pretty0 n'
+    
+    prettySpec : ImportSpec -> Doc IdrisSyntax
+    prettySpec Unrestricted = ""
+    prettySpec (Hiding ns) = space <+> keyword "hiding" <++> parens (hsep (punctuate comma (map pretty0 ns)))
+    prettySpec (Explicit ns) = space <+> parens (hsep (punctuate comma (map prettyName ns)))

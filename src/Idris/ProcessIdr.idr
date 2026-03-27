@@ -1,5 +1,8 @@
 module Idris.ProcessIdr
 
+import Core.Context
+import Core.Context.Log
+
 import Compiler.RefC.RefC
 import Compiler.Scheme.Chez
 import Compiler.Scheme.ChezSep
@@ -143,12 +146,91 @@ readModule full loc vis imp as
                           when (reexp || full) $ readModule full loc reexp m as) more
          setNS modNS
 
+-- Check if a name is in a given namespace
+nameInNamespace : Namespace -> Name -> Bool
+nameInNamespace ns (NS nsp _) = ns == nsp
+nameInNamespace _ _ = False
+
+-- Get the user name root for comparison
+getUserName : Name -> Maybe String
+getUserName (NS _ n) = getUserName n
+getUserName (UN (Basic n)) = Just n
+getUserName (UN (Field n)) = Just n
+getUserName (UN Underscore) = Nothing
+getUserName (MN n _) = Just n
+getUserName (PV n _) = getUserName n
+getUserName (DN _ n) = getUserName n
+getUserName (Nested _ n) = getUserName n
+getUserName (CaseBlock n _) = Just n
+getUserName (WithBlock n _) = Just n
+getUserName (Resolved i) = Just (show i)
+
+-- Check if a name matches the user-provided name (by user name root)
+matchesName : Name -> Name -> Bool
+matchesName ctxName userName = 
+    case (getUserName ctxName, getUserName userName) of
+         (Just c, Just u) => c == u
+         _ => False
+
+-- Find the fully qualified name in a namespace matching a user-provided name
+findNameInNS : {auto c : Ref Ctxt Defs} ->
+               Namespace -> Name -> Core (Maybe Name)
+findNameInNS ns userName
+    = do defs <- get Ctxt
+         allNsNames <- filter (nameInNamespace ns) <$> allNames (gamma defs)
+         case filter (\n => matchesName n userName) allNsNames of
+              (n :: _) => pure (Just n)
+              [] => pure Nothing
+
+-- Apply import specification by hiding names that shouldn't be visible
+-- and setting up aliases for renamed imports
+applyImportSpec : {auto c : Ref Ctxt Defs} ->
+                  Import -> Core ()
+applyImportSpec imp
+    = case spec imp of
+         Unrestricted => pure ()  -- Nothing to hide
+         Hiding hideNs => 
+             -- Hide the specified names
+             do defs <- get Ctxt
+                let ns = miAsNamespace (path imp)
+                -- Get all names in the namespace
+                allNsNames <- filter (nameInNamespace ns) <$> allNames (gamma defs)
+                -- Hide names that match any name in the hiding list
+                traverse_ (hide (loc imp)) (filter (\n => any (matchesName n) hideNs) allNsNames)
+         Explicit explNames => 
+             -- Hide everything in the imported namespace except the explicit names
+             do defs <- get Ctxt
+                let ns = miAsNamespace (path imp)
+                let targetNS = nameAs imp
+                -- Get all names in the namespace
+                allNsNames <- filter (nameInNamespace ns) <$> allNames (gamma defs)
+                let explicitUserNames = map fst explNames
+                -- Hide names not in the explicit list
+                traverse_ (hide (loc imp)) (filter (\n => not (any (matchesName n) explicitUserNames)) allNsNames)
+                -- Process explicit imports and set up aliases for renaming
+                traverse_ (processExplicitImport ns targetNS) explNames
+  where
+    processExplicitImport : Namespace -> Namespace -> (Name, Maybe Name) -> Core ()
+    processExplicitImport srcNS targetNS (userName, mAlias)
+        = do -- Find the actual full name in the source namespace
+             mFullName <- findNameInNS srcNS userName
+             case mFullName of
+                  Nothing => pure () -- Name not found, will error elsewhere
+                  Just fullName =>
+                       case mAlias of
+                            Nothing => pure () -- No alias, original name is already visible
+                            Just aliasName =>
+                                 do -- Construct the alias as a name in the target namespace
+                                    let aliasFull = NS targetNS aliasName
+                                    addContextAlias aliasFull fullName
+
 readImport : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
              Bool -> Import -> Core ()
 readImport full imp
     = do readModule full (loc imp) True (path imp) (nameAs imp)
+         applyImportSpec imp
          addImported (path imp, reexport imp, nameAs imp)
 
 ||| Adds new import to the namespace without changing the current top-level namespace
@@ -172,7 +254,7 @@ readImportMeta imp
 
 prelude : Import
 prelude = MkImport (MkFC (Virtual Interactive) (0, 0) (0, 0)) False
-                     (nsAsModuleIdent preludeNS) preludeNS
+                     (nsAsModuleIdent preludeNS) preludeNS Unrestricted
 
 export
 readPrelude : {auto c : Ref Ctxt Defs} ->
