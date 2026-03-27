@@ -118,7 +118,7 @@ mutual
        PRunElab : FC -> PTerm' nm -> PTerm' nm
        PHole : FC -> (bracket : Bool) -> (holename : String) -> PTerm' nm
        PType : FC -> PTerm' nm
-       PAs : FC -> (nameFC : FC) -> Name -> (pattern : PTerm' nm) -> PTerm' nm
+       PAs : FC -> (nameFC : FC) -> Name -> (pat : PTerm' nm) -> PTerm' nm
        PDotted : FC -> PTerm' nm -> PTerm' nm
        PImplicit : FC -> PTerm' nm
        PInfer : FC -> PTerm' nm

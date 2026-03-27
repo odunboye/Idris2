@@ -36,6 +36,7 @@ import Idris.Doc.String
 
 import Data.SortedMap
 import Data.String
+import Libraries.Data.NameMap
 
 import System.File
 

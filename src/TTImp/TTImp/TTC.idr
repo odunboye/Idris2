@@ -53,12 +53,12 @@ mutual
         = do tag 14; toBuf fc; toBuf m; toBuf y
     toBuf (IBindVar fc y)
         = do tag 15; toBuf fc; toBuf y
-    toBuf (IAs fc nameFC s y pattern)
+    toBuf (IAs fc nameFC s y pat)
         = do tag 16; toBuf fc; toBuf nameFC; toBuf s; toBuf y;
-             toBuf pattern
-    toBuf (IMustUnify fc r pattern)
+             toBuf pat
+    toBuf (IMustUnify fc r pat)
         -- No need to record 'r', it's for type errors only
-        = do tag 17; toBuf fc; toBuf pattern
+        = do tag 17; toBuf fc; toBuf pat
 
     toBuf (IDelayed fc r y)
         = do tag 18; toBuf fc; toBuf r; toBuf y
@@ -158,11 +158,11 @@ mutual
                         pure (IBindVar fc y)
                16 => do fc <- fromBuf; nameFC <- fromBuf
                         side <- fromBuf;
-                        y <- fromBuf; pattern <- fromBuf
-                        pure (IAs fc nameFC side y pattern)
+                        y <- fromBuf; pat <- fromBuf
+                        pure (IAs fc nameFC side y pat)
                17 => do fc <- fromBuf
-                        pattern <- fromBuf
-                        pure (IMustUnify fc UnknownDot pattern)
+                        pat <- fromBuf
+                        pure (IMustUnify fc UnknownDot pat)
 
                18 => do fc <- fromBuf; r <- fromBuf
                         y <- fromBuf
