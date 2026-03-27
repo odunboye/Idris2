@@ -984,10 +984,18 @@ mutual
   let_ fname indents
       = do decoratedKeyword fname "let"
            commit
-           res <- nonEmptyBlock (letBlock fname)
-           commitKeyword fname indents "in"
-           scope <- typeExpr pdef fname indents
-           pure (mkLets fname res scope)
+           -- Check if it's 'let open' or regular 'let'
+           isOpen <- optional $ decoratedKeyword fname "open"
+           case isOpen of
+                Just _ => do commit
+                             r <- expr pdef fname indents
+                             commitKeyword fname indents "in"
+                             scope <- typeExpr pdef fname indents
+                             pure (POpen (getPTermLoc r) r scope)
+                Nothing => do res <- nonEmptyBlock (letBlock fname)
+                              commitKeyword fname indents "in"
+                              scope <- typeExpr pdef fname indents
+                              pure (mkLets fname res scope)
 
   case_ : OriginDesc -> IndentInfo -> Rule PTerm
   case_ fname indents
