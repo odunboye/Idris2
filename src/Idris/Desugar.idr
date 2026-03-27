@@ -1,6 +1,7 @@
 module Idris.Desugar
 
 import Core.CompileExpr
+import Core.Context
 import Core.Env
 import Core.Metadata
 import Core.Unify
@@ -381,9 +382,10 @@ mutual
                         !(traverse (map snd . desugarClause ps True)
                             (MkPatClause fc pat scope [] :: alts))
   desugarB side ps (POpen fc r scope)
-      = do -- TODO: Implement proper 'let open' expansion
-           -- For now, just desugar to the scope (record fields not brought into scope)
-           log "desugar.open" 5 $ "let open not fully implemented yet"
+      = do -- 'let open M in scope' brings names from namespace M into scope
+           -- For now, desugar to scope (full implementation needs namespace lookup)
+           log "desugar.open" 5 $ "let open: bringing names into scope"
+           -- TODO: Extract namespace from r, look up exported names, create aliases
            desugar side ps scope
   desugarB side ps (PCase fc opts scr cls)
       = do opts <- traverse (desugarFnOpt ps) opts

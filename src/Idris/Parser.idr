@@ -980,6 +980,16 @@ mutual
     letDecl : Rule LetDecl
     letDecl = collectDefs . forget <$> nonEmptyBlock (try . topDecl fname)
 
+  letOpen_ : OriginDesc -> IndentInfo -> Rule PTerm
+  letOpen_ fname indents
+      = do decoratedKeyword fname "let"
+           decoratedKeyword fname "open"
+           commit
+           r <- expr pdef fname indents
+           commitKeyword fname indents "in"
+           scope <- typeExpr pdef fname indents
+           pure (POpen (getPTermLoc r) r scope)
+
   let_ : OriginDesc -> IndentInfo -> Rule PTerm
   let_ fname indents
       = do decoratedKeyword fname "let"
@@ -1216,7 +1226,8 @@ mutual
   export
   expr : ParseOpts -> OriginDesc -> IndentInfo -> Rule PTerm
   expr q fname indents
-       = let_ fname indents
+       = letOpen_ fname indents
+     <|> let_ fname indents
      <|> rewrite_ fname indents
      <|> do b <- bounds $
                    do decoratedPragma fname "runElab"

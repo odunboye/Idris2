@@ -1,0 +1,6 @@
+package let-open-example
+
+modules = Main
+
+executable = let-open-example
+main = Main

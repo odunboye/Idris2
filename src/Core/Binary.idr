@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_03_27_02  -- Added selective import specifications with renaming; Reducibility field to GlobalDef (%opaque / %reducible)
+ttcVersion = 2026_03_27_03  -- Added selective import specifications with renaming; Reducibility field to GlobalDef (%opaque / %reducible); POpen constructor for let open syntax
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
