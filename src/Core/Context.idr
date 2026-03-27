@@ -736,6 +736,7 @@ HasNames Warning where
   full gam w@(ShadowingLocalBindings {}) = pure w
   full gam (Deprecated fc x y) = Deprecated fc x <$> traverseOpt (traversePair (full gam)) y
   full gam (GenericWarn fc x) = pure (GenericWarn fc x)
+  full gam (NeverDefined fc n) = NeverDefined fc <$> full gam n
 
   resolved gam (ParserWarning fc x) = pure (ParserWarning fc x)
   resolved gam (UnreachableClause fc rho s) = UnreachableClause fc <$> resolved gam rho <*> resolved gam s
@@ -745,6 +746,7 @@ HasNames Warning where
   resolved gam w@(ShadowingLocalBindings {}) = pure w
   resolved gam (Deprecated fc x y) = Deprecated fc x <$> traverseOpt (traversePair (resolved gam)) y
   resolved gam (GenericWarn fc x) = pure (GenericWarn fc x)
+  resolved gam (NeverDefined fc n) = NeverDefined fc <$> resolved gam n
 
 export
 HasNames Error where

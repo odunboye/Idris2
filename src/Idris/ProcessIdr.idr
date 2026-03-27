@@ -92,6 +92,26 @@ processDecls decls
              | Just err => pure (if null errs then [err] else errs)
          pure errs
 
+-- Warn about any name that was declared (type signature given) but never
+-- defined (no clauses provided).  We check every name in `toSave` — the
+-- set of names added to the TTC by the current module — so imported names
+-- are never reported.
+checkNeverDefined : {auto c : Ref Ctxt Defs} ->
+                    Core ()
+checkNeverDefined
+    = do defs <- get Ctxt
+         traverse_ check (keys (toSave defs))
+  where
+    check : Name -> Core ()
+    check n
+        = when (isUserName n) $ do
+            defs <- get Ctxt
+            Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure ()
+            let None = definition gdef
+              | _ => pure ()
+            recordWarning (NeverDefined (location gdef) n)
+
 readModule : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
              {auto s : Ref Syn SyntaxInfo} ->
@@ -387,6 +407,8 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 setNS (miAsNamespace ns)
                 errs <- logTime 2 "Processing decls" $
                             processDecls (decls mod)
+                logTime 3 "Checking never-defined declarations" $
+                    checkNeverDefined
                 totErrs <- logTime 3 ("Totality check overall")
                             getTotalityErrors
                 let errs = errs ++ totErrs

@@ -1,0 +1,7 @@
+. ../../../testutils.sh
+
+# Test 1: forward declarations allow mutual recursion without a mutual block
+run ForwardDecl.idr
+
+# Test 2: a declared-but-never-defined name produces a warning
+check NeverDefined.idr
