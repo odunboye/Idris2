@@ -380,6 +380,11 @@ mutual
       = pure $ ICase fc [] !(desugarB side ps nVal) !(desugarB side ps nTy)
                         !(traverse (map snd . desugarClause ps True)
                             (MkPatClause fc pat scope [] :: alts))
+  desugarB side ps (POpen fc r scope)
+      = do -- TODO: Implement proper 'let open' expansion
+           -- For now, just desugar to the scope (record fields not brought into scope)
+           log "desugar.open" 5 $ "let open not fully implemented yet"
+           desugar side ps scope
   desugarB side ps (PCase fc opts scr cls)
       = do opts <- traverse (desugarFnOpt ps) opts
            scr <- desugarB side ps scr

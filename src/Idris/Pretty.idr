@@ -460,6 +460,9 @@ mutual
     prettyPrec d (PFix fc c body) =
       parenthesise (d > startPrec) $
         "fix" <++> pretty c <++> pretty body
+    prettyPrec d (POpen fc r scope) =
+      parenthesise (d > startPrec) $
+        "let open" <++> pretty r <++> "in" <++> pretty scope
 
 export
 render : {auto o : Ref ROpts REPLOpts} -> Doc IdrisAnn -> Core String
