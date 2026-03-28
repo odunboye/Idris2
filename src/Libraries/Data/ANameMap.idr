@@ -24,7 +24,7 @@ empty = MkANameMap empty empty
 ||| Given a Name, and an ANameMap, look up that name exactly
 export
 lookupExact : Name -> ANameMap a -> Maybe a
-lookupExact n dict = lookup n (exactNames dict)
+lookupExact n dict = lookup n dict.exactNames
 
 export
 lookupName : Name -> ANameMap a -> List (Name, a)
@@ -33,7 +33,7 @@ lookupName n dict
            Nothing => case lookupExact n dict of
                            Nothing => []
                            Just res => [(n, res)]
-           Just r => case lookup r (hierarchy dict) of
+           Just r => case lookup r dict.hierarchy of
                           Nothing => []
                           Just ns => filter (matches n . fst) ns
 
@@ -82,7 +82,7 @@ removeExact n (MkANameMap dict hier)
 
 export
 toList : ANameMap a -> List (Name, a)
-toList dict = toList (exactNames dict)
+toList dict = toList dict.exactNames
 
 ||| Export the list of name which are ambiguous without their namespace
 export

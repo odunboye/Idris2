@@ -72,14 +72,14 @@ interpError stk msg = do
 
 getReg : Ref State InterpState => Stack -> Reg -> Core Object
 getReg stk (Loc i) = do
-    ls <- locals <$> get State
+    ls <- map (.locals) (get State)
     objm <- coreLift $ readArray ls i
     case objm of
         Just obj => pure obj
         Nothing =>
             interpError stk $ "Missing local " ++ show i
 getReg stk RVal = do
-    objm <- returnObj <$> get State
+    objm <- map (.returnObj) (get State)
     case objm of
         Just obj => pure obj
         Nothing => interpError stk "Missing returnObj val"
@@ -88,7 +88,7 @@ getReg stk Discard = pure Null
 setReg : Ref State InterpState => Stack -> Reg -> Object -> Core ()
 setReg stk RVal obj = update State $ { returnObj := Just obj }
 setReg stk (Loc i) obj = do
-    ls <- locals <$> get State
+    ls <- map (.locals) (get State)
     when (i >= max ls) $ interpError stk $ "Attempt to set register: " ++ show i ++ ", size of locals: " ++ show (max ls)
     coreLift_ $ writeArray ls i obj
 setReg stk Discard _ = pure ()
@@ -258,7 +258,7 @@ parameters {auto c : Ref Ctxt Defs}
         let ind = if logCallStack then pack $ '|' <$ stk else ""
         when logCallStack $ coreLift $ putStrLn $ ind ++ "Calling " ++ show fn ++ " with args: " ++ show args
         let stk' = fn :: stk
-        defs <- defs <$> get State
+        defs <- map (.defs) (get State)
         res <- case lookup fn defs of
             Nothing => interpError stk $ "Undefined function: " ++ show fn
             Just (MkVMFun as is) => do

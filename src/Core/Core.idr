@@ -688,7 +688,7 @@ export %inline
     = MkCore (act >>=
                    \case
                      Left err => pure $ Left err
-                     Right val => runCore $ f val)
+                     Right val => (f val).runCore)
 
 export %inline
 (>>) : Core () -> Core a -> Core a

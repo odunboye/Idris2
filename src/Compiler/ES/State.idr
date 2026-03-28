@@ -145,7 +145,7 @@ registerLocal n = do
 export
 getOrRegisterLocal : {auto c : Ref ESs ESSt} -> Name -> Core Minimal
 getOrRegisterLocal n = do
-  Nothing <- lookup n . locals <$> get ESs
+  Nothing <- map (\s => lookup n s.locals) (get ESs)
     | Just v => pure v
   MVar <$> registerLocal n
 
@@ -198,7 +198,7 @@ getOrRegisterRef :  {auto c : Ref ESs ESSt}
                  -> Name
                  -> Core Var
 getOrRegisterRef n = do
-  Nothing <- lookup n . refs <$> get ESs
+  Nothing <- map (\s => lookup n s.refs) (get ESs)
     | Just v => pure v
   registerRef n
 
@@ -215,7 +215,7 @@ addToPreamble :  {auto c : Ref ESs ESSt}
               -> (def : String) -> Core ()
 addToPreamble name def = do
   s <- get ESs
-  case lookup name (preamble s) of
+  case lookup name s.preamble of
     Nothing => put ESs $ { preamble $= insert name def } s
     Just x =>
       unless (x == def) $ do

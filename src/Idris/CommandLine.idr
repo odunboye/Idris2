@@ -492,8 +492,8 @@ matchFlag : (d : OptDesc) -> List String ->
             Either String (Maybe (List CLOpt, List String))
 matchFlag d [] = Right Nothing -- Nothing left to match
 matchFlag d (x :: xs)
-    = if x `elem` flags d
-         then do args <- processArgs x (argdescs d) xs (action d)
+    = if x `elem` d.flags
+         then do args <- processArgs x d.argdescs xs d.action
                  Right (Just args)
          else Right Nothing
 
@@ -552,4 +552,4 @@ nearMatchOptSuggestion arg =
 ||| List of all command line option flags.
 export
 optionFlags : List String
-optionFlags = options >>= flags
+optionFlags = options >>= (.flags)

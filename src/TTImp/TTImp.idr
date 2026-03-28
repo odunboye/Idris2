@@ -37,7 +37,7 @@ Weaken NestedNames where
 -- replace nested name with full name
 export
 mapNestedName : NestedNames vars -> Name -> Name
-mapNestedName nest n = case lookup n (names nest) of
+mapNestedName nest n = case lookup n nest.names of
                                (Just (Just n', _)) => n'
                                _ => n
 
@@ -631,7 +631,7 @@ lhsInCurrentNS nest (IWithApp loc f a)
          pure (IWithApp loc f' a)
 lhsInCurrentNS nest tm@(IVar loc (NS {})) = pure tm -- leave explicit NS alone
 lhsInCurrentNS nest (IVar loc n)
-    = case lookup n (names nest) of
+    = case lookup n nest.names of
            Nothing =>
               do n' <- inCurrentNS n
                  pure (IVar loc n')

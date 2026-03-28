@@ -99,7 +99,7 @@ setOutput m = update ROpts { idemode := m }
 
 export
 getOutput : {auto o : Ref ROpts REPLOpts} -> Core OutputMode
-getOutput = idemode <$> get ROpts
+getOutput = (.idemode) <$> get ROpts
 
 export
 setMainFile : {auto o : Ref ROpts REPLOpts} ->
@@ -121,7 +121,7 @@ setSource src = update ROpts { source := src }
 export
 getSource : {auto o : Ref ROpts REPLOpts} ->
             Core String
-getSource = source <$> get ROpts
+getSource = (.source) <$> get ROpts
 
 export
 getSourceLine : {auto o : Ref ROpts REPLOpts} ->
@@ -133,7 +133,7 @@ getSourceLine l
 export
 getLitStyle : {auto o : Ref ROpts REPLOpts} ->
               Core (Maybe LiterateStyle)
-getLitStyle = literateStyle <$> get ROpts
+getLitStyle = (.literateStyle) <$> get ROpts
 
 export
 setCurrentElabSource : {auto o : Ref ROpts REPLOpts} ->
@@ -143,7 +143,7 @@ setCurrentElabSource src = update ROpts { currentElabSource := src }
 export
 getCurrentElabSource : {auto o : Ref ROpts REPLOpts} ->
                        Core String
-getCurrentElabSource = currentElabSource <$> get ROpts
+getCurrentElabSource = (.currentElabSource) <$> get ROpts
 
 addCodegen : {auto o : Ref ROpts REPLOpts} ->
              String -> Codegen -> Core ()
@@ -152,11 +152,11 @@ addCodegen s cg = update ROpts { extraCodegens $= ((s,cg)::) }
 export
 getCodegen : {auto o : Ref ROpts REPLOpts} ->
              String -> Core (Maybe Codegen)
-getCodegen s = lookup s . extraCodegens <$> get ROpts
+getCodegen s = (\opts => lookup s opts.extraCodegens) <$> get ROpts
 
 export
 getConsoleWidth : {auto o : Ref ROpts REPLOpts} -> Core (Maybe Nat)
-getConsoleWidth = consoleWidth <$> get ROpts
+getConsoleWidth = (.consoleWidth) <$> get ROpts
 
 export
 setConsoleWidth : {auto o : Ref ROpts REPLOpts} -> Maybe Nat -> Core ()
@@ -164,7 +164,7 @@ setConsoleWidth n = update ROpts { consoleWidth := n }
 
 export
 getColor : {auto o : Ref ROpts REPLOpts} -> Core Bool
-getColor = color <$> get ROpts
+getColor = (.color) <$> get ROpts
 
 export
 setColor : {auto o : Ref ROpts REPLOpts} -> Bool -> Core ()
@@ -172,7 +172,7 @@ setColor b = update ROpts { color := b }
 
 export
 getSynHighlightOn : {auto o : Ref ROpts REPLOpts} -> Core Bool
-getSynHighlightOn = synHighlightOn <$> get ROpts
+getSynHighlightOn = (.synHighlightOn) <$> get ROpts
 
 export
 setSynHighlightOn : {auto o : Ref ROpts REPLOpts} -> Bool -> Core ()
@@ -180,7 +180,7 @@ setSynHighlightOn b = update ROpts { synHighlightOn := b }
 
 export
 getEvalTiming : {auto o : Ref ROpts REPLOpts} -> Core Bool
-getEvalTiming = evalTiming <$> get ROpts
+getEvalTiming = (.evalTiming) <$> get ROpts
 
 export
 setEvalTiming : {auto o : Ref ROpts REPLOpts} -> Bool -> Core ()

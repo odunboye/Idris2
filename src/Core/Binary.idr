@@ -192,30 +192,30 @@ writeTTCFile : (HasNames extra, TTC extra) =>
 writeTTCFile b file_in
       = do file <- toFullNames file_in
            toBuf "TT2"
-           toBuf @{Wasteful} (version file)
-           toBuf (totalReq file)
-           toBuf (isSafe file)
-           toBuf (sourceHash file)
-           toBuf (ifaceHash file)
-           toBuf (importHashes file)
-           toBuf (incData file)
-           toBuf (imported file)
-           toBuf (extraData file)
-           toBuf (context file)
-           toBuf (userHoles file)
-           toBuf (autoHints file)
-           toBuf (typeHints file)
-           toBuf (nextVar file)
-           toBuf (currentNS file)
-           toBuf (nestedNS file)
-           toBuf (pairnames file)
-           toBuf (rewritenames file)
-           toBuf (primnames file)
-           toBuf (foreignImpl file)
-           toBuf (namedirectives file)
-           toBuf (cgdirectives file)
-           toBuf (transforms file)
-           toBuf (foreignExports file)
+           toBuf @{Wasteful} file.version
+           toBuf file.totalReq
+           toBuf file.isSafe
+           toBuf file.sourceHash
+           toBuf file.ifaceHash
+           toBuf file.importHashes
+           toBuf file.incData
+           toBuf file.imported
+           toBuf file.extraData
+           toBuf file.context
+           toBuf file.userHoles
+           toBuf file.autoHints
+           toBuf file.typeHints
+           toBuf file.nextVar
+           toBuf file.currentNS
+           toBuf file.nestedNS
+           toBuf file.pairnames
+           toBuf file.rewritenames
+           toBuf file.primnames
+           toBuf file.foreignImpl
+           toBuf file.namedirectives
+           toBuf file.cgdirectives
+           toBuf file.transforms
+           toBuf file.foreignExports
 
 readTTCFile : TTC extra =>
               {auto c : Ref Ctxt Defs} ->
@@ -276,15 +276,15 @@ getSaveDefs : Namespace -> List Name -> List (Name, Binary) -> Defs ->
               Core (List (Name, Binary))
 getSaveDefs modns [] acc _ = pure acc
 getSaveDefs modns (n :: ns) acc defs
-    = do Just gdef <- lookupCtxtExact n (gamma defs)
+    = do Just gdef <- lookupCtxtExact n defs.gamma
               | Nothing => getSaveDefs modns ns acc defs -- 'n' really should exist though!
          -- No need to save builtins
-         case definition gdef of
+         case gdef.definition of
               Builtin _ => getSaveDefs modns ns acc defs
               _ => do bin <- initBinaryS 16384
-                      toBuf (trimNS modns !(full (gamma defs) gdef))
+                      toBuf (trimNS modns !(full defs.gamma gdef))
                       b <- get Bin
-                      getSaveDefs modns ns ((trimName (fullname gdef), b) :: acc) defs
+                      getSaveDefs modns ns ((trimName gdef.fullname, b) :: acc) defs
   where
     trimName : Name -> Name
     trimName n@(NS defns d) = if defns == modns then d else n
@@ -302,36 +302,36 @@ writeToTTC extradata sourceFileName ttcFileName
     = do bin <- initBinary
          defs <- get Ctxt
          ust <- get UST
-         gdefs <- getSaveDefs (currentNS defs) (keys (toSave defs)) [] defs
+         gdefs <- getSaveDefs defs.currentNS (keys defs.toSave) [] defs
          sourceHash <- hashFileWith defs.options.hashFn sourceFileName
          totalReq <- getDefaultTotalityOption
          log "ttc.write" 5 $ unwords
            [ "Writing", ttcFileName
            , "with source hash", show sourceHash
-           , "and interface hash", show (ifaceHash defs)
+           , "and interface hash", show defs.ifaceHash
            ]
          session <- getSession
          writeTTCFile bin
                    (MkTTCFile ttcVersion totalReq session.safeMode
                               sourceHash
-                              (ifaceHash defs) (importHashes defs)
-                              (incData defs)
+                              defs.ifaceHash defs.importHashes
+                              defs.incData
                               gdefs
-                              (keys (userHoles defs))
-                              (saveAutoHints defs)
-                              (saveTypeHints defs)
-                              (imported defs)
-                              (nextName ust)
-                              (currentNS defs)
-                              (nestedNS defs)
-                              (pairnames (options defs))
-                              (rewritenames (options defs))
-                              (primnames (options defs))
-                              (foreignImpl (options defs))
-                              (NameMap.toList (namedirectives defs))
-                              (cgdirectives defs)
-                              (saveTransforms defs)
-                              (NameMap.toList (foreignExports defs))
+                              (keys defs.userHoles)
+                              defs.saveAutoHints
+                              defs.saveTypeHints
+                              defs.imported
+                              ust.nextName
+                              defs.currentNS
+                              defs.nestedNS
+                              defs.options.pairnames
+                              defs.options.rewritenames
+                              defs.options.primnames
+                              defs.options.foreignImpl
+                              (NameMap.toList defs.namedirectives)
+                              defs.cgdirectives
+                              defs.saveTransforms
+                              (NameMap.toList defs.foreignExports)
                               extradata)
 
          Right ok <- coreLift $ writeToFile ttcFileName !(get Bin)
@@ -344,11 +344,11 @@ addGlobalDef : {auto c : Ref Ctxt Defs} ->
                (Name, Binary) -> Core ()
 addGlobalDef modns filens asm (n, def)
     = do defs <- get Ctxt
-         codedentry <- lookupContextEntry n (gamma defs)
+         codedentry <- lookupContextEntry n defs.gamma
          -- Don't update the coded entry because some names might not be
          -- resolved yet
          entry <- maybe (pure Nothing)
-                        (\ p => do x <- decode (gamma defs) (fst p) False (snd p)
+                        (\ p => do x <- decode defs.gamma (fst p) False (snd p)
                                    pure (Just x))
                         codedentry
          unless (completeDef entry) $
@@ -363,7 +363,7 @@ addGlobalDef modns filens asm (n, def)
     completeDef : Maybe GlobalDef -> Bool
     completeDef Nothing = False
     completeDef (Just def)
-        = case definition def of
+        = case def.definition of
                None => False
                Hole {} => False
                _ => True
@@ -432,7 +432,7 @@ updateTransforms ((n, t) :: ts)
     addT : Name -> Transform -> Core ()
     addT n t
         = do defs <- get Ctxt
-             case lookup n (transforms defs) of
+             case lookup n defs.transforms of
                   Nothing =>
                      put Ctxt ({ transforms $= insert n [t] } defs)
                   Just ts =>
@@ -489,39 +489,39 @@ readFromTTC nestedns loc reexp fname modNS importAs
          -- Otherwise, add the data
          if alreadyDone modNS importAs (allImported defs)
             then do ttc <- readTTCFile False fname as bin
-                    let ex = extraData ttc
-                    pure (Just (ex, ifaceHash ttc, imported ttc))
+                    let ex = ttc.extraData
+                    pure (Just (ex, ttc.ifaceHash, ttc.imported))
             else do
                ttc <- readTTCFile True fname as bin
-               let ex = extraData ttc
-               traverse_ (addGlobalDef modNS (currentNS ttc) as) (context ttc)
-               traverse_ (addUserHole True) (userHoles ttc)
-               setNS (currentNS ttc)
-               when nestedns $ setNestedNS (nestedNS ttc)
+               let ex = ttc.extraData
+               traverse_ (addGlobalDef modNS ttc.currentNS as) ttc.context
+               traverse_ (addUserHole True) ttc.userHoles
+               setNS ttc.currentNS
+               when nestedns $ setNestedNS ttc.nestedNS
                -- Only do the next batch if the module hasn't been loaded
                -- in any form
                unless (modNS `elem` map (fst . getNSas) (allImported defs)) $
                -- Set up typeHints and autoHints based on the loaded data
-                 do traverse_ (addTypeHint loc) (typeHints ttc)
-                    traverse_ addAutoHint (autoHints ttc)
-                    addImportedInc modNS (incData ttc)
+                 do traverse_ (addTypeHint loc) ttc.typeHints
+                    traverse_ addAutoHint ttc.autoHints
+                    addImportedInc modNS ttc.incData
                     -- Set up pair/rewrite etc names
-                    updatePair (pairnames ttc)
-                    updateRewrite (rewritenames ttc)
-                    updatePrims (primnames ttc)
-                    updateForeignImpl (foreignImpl ttc)
-                    updateNameDirectives (reverse (namedirectives ttc))
-                    updateCGDirectives (cgdirectives ttc)
-                    updateTransforms (transforms ttc)
-                    updateFExports (foreignExports ttc)
+                    updatePair ttc.pairnames
+                    updateRewrite ttc.rewritenames
+                    updatePrims ttc.primnames
+                    updateForeignImpl ttc.foreignImpl
+                    updateNameDirectives (reverse ttc.namedirectives)
+                    updateCGDirectives ttc.cgdirectives
+                    updateTransforms ttc.transforms
+                    updateFExports ttc.foreignExports
 
                when (not reexp) clearSavedHints
                resetFirstEntry
 
                -- Finally, update the unification state with the holes from the
                -- ttc
-               update UST { nextName := nextVar ttc }
-               pure (Just (ex, ifaceHash ttc, imported ttc))
+               update UST { nextName := ttc.nextVar }
+               pure (Just (ex, ttc.ifaceHash, ttc.imported))
   where
     alreadyDone : ModuleIdent -> Namespace ->
                   List (String, (ModuleIdent, Bool, Namespace)) ->

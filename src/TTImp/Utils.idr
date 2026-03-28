@@ -206,9 +206,9 @@ findUniqueBindableNames :
   RawImp -> Core (List (Name, Name))
 findUniqueBindableNames fc arg env used t
   = do let assoc = nub (findBindableNames arg env used t)
-       when (showShadowingWarning !getSession) $
+       when ((!getSession).showShadowingWarning) $
          do defs <- get Ctxt
-            let ctxt = gamma defs
+            let ctxt = defs.gamma
             ns <- map catMaybes $ for assoc $ \ (n, _) => do
                     ns <- lookupCtxtName n ctxt
                     let ns = flip List.mapMaybe ns $ \(n, _, d) =>

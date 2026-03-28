@@ -331,9 +331,9 @@ genName : {auto l : Ref Lifts LDefs} ->
           Core Name
 genName
     = do ldefs <- get Lifts
-         let i = nextName ldefs
+         let i = ldefs.nextName
          put Lifts ({ nextName := i + 1 } ldefs)
-         pure $ mkName (basename ldefs) i
+         pure $ mkName ldefs.basename i
   where
     mkName : Name -> Int -> Name
     mkName (NS ns b) i = NS ns (mkName b i)
@@ -602,7 +602,7 @@ liftBody n tm
     = do l <- newRef Lifts (MkLDefs n [] 0)
          tml <- liftExp {doLazyAnnots} {l} tm
          ldata <- get Lifts
-         pure (tml, defs ldata)
+         pure (tml, ldata.defs)
 
 export
 lambdaLiftDef : (doLazyAnnots : Bool) -> Name -> CDef -> Core (List (Name, LiftedDef))

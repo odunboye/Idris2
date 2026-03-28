@@ -52,11 +52,11 @@ record WithBounds ty where
 
 export
 start : WithBounds ty -> (Int, Int)
-start = startBounds . bounds
+start b = startBounds b.bounds
 
 export
 end : WithBounds ty -> (Int, Int)
-end = endBounds . bounds
+end b = endBounds b.bounds
 
 export
 Eq ty => Eq (WithBounds ty) where
@@ -94,7 +94,7 @@ mergeBounds (MkBounded _ True _) (MkBounded val True _) = irrelevantBounds val
 mergeBounds (MkBounded _ True _) b2 = b2
 mergeBounds b1 (MkBounded val True _) = const val <$> b1
 mergeBounds b1 b2 =
-      MkBounded b2.val False (union (bounds b1) (bounds b2))
+      MkBounded b2.val False (union b1.bounds b2.bounds)
 
 export
 joinBounds : WithBounds (WithBounds ty) -> WithBounds ty

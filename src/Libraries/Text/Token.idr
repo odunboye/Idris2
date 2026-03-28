@@ -36,5 +36,5 @@ record Token k where
 ||| Get the value of a `Token k`. The resulting type depends upon
 ||| the kind of token.
 public export
-value : TokenKind k => (t : Token k) -> TokType (kind t)
+value : TokenKind k => (t : Token k) -> TokType (t.kind)
 value (Tok k x) = tokValue k x

@@ -154,7 +154,7 @@ setUsedVar v us@(MkUsage isUsedSet isLocalSet)
                  , isLocalSet }
 
 isUsed : Var vs -> Usage vs -> Bool
-isUsed v us = v `VarSet.elem` isUsedSet us
+isUsed v us = v `VarSet.elem` us.isUsedSet
 
 data Used : Type where
 

@@ -374,7 +374,7 @@ mutual
 
   export
   (.nameList) : PTypeDecl' nm -> List Name
-  (.nameList) = forget . map (val . snd) . names . val
+  (.nameList) pty = forget (map (val . snd) pty.val.names)
 
   public export
   PDataDecl : Type
@@ -1125,19 +1125,17 @@ record SyntaxInfo where
 
 export
 prefixes : SyntaxInfo -> ANameMap (FC, Nat)
-prefixes = fromList
-    . map (\(name, fx)=> (name, fx.fc, fx.precedence))
-    . filter ((== Prefix) . fix . snd)
-    . toList
-    . fixities
+prefixes syn = fromList
+    $ map (\(name, fx) => (name, fx.fc, fx.precedence))
+    $ filter (\(_, fx) => fx.fix == Prefix)
+    $ toList syn.fixities
 
 export
 infixes : SyntaxInfo -> ANameMap (FC, Fixity, Nat)
-infixes = fromList
-    . map (\(nm, fx) => (nm, fx.fc, fx.fix, fx.precedence))
-    . filter ((/= Prefix) . fix . snd)
-    . toList
-    . fixities
+infixes syn = fromList
+    $ map (\(nm, fx) => (nm, fx.fc, fx.fix, fx.precedence))
+    $ filter (\(_, fx) => fx.fix /= Prefix)
+    $ toList syn.fixities
 
 HasNames IFaceInfo where
   full gam iface
@@ -1167,12 +1165,12 @@ HasNames a => HasNames (ANameMap a) where
 export
 HasNames SyntaxInfo where
   full gam syn
-      = pure $ { ifaces := !(full gam (ifaces syn))
-               , bracketholes := !(traverse (full gam) (bracketholes syn))
+      = pure $ { ifaces := !(full gam syn.ifaces)
+               , bracketholes := !(traverse (full gam) syn.bracketholes)
                } syn
   resolved gam syn
-      = pure $ { ifaces := !(resolved gam (ifaces syn))
-               , bracketholes := !(traverse (resolved gam) (bracketholes syn))
+      = pure $ { ifaces := !(resolved gam syn.ifaces)
+               , bracketholes := !(traverse (resolved gam) syn.bracketholes)
                } syn
 
 export
@@ -1232,7 +1230,7 @@ export
 removeFixity :
   {auto s : Ref Syn SyntaxInfo} -> FC -> Fixity -> Name -> Core ()
 removeFixity loc _ key = do
-  fixityInfo <- fixities <$> get Syn
+  fixityInfo <- map (.fixities) (get Syn)
   if isJust $ lookupExact key fixityInfo
      then -- When the fixity is found, simply remove it
        update Syn ({ fixities $= removeExact key })
@@ -1256,7 +1254,7 @@ export
 getFixityInfo : {auto s : Ref Syn SyntaxInfo} -> String -> Core (List (Name, FixityInfo))
 getFixityInfo nm = do
   syn <- get Syn
-  pure $ lookupName (UN $ Basic nm) (fixities syn)
+  pure $ lookupName (UN $ Basic nm) syn.fixities
 
 export
 covering

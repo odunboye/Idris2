@@ -132,7 +132,7 @@ holeData gam env fn args ty
     dropShadows : List Holes.Premise -> List Holes.Premise
     dropShadows [] = []
     dropShadows (premise :: rest)
-        = if premise.name `elem` map name rest
+        = if premise.name `elem` map (.name) rest
              then            dropShadows rest
              else premise :: dropShadows rest
 

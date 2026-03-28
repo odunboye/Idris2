@@ -213,9 +213,9 @@ strengthenedEState : {n, vars : _} ->
 strengthenedEState {n} {vars} c e fc env
     = do est <- get EST
          defs <- get Ctxt
-         svs <- dropSub (subEnv est)
-         bns <- traverse (strTms defs) (boundNames est)
-         todo <- traverse (strTms defs) (toBind est)
+         svs <- dropSub est.subEnv
+         bns <- traverse (strTms defs) est.boundNames
+         todo <- traverse (strTms defs) est.toBind
          pure $ { subEnv := svs
                 , boundNames := bns
                 , toBind := todo
@@ -332,7 +332,7 @@ addBindIfUnsolved : {vars : _} ->
                     EState vars -> EState vars
 addBindIfUnsolved hn fc r p env tm ty st
     = { bindIfUnsolved $=
-         ((hn, fc, r, (_ ** (env, p, tm, ty, subEnv st))) ::)} st
+         ((hn, fc, r, (_ ** (env, p, tm, ty, st.subEnv))) ::)} st
 
 clearBindIfUnsolved : EState vars -> EState vars
 clearBindIfUnsolved = { bindIfUnsolved := [] }
@@ -615,7 +615,17 @@ exactlyOne' {vars} allowCons fc env all
                        put Ctxt defs
                        commit
                        pure res
-              Left rs => throw (altError (lefts elabs) rs)
+              Left rs => do
+                  maybeDedup <- dedupByConv rs
+                  case maybeDedup of
+                       Just (res, defs, ust, est, md) =>
+                             do put UST ust
+                                put EST est
+                                put MD  md
+                                put Ctxt defs
+                                commit
+                                pure res
+                       Nothing => throw (altError (lefts elabs) rs)
   where
     getRight : List (Either err (Nat, res)) -> Either (List res) res
     getRight es
@@ -636,6 +646,25 @@ exactlyOne' {vars} allowCons fc env all
     depthError [] = Nothing
     depthError ((_, e) :: es)
         = maybe (depthError es) Just (getDepthError e)
+
+    -- If all successful elaborations are definitionally equal, the ambiguity
+    -- is harmless — just return the first result.
+    dedupByConv : List ((Term vars, Glued vars), Defs, UState, EState vars, Metadata)
+              -> Core (Maybe ((Term vars, Glued vars), Defs, UState, EState vars, Metadata))
+    dedupByConv [] = pure Nothing
+    dedupByConv [x] = pure (Just x)
+    dedupByConv (x@((tm, _), _, _, _, _) :: xs) = do
+      -- Use the current (restored) context for conversion checking
+      defs <- get Ctxt
+      allEq <- allConv defs (map (\((t, _), _, _, _, _) => t) xs)
+      pure $ if allEq then Just x else Nothing
+      where
+        allConv : Defs -> List (Term vars) -> Core Bool
+        allConv _    []        = pure True
+        allConv defs (t :: ts) =
+          case !(tryError $ convert defs env tm t) of
+            Right True => allConv defs ts
+            _          => pure False
 
     -- If they've all failed, collect all the errors
     -- If more than one succeeded, report the ambiguity
@@ -728,13 +757,13 @@ convertWithLazy
           Core UnifyResult
 convertWithLazy withLazy fc elabinfo env x y
     = let umode : UnifyInfo
-                = case elabMode elabinfo of
+                = case elabinfo.elabMode of
                        InLHS _ => inLHS
                        _ => inTerm in
           catch
             (do let lazy = !isLazyActive && withLazy
                 logGlueNF "elab.unify" 5 ("Unifying " ++ show withLazy ++ " "
-                             ++ show (elabMode elabinfo)) env x
+                             ++ show elabinfo.elabMode) env x
                 logGlueNF "elab.unify" 5 "....with" env y
                 vs <- if isFromTerm x && isFromTerm y
                          then do xtm <- getTerm x
@@ -761,7 +790,7 @@ convertWithLazy withLazy fc elabinfo env x y
                   -- throwing because they may no longer be known
                   -- by the time we look at the error
                   defs <- get Ctxt
-                  throw (WhenUnifying fc (gamma defs) env xtm ytm err))
+                  throw (WhenUnifying fc defs.gamma env xtm ytm err))
 
 export
 convert : {vars : _} ->

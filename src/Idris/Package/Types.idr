@@ -200,31 +200,31 @@ initPkgDesc pname
 
 export
 Show PkgDesc where
-  show pkg = "Package: " ++ name pkg ++ "\n" ++
-             maybe "" (\m => "Version: "     ++ m ++ "\n") (show <$> version pkg) ++
-             maybe "" (\v => "Language Version: " ++ v ++ "\n") (show <$> langversion pkg) ++
-             maybe "" (\m => "Authors: "     ++ m ++ "\n") (authors pkg)     ++
-             maybe "" (\m => "Maintainers: " ++ m ++ "\n") (maintainers pkg) ++
-             maybe "" (\m => "License: "     ++ m ++ "\n") (license pkg)     ++
-             maybe "" (\m => "Brief: "       ++ m ++ "\n") (brief pkg)       ++
-             maybe "" (\m => "ReadMe: "      ++ m ++ "\n") (readme pkg)      ++
-             maybe "" (\m => "HomePage: "    ++ m ++ "\n") (homepage pkg)    ++
-             maybe "" (\m => "SourceLoc: "   ++ m ++ "\n") (sourceloc pkg)   ++
-             maybe "" (\m => "BugTracker: "  ++ m ++ "\n") (bugtracker pkg)  ++
-             "Depends: " ++ show (depends pkg) ++ "\n" ++
-             "Modules: " ++ show (map snd (modules pkg)) ++ "\n" ++
-             maybe "" (\m => "Main: " ++ snd m ++ "\n") (mainmod pkg) ++
-             maybe "" (\m => "Exec: " ++ m ++ "\n") (executable pkg) ++
-             maybe "" (\m => "Opts: " ++ snd m ++ "\n") (options pkg) ++
-             maybe "" (\m => "SourceDir: " ++ m ++ "\n") (sourcedir pkg) ++
-             maybe "" (\m => "BuildDir: " ++ m ++ "\n") (builddir pkg) ++
-             maybe "" (\m => "OutputDir: " ++ m ++ "\n") (outputdir pkg) ++
-             maybe "" (\m => "Prebuild: " ++ snd m ++ "\n") (prebuild pkg) ++
-             maybe "" (\m => "Postbuild: " ++ snd m ++ "\n") (postbuild pkg) ++
-             maybe "" (\m => "Preinstall: " ++ snd m ++ "\n") (preinstall pkg) ++
-             maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") (postinstall pkg) ++
-             maybe "" (\m => "Preclean: " ++ snd m ++ "\n") (preclean pkg) ++
-             maybe "" (\m => "Postclean: " ++ snd m ++ "\n") (postclean pkg)
+  show pkg = "Package: " ++ pkg.name ++ "\n" ++
+             maybe "" (\m => "Version: "     ++ m ++ "\n") (show <$> pkg.version) ++
+             maybe "" (\v => "Language Version: " ++ v ++ "\n") (show <$> pkg.langversion) ++
+             maybe "" (\m => "Authors: "     ++ m ++ "\n") pkg.authors     ++
+             maybe "" (\m => "Maintainers: " ++ m ++ "\n") pkg.maintainers ++
+             maybe "" (\m => "License: "     ++ m ++ "\n") pkg.license     ++
+             maybe "" (\m => "Brief: "       ++ m ++ "\n") pkg.brief       ++
+             maybe "" (\m => "ReadMe: "      ++ m ++ "\n") pkg.readme      ++
+             maybe "" (\m => "HomePage: "    ++ m ++ "\n") pkg.homepage    ++
+             maybe "" (\m => "SourceLoc: "   ++ m ++ "\n") pkg.sourceloc   ++
+             maybe "" (\m => "BugTracker: "  ++ m ++ "\n") pkg.bugtracker  ++
+             "Depends: " ++ show pkg.depends ++ "\n" ++
+             "Modules: " ++ show (map snd pkg.modules) ++ "\n" ++
+             maybe "" (\m => "Main: " ++ snd m ++ "\n") pkg.mainmod ++
+             maybe "" (\m => "Exec: " ++ m ++ "\n") pkg.executable ++
+             maybe "" (\m => "Opts: " ++ snd m ++ "\n") pkg.options ++
+             maybe "" (\m => "SourceDir: " ++ m ++ "\n") pkg.sourcedir ++
+             maybe "" (\m => "BuildDir: " ++ m ++ "\n") pkg.builddir ++
+             maybe "" (\m => "OutputDir: " ++ m ++ "\n") pkg.outputdir ++
+             maybe "" (\m => "Prebuild: " ++ snd m ++ "\n") pkg.prebuild ++
+             maybe "" (\m => "Postbuild: " ++ snd m ++ "\n") pkg.postbuild ++
+             maybe "" (\m => "Preinstall: " ++ snd m ++ "\n") pkg.preinstall ++
+             maybe "" (\m => "Postinstall: " ++ snd m ++ "\n") pkg.postinstall ++
+             maybe "" (\m => "Preclean: " ++ snd m ++ "\n") pkg.preclean ++
+             maybe "" (\m => "Postclean: " ++ snd m ++ "\n") pkg.postclean
 
 export
 Pretty Void PkgDesc where

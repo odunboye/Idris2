@@ -71,7 +71,7 @@ record PatInfo (pvar : Name) (vars : Scope) where
 
 covering
 {vars : _} -> Show (PatInfo n vars) where
-  show pi = show (pat pi) ++ " : " ++ show (argType pi)
+  show pi = show pi.pat ++ " : " ++ show pi.argType
 
 HasNames (PatInfo n vars) where
   full gam (MkInfo pat loc argType)
@@ -106,7 +106,7 @@ data NamedPats : List Name -> -- the pattern variables still to process, in orde
 
 getPatInfo : NamedPats todo vars -> List Pat
 getPatInfo [] = []
-getPatInfo (x :: xs) = pat x :: getPatInfo xs
+getPatInfo (x :: xs) = x.pat :: getPatInfo xs
 
 updatePats : {vars, todo : _} ->
              {auto c : Ref Ctxt Defs} ->
@@ -114,7 +114,7 @@ updatePats : {vars, todo : _} ->
              NF vars -> NamedPats todo vars -> Core (NamedPats todo vars)
 updatePats env nf [] = pure []
 updatePats {todo = pvar :: ns} env (NBind fc _ (Pi _ c _ farg) fsc) (p :: ps)
-  = case argType p of
+  = case p.argType of
          Unknown =>
             do defs <- get Ctxt
                empty <- clearDefs defs
@@ -122,7 +122,7 @@ updatePats {todo = pvar :: ns} env (NBind fc _ (Pi _ c _ farg) fsc) (p :: ps)
                           :: !(updatePats env !(fsc defs (toClosure defaultOpts env (Ref fc Bound pvar))) ps))
          _ => pure (p :: ps)
 updatePats env nf (p :: ps)
-  = case argType p of
+  = case p.argType of
          Unknown =>
             do defs <- get Ctxt
                empty <- clearDefs defs
@@ -135,7 +135,7 @@ substInPatInfo : {pvar, vars, todo : _} ->
                  NamedPats todo vars ->
                  Core (PatInfo pvar vars, NamedPats todo vars)
 substInPatInfo fc n tm p ps
-    = case argType p of
+    = case p.argType of
            Known c ty =>
                 do defs <- get Ctxt
                    tynf <- nf defs (mkEnv fc vars) ty
@@ -193,9 +193,9 @@ covering
       showAll : {vs, ts : _} -> NamedPats ts vs -> String
       showAll [] = ""
       showAll {ts = t :: _} [x]
-          = show t ++ " " ++ show (pat x) ++ " [" ++ show (argType x) ++ "]"
+          = show t ++ " " ++ show x.pat ++ " [" ++ show x.argType ++ "]"
       showAll {ts = t :: _} (x :: xs)
-          = show t ++ " " ++ show (pat x) ++ " [" ++ show (argType x) ++ "]"
+          = show t ++ " " ++ show x.pat ++ " [" ++ show x.argType ++ "]"
                      ++ ", " ++ showAll xs
 
 {vars : _} -> {todo : _} -> Pretty IdrisSyntax (NamedPats todo vars) where
@@ -204,7 +204,7 @@ covering
       prettyAll : {vs, ts : _} -> NamedPats ts vs -> List (Doc IdrisSyntax)
       prettyAll [] = []
       prettyAll {ts = t :: _} (x :: xs)
-          = parens (pretty0 t <++> equals <++> pretty (pat x))
+          = parens (pretty0 t <++> equals <++> pretty x.pat)
           :: prettyAll xs
 
 Weaken ArgType where
@@ -628,10 +628,10 @@ groupCons fc fn pvars (x :: xs) {isCons = p :: ps}
         = addGroup pat pprf pats pid rhs acc
 
 getFirstPat : NamedPats (p :: ps) ns -> Pat
-getFirstPat (p :: _) = pat p
+getFirstPat (p :: _) = p.pat
 
 getFirstArgType : NamedPats (p :: ps) ns -> ArgType ns
-getFirstArgType (p :: _) = argType p
+getFirstArgType (p :: _) = p.argType
 
 ||| Store scores alongside rows of named patterns. These scores are used to determine
 ||| which column of patterns to switch on first. One score per column.
@@ -700,7 +700,7 @@ consScoreHeuristic scorePat (Scored xs ys) =
     scoreColumns {ps' = []} nps = []
     scoreColumns {ps' = w :: ws} nps =
       let (col, nps') = splitColumn nps
-       in sum (scorePat . pat <$> col) :: scoreColumns nps'
+       in sum (scorePat . (.pat) <$> col) :: scoreColumns nps'
 
 ||| Add 1 to each non-default pat in the first row.
 ||| This favors constructive matching first and reduces tree depth on average.
@@ -716,7 +716,7 @@ heuristicF (Scored (x :: xs) ys) =
 
     scores : NamedPats ps' ns' -> Vect (length ps') Int
     scores [] = []
-    scores (y :: ys) = let score : Int = if isBlank (pat y) then 0 else 1
+    scores (y :: ys) = let score : Int = if isBlank y.pat then 0 else 1
                        in  score :: scores ys
 
 ||| Subtract 1 from each column for each pat that represents a head constructor.
@@ -771,7 +771,7 @@ sameType {ns} fc phase fn env (p :: xs)
               ty => throw (CaseCompile fc fn DifferingTypes)
   where
     firstPat : NamedPats (np :: nps) ns -> Pat
-    firstPat (pinf :: _) = pat pinf
+    firstPat (pinf :: _) = pinf.pat
 
     headEq : NF ns -> NF ns -> Phase -> Bool
     headEq (NBind _ _ (Pi {}) _) (NBind _ _ (Pi {}) _) _ = True

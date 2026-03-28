@@ -144,7 +144,7 @@ genName : {auto c : Ref Ctxt Defs} ->
 genName str
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
-         n <- inCurrentNS (MN str (nextName ust))
+         n <- inCurrentNS (MN str (ust.nextName))
          pure n
 
 -- Generate a global name based on the given name, in the current namespace
@@ -157,7 +157,7 @@ genMVName (MN str _) = genName str
 genMVName n
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
-         mn <- inCurrentNS (MN (show n) (nextName ust))
+         mn <- inCurrentNS (MN (show n) (ust.nextName))
          pure mn
 
 -- Generate a unique variable name based on the given root
@@ -168,7 +168,7 @@ genVarName : {auto c : Ref Ctxt Defs} ->
 genVarName str
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
-         pure (MN str (nextName ust))
+         pure (MN str (ust.nextName))
 
 -- Again, for case names
 export
@@ -178,7 +178,7 @@ genCaseName : {auto c : Ref Ctxt Defs} ->
 genCaseName root
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
-         inCurrentNS (CaseBlock root (nextName ust))
+         inCurrentNS (CaseBlock root (ust.nextName))
 
 export
 genWithName : {auto c : Ref Ctxt Defs} ->
@@ -187,7 +187,7 @@ genWithName : {auto c : Ref Ctxt Defs} ->
 genWithName root
     = do ust <- get UST
          put UST ({ nextName $= (+1) } ust)
-         inCurrentNS (WithBlock root (nextName ust))
+         inCurrentNS (WithBlock root (ust.nextName))
 
 -- Record that universe level `l` must be ≤ level `r`.
 -- The constraint solver (Phase 3) will discharge these at the end of each
@@ -237,7 +237,7 @@ saveHoles : {auto u : Ref UST UState} ->
 saveHoles
     = do ust <- get UST
          put UST ({ currentHoles := empty } ust)
-         pure (currentHoles ust)
+         pure (ust.currentHoles)
 
 export
 restoreHoles : {auto u : Ref UST UState} ->
@@ -253,20 +253,20 @@ removeGuess n = update UST { guesses $= delete n }
 export
 getHoles : {auto u : Ref UST UState} ->
            Core (IntMap (FC, Name))
-getHoles = holes <$> get UST
+getHoles = map (.holes) (get UST)
 
 -- Get all of the guess data
 export
 getGuesses : {auto u : Ref UST UState} ->
            Core (IntMap (FC, Name))
-getGuesses = guesses <$> get UST
+getGuesses = map (.guesses) (get UST)
 
 -- Get the hole data for holes in the current elaboration session
 -- (i.e. since the last 'saveHoles')
 export
 getCurrentHoles : {auto u : Ref UST UState} ->
                   Core (IntMap (FC, Name))
-getCurrentHoles = currentHoles <$> get UST
+getCurrentHoles = map (.currentHoles) (get UST)
 
 export
 isHole : {auto u : Ref UST UState} ->
@@ -294,7 +294,7 @@ addConstraint : {auto u : Ref UST UState} ->
                 Constraint -> Core Int
 addConstraint constr
     = do ust <- get UST
-         let cid = nextConstraint ust
+         let cid = ust.nextConstraint
          put UST ({ constraints $= insert cid constr,
                     nextConstraint := cid+1 } ust)
          pure cid
@@ -567,7 +567,7 @@ checkDelayedHoles : {auto u : Ref UST UState} ->
                     Core (Maybe Error)
 checkDelayedHoles
     = do ust <- get UST
-         let hs = toList (delayedHoles ust)
+         let hs = toList (ust.delayedHoles)
          if (not (isNil hs))
             then do pure (Just (UnsolvedHoles (map snd hs)))
             else pure Nothing
@@ -592,7 +592,7 @@ checkValidHole base (idx, (fc, n))
                      throw (CantSolveGoal fc (gamma defs) Env.empty ty Nothing)
               Guess tm envb (con :: _) =>
                   do ust <- get UST
-                     let Just c = lookup con (constraints ust)
+                     let Just c = lookup con (ust.constraints)
                           | Nothing => pure ()
                      case c of
                           MkConstraint fc l env x y =>
@@ -697,7 +697,7 @@ dumpHole s n hole
     dumpConstraint cid
         = do ust <- get UST
              defs <- get Ctxt
-             case lookup cid (constraints ust) of
+             case lookup cid (ust.constraints) of
                   Nothing => pure ()
                   Just Resolved => logString s.topic n "\tResolved"
                   Just (MkConstraint _ lazy env x y) =>
@@ -718,8 +718,8 @@ dumpConstraints s n all
     = do ust <- get UST
          defs <- get Ctxt
          when !(logging s n) $ do
-           let hs = toList (guesses ust) ++
-                    toList (if all then holes ust else currentHoles ust)
+           let hs = toList (ust.guesses) ++
+                    toList (if all then ust.holes else ust.currentHoles)
            unless (isNil hs) $
              do logString s.topic n "--- CONSTRAINTS AND HOLES ---"
                 traverse_ (dumpHole s n) (map fst hs)

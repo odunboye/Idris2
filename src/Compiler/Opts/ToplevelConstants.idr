@@ -80,10 +80,10 @@ appendDef t = do
   put SortTag $ {triples $= (:< t)} st
 
 getCalls : Ref SortTag SortST => Name -> Core (List Name)
-getCalls n = map (maybe [] Prelude.toList . lookup n . graph) (get SortTag)
+getCalls n = map (\st => maybe [] Prelude.toList (lookup n st.graph)) (get SortTag)
 
 getTriple : Ref SortTag SortST => Name -> Core (Maybe (Name,FC,NamedDef))
-getTriple n = map (lookup n . map) (get SortTag)
+getTriple n = map (\st => lookup n st.map) (get SortTag)
 
 markProcessed : Ref SortTag SortST => Name -> Core ()
 markProcessed n = do
@@ -91,7 +91,7 @@ markProcessed n = do
   put SortTag $ {processed $= insert n} st
 
 isProcessed : Ref SortTag SortST => Name -> Core Bool
-isProcessed n = map (contains n . processed) (get SortTag)
+isProcessed n = map (\st => contains n st.processed) (get SortTag)
 
 checkCrash : Ref SortTag SortST => (Name, FC, NamedDef) -> Core ()
 checkCrash (n, _, MkNmError _) = update SortTag $ { nonconst $= insert n }
@@ -133,6 +133,6 @@ sortDefs ts =
      s       <- newRef SortTag init
      traverse_ sortDef (map fst ts)
      st <- get SortTag
-     let sorted = triples st <>> []
-     let consts = filter (not . flip contains (nonconst st)) consts
+     let sorted = st.triples <>> []
+     let consts = filter (not . flip contains st.nonconst) consts
      pure (sorted, fromList consts)

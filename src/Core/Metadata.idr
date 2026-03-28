@@ -164,15 +164,15 @@ data MD : Type where
 
 TTC Metadata where
   toBuf m
-      = do toBuf (lhsApps m)
-           toBuf (names m)
-           toBuf (tydecls m)
-           toBuf (holeLHS m)
-           toBuf (nameLocMap m)
-           toBuf (sourceIdent m)
-           toBuf (semanticHighlighting m)
-           toBuf (semanticAliases m)
-           toBuf (semanticDefaults m)
+      = do toBuf m.lhsApps
+           toBuf m.names
+           toBuf m.tydecls
+           toBuf m.holeLHS
+           toBuf m.nameLocMap
+           toBuf m.sourceIdent
+           toBuf m.semanticHighlighting
+           toBuf m.semanticAliases
+           toBuf m.semanticDefaults
 
   fromBuf
       = do apps <- fromBuf
@@ -272,7 +272,7 @@ withCurrentLHS n
          n' <- getFullName n
          maybe (pure ())
                (\lhs => put MD ({ holeLHS $= ((n', lhs) ::) } meta))
-               (currentLHS meta)
+               meta.currentLHS
 
 findEntryWith : (NonEmptyFC -> a -> Bool) -> List (NonEmptyFC, a) -> Maybe (NonEmptyFC, a)
 findEntryWith = find . uncurry
@@ -283,7 +283,7 @@ findLHSAt : {auto m : Ref MD Metadata} ->
             Core (Maybe (NonEmptyFC, Nat, ClosedTerm))
 findLHSAt p
     = do meta <- get MD
-         pure (findEntryWith (\ loc, tm => p loc (snd tm)) (lhsApps meta))
+         pure (findEntryWith (\ loc, tm => p loc (snd tm)) meta.lhsApps)
 
 export
 findTypeAt : {auto m : Ref MD Metadata} ->
@@ -291,7 +291,7 @@ findTypeAt : {auto m : Ref MD Metadata} ->
              Core (Maybe (Name, Nat, ClosedTerm))
 findTypeAt p
     = do meta <- get MD
-         pure (map snd (findEntryWith p (names meta)))
+         pure (map snd (findEntryWith p meta.names))
 
 export
 findTyDeclAt : {auto m : Ref MD Metadata} ->
@@ -299,14 +299,14 @@ findTyDeclAt : {auto m : Ref MD Metadata} ->
                Core (Maybe (NonEmptyFC, Name, Nat, ClosedTerm))
 findTyDeclAt p
     = do meta <- get MD
-         pure (findEntryWith p (tydecls meta))
+         pure (findEntryWith p meta.tydecls)
 
 export
 findHoleLHS : {auto m : Ref MD Metadata} ->
               Name -> Core (Maybe ClosedTerm)
 findHoleLHS hn
     = do meta <- get MD
-         pure (lookupBy (\x, y => dropNS x == dropNS y) hn (holeLHS meta))
+         pure (lookupBy (\x, y => dropNS x == dropNS y) hn meta.holeLHS)
 
 export
 addSemanticDefault : {auto m : Ref MD Metadata} ->
@@ -346,7 +346,7 @@ normaliseTypes : {auto m : Ref MD Metadata} ->
 normaliseTypes
     = do meta <- get MD
          defs <- get Ctxt
-         ns' <- traverse (nfType defs) (names meta)
+         ns' <- traverse (nfType defs) meta.names
          put MD ({ names := ns' } meta)
   where
     nfType : Defs -> (NonEmptyFC, (Name, Nat, ClosedTerm)) ->
@@ -362,8 +362,8 @@ record TTMFile where
 TTC TTMFile where
   toBuf file
       = do toBuf "TTM"
-           toBuf (version file)
-           toBuf (metadata file)
+           toBuf file.version
+           toBuf file.metadata
 
   fromBuf
       = do hdr <- fromBuf
@@ -443,7 +443,7 @@ readFromTTM fname
              | Left err => throw (InternalError (fname ++ ": " ++ show err))
          bin <- newRef Bin buf
          ttm <- fromBuf
-         put MD (metadata ttm)
+         put MD ttm.metadata
 
 ||| Read Metadata from given file
 export

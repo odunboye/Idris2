@@ -65,10 +65,39 @@ expandAmbigName mode nest env orig args (IVar fc x) exp
                                nalts =>
                                      do log "elab.ambiguous" 10 $
                                           "Ambiguous: " ++ joinBy ", " (map (show . fst) nalts)
-                                        pure $ IAlternative fc
-                                                      (uniqType x args primNs)
-                                                      (map (mkAlt primApp est) nalts)
+                                        -- If the only ambiguity is between a prefix accessor
+                                        -- (UN Basic "f") and its field projection (UN Field "f")
+                                        -- in the same namespace, drop the redundant prefix form.
+                                        let nalts' = dropPrefixIfFieldPresent nalts
+                                        case nalts' of
+                                          [nalt] =>
+                                            do log "elab.ambiguous" 10 $
+                                                 "Deduplicated prefix/field: " ++ show (fst nalt)
+                                               pure $ mkAlt primApp est nalt
+                                          _ =>
+                                            pure $ IAlternative fc
+                                                         (uniqType x args primNs)
+                                                         (map (mkAlt primApp est) nalts')
   where
+    -- When %prefix_record_projections is on, looking up a field name like `bounds`
+    -- finds both the prefix accessor (NS ns (UN (Basic "bounds"))) and the field
+    -- projection (NS ns (UN (Field "bounds"))). Since the prefix form is just an alias
+    -- for the field form, drop it if both are present to avoid a spurious ambiguity.
+    dropPrefixIfFieldPresent : List (Name, Int, GlobalDef) -> List (Name, Int, GlobalDef)
+    dropPrefixIfFieldPresent alts =
+      let fieldNSs = mapMaybe nsAndField alts
+      in if isNil fieldNSs
+            then alts
+            else filter (not . isPrefixOf fieldNSs) alts
+      where
+        nsAndField : (Name, Int, GlobalDef) -> Maybe (Namespace, String)
+        nsAndField (NS ns (UN (Field s)), _, _) = Just (ns, s)
+        nsAndField _                            = Nothing
+
+        isPrefixOf : List (Namespace, String) -> (Name, Int, GlobalDef) -> Bool
+        isPrefixOf fields (NS ns (UN (Basic s)), _, _) = (ns, s) `elem` fields
+        isPrefixOf _      _                            = False
+
     lookupUN : Maybe UserName -> UserNameMap a -> Maybe a
     lookupUN Nothing _ = Nothing
     lookupUN (Just n) sm = lookup n sm

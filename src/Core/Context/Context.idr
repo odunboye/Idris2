@@ -168,7 +168,7 @@ Show Def where
   show (ForeignDef a cs) = "<foreign def with arity " ++ show a ++
                            " " ++ show cs ++">"
   show (Builtin {arity} _) = "<builtin with arith " ++ show arity ++ ">"
-  show (Hole _ p) = "Hole" ++ if implbind p then " [impl]" else ""
+  show (Hole _ p) = "Hole" ++ if p.implbind then " [impl]" else ""
   show (BySearch c depth def) = "Search in " ++ show def
   show (Guess tm _ cs) = "Guess " ++ show tm ++ " when " ++ show cs
   show (UniverseLevel i) = "Universe level #" ++ show i
@@ -295,11 +295,11 @@ record SCCall where
 
 export
 Show SCCall where
-  show c = show (fnCall c) ++ ": " ++ show (fnArgs c)
+  show c = show c.fnCall ++ ": " ++ show c.fnArgs
 
 export
 Eq SCCall where
-  x == y = fnCall x == fnCall y && fnArgs x == fnArgs y
+  x == y = x.fnCall == y.fnCall && x.fnArgs == y.fnArgs
 
 public export
 data SchemeMode
@@ -371,21 +371,21 @@ record GlobalDef where
 
 export
 getDefNameType : GlobalDef -> NameType
-getDefNameType = fromMaybe Func . defNameType . definition
+getDefNameType g = fromMaybe Func (defNameType g.definition)
 
 export
 gDefKindedName : GlobalDef -> KindedName
 gDefKindedName def
-  = let nm = fullname def in
-    MkKindedName (defNameType $ definition def) nm nm
+  = let nm = def.fullname in
+    MkKindedName (defNameType def.definition) nm nm
 
 export
 refersTo : GlobalDef -> NameMap Bool
-refersTo def = maybe empty id (refersToM def)
+refersTo def = maybe empty id def.refersToM
 
 export
 refersToRuntime : GlobalDef -> NameMap Bool
-refersToRuntime def = maybe empty id (refersToRuntimeM def)
+refersToRuntime def = maybe empty id def.refersToRuntimeM
 
 export
 findSetTotal : List DefFlag -> Maybe TotalReq

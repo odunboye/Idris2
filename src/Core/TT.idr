@@ -42,7 +42,7 @@ funKindedName : Name -> KindedName
 funKindedName nm = MkKindedName (Just Func) nm nm
 
 export
-Show KindedName where show = show . rawName
+Show KindedName where show kn = show kn.rawName
 
 export
 covering
@@ -375,8 +375,8 @@ record Totality where
 export
 Show Totality where
   show tot
-    = let t = isTerminating tot
-          c = isCovering tot in
+    = let t = tot.isTerminating
+          c = tot.isCovering in
         showTot t c
     where
       showTot : Terminating -> Covering -> String

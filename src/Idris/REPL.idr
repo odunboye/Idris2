@@ -547,7 +547,7 @@ processEdit (Refine upd line hole e)
                put Syn syn
                put MD md
                put Ctxt defs
-               let tele = underPis (-1) env $ typeOf infered
+               let tele = underPis (-1) env infered.typeOf
                pure (lengthExplicitPi $ fst $ snd tele)
 
          -- Now that we have a hole & a function to use inside it,
