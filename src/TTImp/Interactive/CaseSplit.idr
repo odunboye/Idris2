@@ -204,17 +204,17 @@ recordUpdate : {auto u : Ref UPD Updates} ->
                FC -> Name -> RawImp -> Core ()
 recordUpdate fc n tm
     = do u <- get UPD
-         let nupdates = mapSnd (IVar fc) <$> namemap u
+         let nupdates = mapSnd (IVar fc) <$> u.namemap
          put UPD ({ updates $= ((n, substNames [] nupdates tm) ::) } u)
 
 findUpdates : {auto u : Ref UPD Updates} ->
               Defs -> RawImp -> RawImp -> Core ()
 findUpdates defs (IVar fc n) (IVar _ n')
-    = case !(lookupTyExact n' (gamma defs)) of
+    = case !(lookupTyExact n' defs.gamma) of
            Just _ => recordUpdate fc n (IVar fc n')
            Nothing =>
               do u <- get UPD
-                 case lookup n' (namemap u) of
+                 case lookup n' u.namemap of
                       Nothing => put UPD ({ namemap $= ((n', n) ::) } u)
                       Just nm => put UPD ({ updates $= ((n, IVar fc nm) ::) } u)
 findUpdates defs (IVar fc n) tm = recordUpdate fc n tm
@@ -241,7 +241,7 @@ getUpdates : Defs -> RawImp -> RawImp -> Core (List (Name, RawImp))
 getUpdates defs orig updated
     = do u <- newRef UPD (MkUpdates [] [])
          findUpdates defs orig updated
-         pure (updates !(get UPD))
+         pure (!(get UPD)).updates
 
 mkCase : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->

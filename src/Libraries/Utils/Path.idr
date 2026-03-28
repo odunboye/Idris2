@@ -297,7 +297,7 @@ append' : (left : Path) -> (right : Path) -> Path
 append' left right =
   if isAbsolute' right || isJust right.volume then
     right
-  else if hasRoot right then
+  else if right.hasRoot then
     { volume := left.volume } right
   else
     { body := left.body ++ right.body, hasTrailSep := right.hasTrailSep } left

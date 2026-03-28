@@ -28,11 +28,11 @@ blockSize = 655360
 
 export
 avail : Binary -> Integer
-avail c = (size c - loc c) - 1
+avail c = (c.size - c.loc) - 1
 
 export
 toRead : Binary -> Integer
-toRead c = used c - loc c
+toRead c = c.used - c.loc
 
 export
 appended : Integer -> Binary -> Binary
@@ -46,7 +46,7 @@ export
 dumpBin : Binary -> IO ()
 dumpBin chunk
    = do -- printLn !(traverse bufferData' (map buf done))
-        printLn !(bufferData' (buf chunk))
+        printLn !(bufferData' chunk.buf)
         -- printLn !(traverse bufferData' (map buf rest))
 
 export
@@ -59,7 +59,7 @@ fromBuffer buf
 export
 writeToFile : (fname : String) -> Binary -> IO (Either FileError ())
 writeToFile fname c
-    = do Right ok <- writeBufferToFile fname (buf c) (cast $ used c)
+    = do Right ok <- writeBufferToFile fname c.buf (cast c.used)
                | Left (err, size) => pure (Left err)
          pure (Right ok)
 

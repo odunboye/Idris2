@@ -200,10 +200,10 @@ debugString fname = do
       let bnds = di.bounds in
       joinBy ", "
       [ "File \{show fname}"
-      , "line \{show (startLine bnds)}"
-      , "characters \{show (startCol bnds)}\{
-           ifThenElse (startLine bnds == endLine bnds)
-            ("-\{show (endCol bnds)}")
+      , "line \{show bnds.startLine}"
+      , "characters \{show bnds.startCol}\{
+           ifThenElse (bnds.startLine == bnds.endLine)
+            ("-\{show bnds.endCol}")
             ""
         }"
       ]
@@ -262,7 +262,7 @@ mutual
                 t => pure [UnnamedExpArg t]
     <|> do continue indents
            braceArgs fname indents
-    <|> if withOK q
+    <|> if q.withOK
            then do continue indents
                    decoratedSymbol fname "|"
                    arg <- expr ({withOK := False} q) fname indents
@@ -359,7 +359,7 @@ mutual
   opExprBase : ParseOpts -> OriginDesc -> IndentInfo -> Rule PTerm
   opExprBase q fname indents
       = do l <- bounds (appExpr q fname indents)
-           (if eqOK q
+           (if q.eqOK
                then do r <- bounds (continue indents
                                 *> decoratedSymbol fname "="
                                 *> opExprBase q fname indents)

@@ -290,7 +290,7 @@ conAlt (MkTcGroup tcIx funs) (MkTcFunction n ix args exp) =
 -- the top of this module).
 convertTcGroup : (tailRecLoopName : Name) -> TcGroup -> List Function
 convertTcGroup loop g@(MkTcGroup gindex fs) =
-  let functions = sortBy (comparing index) $ values fs
+  let functions = sortBy (comparing (.index)) $ values fs
       branches  = map (conAlt g) functions
       switch    = NmConCase EmptyFC (local tcArgName) branches Nothing
    in MkFunction tcFun [tcArgName] switch :: map toFun functions
@@ -340,7 +340,7 @@ functions :  (tcLoopName : Name)
 functions loop dfs =
   let ts     = mapMaybe def dfs
       groups = tailCallGroups ts
-      names  = SortedSet.fromList $ concatMap (keys . functions) groups
+      names  = SortedSet.fromList $ concatMap (keys . (.functions)) groups
    in tailRecOptim groups names loop ts
    where def : (Name,FC,NamedDef) -> Maybe (Name,List Name,NamedCExp)
          def (n,_,MkNmFun args x) = Just (n,args,x)

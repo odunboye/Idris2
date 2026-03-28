@@ -304,7 +304,7 @@ mutual
              {auto o : Ref ROpts REPLOpts} ->
              Side -> List Name -> PTerm -> Core RawImp
   desugarB side ps (PRef fc x) = do
-    let ns = mbNamespace !(get Bang)
+    let ns = (!(get Bang)).mbNamespace
     let pur = UN $ Basic "pure"
     case x == pur of -- implicitly add namespace to unqualified occurrences of `pure` in a qualified do-block
       False => pure $ IVar fc x
@@ -532,7 +532,7 @@ mutual
   desugarB side ps (PBang fc term)
       = do itm <- desugarB side ps term
            bs <- get Bang
-           let bn = MN "bind" (nextName bs)
+           let bn = MN "bind" bs.nextName
            put Bang ({ nextName $= (+1),
                        bangNames $= ((bn, fc, itm) ::)
                      } bs)
@@ -540,7 +540,7 @@ mutual
   desugarB side ps (PIdiom fc ns term)
       = do itm <- desugarB side ps term
            logRaw "desugar.idiom" 10 "Desugaring idiom for" itm
-           let val = idiomise fc (mbNamespace !(get Bang)) ns itm
+           let val = idiomise fc ((!(get Bang)).mbNamespace) ns itm
            logRaw "desugar.idiom" 10 "Desugared to" val
            pure val
   desugarB side ps (PList fc nilFC args)
@@ -585,7 +585,7 @@ mutual
                    [PatClause fc (IVar fc (UN $ Basic "True")) !(desugar side ps t),
                     PatClause fc (IVar fc (UN $ Basic "False")) !(desugar side ps e)]
   desugarB side ps (PComprehension fc ret conds) = do
-        let ns = mbNamespace !(get Bang)
+        let ns = (!(get Bang)).mbNamespace
         desugarB side ps (PDoBlock fc ns (map (guard ns) conds ++ [toPure ns ret]))
     where
       guard : Maybe Namespace -> PDo -> PDo
@@ -828,7 +828,7 @@ mutual
              addSemanticDecorations [(nfc, Bound, Just n)]
            let bind = ILet fc lhsFC rig n ty' tm' rest'
            bd <- get Bang
-           pure $ bindBangs (bangNames bd) ns bind
+           pure $ bindBangs (bd.bangNames) ns bind
   expandDo side ps topfc ns (DoLetPat fc pat ty tm alts :: rest)
       = do b <- newRef Bang (initBangs ns)
            pat' <- desugarDo LHS ps ns pat
@@ -840,7 +840,7 @@ mutual
            rest' <- expandDo side ps' topfc ns rest
            bd <- get Bang
            let fc = virtualiseFC fc
-           pure $ bindBangs (bangNames bd) ns $
+           pure $ bindBangs (bd.bangNames) ns $
                     ICase fc [] tm' ty'
                        (PatClause fc bpat rest'
                                   :: alts')
@@ -1741,7 +1741,7 @@ mutual
       = do b <- newRef Bang (initBangs doNamespace)
            tm' <- desugarB s ps tm
            bd <- get Bang
-           pure $ bindBangs (bangNames bd) doNamespace tm'
+           pure $ bindBangs (bd.bangNames) doNamespace tm'
 
   export
   desugar : {auto s : Ref Syn SyntaxInfo} ->

@@ -296,7 +296,7 @@ elabInterface {vars} ifc def_vis env nest constraints iname params dets mcon bod
          whenJust (get "doc" <$> mcon) (addDocString conName)
          let meth_sigs = mapMaybe getSig body
          let meth_decls = meth_sigs
-         let meth_names = map (val . name) meth_decls
+         let meth_names = map (val . (.name)) meth_decls
          let defaults = mapMaybe getDefault body
 
          elabAsData conName meth_names meth_sigs
@@ -395,7 +395,7 @@ elabInterface {vars} ifc def_vis env nest constraints iname params dets mcon bod
                      $ bindIFace vdfc ity -- bind interface (?!)
                      $ substNames (toList vars) methNameMap dty
 
-             dty_imp <- bindTypeNames dfc [] [] (map (val . name) tydecls ++ toList vars) dty
+             dty_imp <- bindTypeNames dfc [] [] (map (val . (.name)) tydecls ++ toList vars) dty
              log "elab.interface.default" 5 $ "Default method " ++ show dn ++ " : " ++ show dty_imp
 
              let dtydecl = IClaim $ MkFCVal vdfc

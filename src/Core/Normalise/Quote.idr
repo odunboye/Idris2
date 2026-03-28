@@ -179,11 +179,11 @@ mutual
            pure (Bind fc n b' sc')
   quoteGenNF q opts defs bound env (NApp fc f args)
       = do f' <- quoteHead q opts defs fc bound env f
-           opts' <- case sizeLimit opts of
+           opts' <- case opts.sizeLimit of
                          Nothing => pure opts
                          Just Z => throw (InternalError "Size limit exceeded")
                          Just (S k) => pure ({ sizeLimit := Just k } opts)
-           args' <- if patterns opts && not (topLevel opts) && isRef f
+           args' <- if opts.patterns && not opts.topLevel && isRef f
                        then do empty <- clearDefs defs
                                quoteArgsWithFC q opts' empty bound env args
                                else quoteArgsWithFC q ({ topLevel := False } opts')

@@ -107,7 +107,7 @@ compile {c} {s} cg tm out
          ensureDirectoryExists tmpDir
          ensureDirectoryExists outputDir
          logTime 1 "Code generation overall" $
-             compileExpr cg c s tmpDir outputDir tm out
+             cg.compileExpr c s tmpDir outputDir tm out
 
 ||| execute
 ||| As with `compile`, produce a functon that executes
@@ -120,14 +120,14 @@ execute {c} {s} cg tm
     = do d <- getDirs
          let tmpDir = execBuildDir d
          ensureDirectoryExists tmpDir
-         executeExpr cg c s tmpDir tm
+         cg.executeExpr c s tmpDir tm
 
 export
 incCompile : {auto c : Ref Ctxt Defs} ->
              {auto s : Ref Syn SyntaxInfo} ->
              Codegen -> String -> Core (Maybe (String, List String))
 incCompile {c} {s} cg src
-    = do let Just inc = incCompileFile cg
+    = do let Just inc = cg.incCompileFile
              | Nothing => pure Nothing
          inc c s src
 

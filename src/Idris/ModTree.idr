@@ -29,7 +29,7 @@ record ModTree where
 
 covering
 Show ModTree where
-  show t = show (sourceFile t) ++ " " ++ show (nspace t) ++ "<-" ++ show (deps t)
+  show t = show t.sourceFile ++ " " ++ show t.nspace ++ "<-" ++ show t.deps
 
 -- A module file to build, and its list of dependencies
 -- From this we can work out if the source file needs rebuilding, assuming
@@ -48,7 +48,7 @@ record BuildMod where
 
 export
 Show BuildMod where
-  show t = buildFile t ++ " [" ++ showSep ", " (map show (imports t)) ++ "]"
+  show t = t.buildFile ++ " [" ++ showSep ", " (map show t.imports) ++ "]"
 
 data AllMods : Type where
 
@@ -99,17 +99,17 @@ mkBuildMods : {auto d : Ref DoneMod (StringMap ())} ->
               {auto o : Ref BuildOrder (List BuildMod)} ->
               ModTree -> Core ()
 mkBuildMods mod
-    = whenJust (sourceFile mod) $ \ sf =>
+    = whenJust mod.sourceFile $ \ sf =>
             do done <- get DoneMod
                case lookup sf done of
                     Just _ => pure ()
                     Nothing =>
                        do -- build dependencies
-                          traverse_ mkBuildMods (deps mod)
+                          traverse_ mkBuildMods mod.deps
                           -- build it now
                           update BuildOrder
                                    (MkBuildMod sf mod.nspace
-                                               (map nspace mod.deps) ::)
+                                               (map (.nspace) mod.deps) ::)
                           update DoneMod $ insert sf ()
 
 -- Given a main file name, return the list of modules that need to be
@@ -124,7 +124,7 @@ getBuildMods : {auto c : Ref Ctxt Defs} ->
 getBuildMods loc done fname
     = do a <- newRef AllMods []
          fname_ns <- ctxtPathToNS fname
-         if fname_ns `elem` map buildNS done
+         if fname_ns `elem` map (.buildNS) done
             then pure []
             else
               do t <- mkModTree {a} loc [] (Just fname) fname_ns
@@ -229,12 +229,12 @@ buildMod loc num len mod
    = do clearCtxt; addPrimitives
         lazyActive True; setUnboundImplicits True
 
-        let sourceFile = buildFile mod
-        let modNamespace = buildNS mod
+        let sourceFile = mod.buildFile
+        let modNamespace = mod.buildNS
         ttcFile <- getTTCFileName sourceFile "ttc"
         -- We'd expect any errors in nsToPath to have been caught by now
         -- since the imports have been built! But we still have to check.
-        depFilesE <- traverse (nsToPath loc) (imports mod)
+        depFilesE <- traverse (nsToPath loc) mod.imports
         let (ferrs, depFiles) = partitionEithers depFilesE
 
         log "import" 20 $ unwords $
@@ -328,4 +328,4 @@ buildAll allFiles
     dropLater : List BuildMod -> List BuildMod
     dropLater [] = []
     dropLater (b :: bs)
-        = b :: dropLater (filter (\x => buildFile x /= buildFile b) bs)
+        = b :: dropLater (filter (\x => x.buildFile /= b.buildFile) bs)

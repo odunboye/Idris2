@@ -543,7 +543,7 @@ mutual
                                  ++ ", "  ++ maybe "-1" show tag  ++ ");"
 
                 emit fc " // constructor \{show n}"
-                constr <- case SortedMap.lookup n $ reuseMap env of
+                constr <- case SortedMap.lookup n env.reuseMap of
                     Just constr => do
                         emit fc "if (! \{constr}) {"
                         increaseIndentation

@@ -190,10 +190,10 @@ addPkgDir p bounds = do
 visiblePackages : String -> IO (List QualifiedPkgDir)
 visiblePackages dir = map (MkQualifiedPkgDir dir) <$> filter viable <$> getPackageDirs dir
   where notHidden : PkgDir -> Bool
-        notHidden = not . isPrefixOf "." . pkgName
+        notHidden = not . isPrefixOf "." . (.pkgName)
 
         notDenylisted : PkgDir -> Bool
-        notDenylisted = not . flip elem (the (List String) ["include", "lib", "support", "refc"]) . pkgName
+        notDenylisted = not . flip elem (the (List String) ["include", "lib", "support", "refc"]) . (.pkgName)
 
         viable : PkgDir -> Bool
         viable p = notHidden p && notDenylisted p
@@ -210,7 +210,7 @@ listPackages : {auto c : Ref Ctxt Defs} ->
                {auto o : Ref ROpts REPLOpts} ->
                Core ()
 listPackages
-    = do pkgs <- sortBy (compare `on` (pkgName . pkgDir)) <$> findPackages
+    = do pkgs <- sortBy (compare `on` ((.pkgName) . (.pkgDir))) <$> findPackages
          printIdrisTTCVersion
          traverse_ (iputStrLn . pkgDesc) pkgs
   where
@@ -304,8 +304,8 @@ opts x "--cg"      = prefixOnlyIfNonEmpty x <$> codegens
 opts x "--codegen" = prefixOnlyIfNonEmpty x <$> codegens
 
 -- packages
-opts x "-p"        = prefixOnlyIfNonEmpty x . (map $ pkgName . pkgDir) <$> findPackages
-opts x "--package" = prefixOnlyIfNonEmpty x . (map $ pkgName . pkgDir) <$> findPackages
+opts x "-p"        = prefixOnlyIfNonEmpty x . (map $ (.pkgName) . (.pkgDir)) <$> findPackages
+opts x "--package" = prefixOnlyIfNonEmpty x . (map $ (.pkgName) . (.pkgDir)) <$> findPackages
 
 -- logging
 opts x "--log"     = pure $ prefixOnlyIfNonEmpty x logLevels

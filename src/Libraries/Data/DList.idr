@@ -17,27 +17,27 @@ singleton a = MkDList (a ::)
 
 export %inline
 (::) : a -> DList a -> DList a
-(::) a as = MkDList ((a ::) . runDList as)
+(::) a as = MkDList ((a ::) . as.runDList)
 
 export %inline
 snoc : DList a -> a -> DList a
-snoc as a = MkDList (runDList as . (a ::))
+snoc as a = MkDList (as.runDList . (a ::))
 
 export %inline
 appendR : DList a -> List a -> DList a
-appendR as bs = MkDList (runDList as . (bs ++))
+appendR as bs = MkDList (as.runDList . (bs ++))
 
 export %inline
 appendL : List a -> DList a -> DList a
-appendL as bs = MkDList ((as ++) . runDList bs)
+appendL as bs = MkDList ((as ++) . bs.runDList)
 
 export %inline
 (++) : DList a -> DList a -> DList a
-as ++ bs = MkDList (runDList as . runDList bs)
+as ++ bs = MkDList (as.runDList . bs.runDList)
 
 export %inline
 reify : DList a -> List a
-reify as = runDList as []
+reify as = as.runDList []
 
 -- NB: No Functor instance because it's too expensive to reify, map, put back
 -- Consider using a different data structure if you need mapping (e.g. a rope)

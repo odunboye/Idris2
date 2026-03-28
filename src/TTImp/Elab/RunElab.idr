@@ -41,7 +41,7 @@ lookupNameInfo n ctxt
 
 Reflect NameInfo where
   reflect fc defs lhs env inf
-      = do nt <- reflect fc defs lhs env (nametype inf)
+      = do nt <- reflect fc defs lhs env inf.nametype
            appCon fc defs (reflectiontt "MkNameInfo") [nt]
 
 deepRefersTo : {auto c : Ref Ctxt Defs} ->

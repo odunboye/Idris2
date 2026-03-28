@@ -30,11 +30,11 @@ record Dirs where
 
 export
 execBuildDir : Dirs -> String
-execBuildDir d = build_dir d </> "exec"
+execBuildDir d = d.build_dir </> "exec"
 
 export
 outputDirWithDefault : Dirs -> String
-outputDirWithDefault d = fromMaybe (build_dir d </> "exec") (output_dir d)
+outputDirWithDefault d = fromMaybe (d.build_dir </> "exec") d.output_dir
 
 public export
 toString : Dirs -> String
@@ -213,7 +213,7 @@ availableCGs o
        ("javascript", Javascript),
        ("refc", RefC),
        ("gambit", Gambit),
-       ("vmcode-interp", VMCodeInterp)] ++ additionalCGs o
+       ("vmcode-interp", VMCodeInterp)] ++ o.additionalCGs
 
 export
 getCG : Options -> String -> Maybe CG
@@ -334,7 +334,7 @@ setExtension e = { extensions $= (e ::) }
 
 export
 isExtension : LangExt -> Options -> Bool
-isExtension e opts = e `elem` extensions opts
+isExtension e opts = e `elem` opts.extensions
 
 export
 addCG : (String, CG) -> Options -> Options

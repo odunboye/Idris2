@@ -180,11 +180,11 @@ allVars = go [<] where
 
 export
 Eq (Var xs) where
-  v == w = varIdx v == varIdx w
+  v == w = v.varIdx == w.varIdx
 
 export
 Show (Var ns) where
-  show v = show (varIdx v)
+  show v = show v.varIdx
 
 ------------------------------------------------------------------------
 -- Named variable in scope
@@ -215,7 +215,7 @@ forgetName : NVar nm vars -> Var vars
 forgetName (MkNVar p) = MkVar p
 
 export
-recoverName : (v : Var vars) -> NVar (varNm v) vars
+recoverName : (v : Var vars) -> NVar (v.varNm) vars
 recoverName (MkVar p) = MkNVar p
 
 export
