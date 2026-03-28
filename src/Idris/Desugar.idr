@@ -131,7 +131,7 @@ checkConflictingFixities : {auto s : Ref Syn SyntaxInfo} ->
 checkConflictingFixities isPrefix opn
   = do let op = nameRoot opn.val.toName
        foundFixities <- getFixityInfo op
-       let (pre, inf) = partition ((== Prefix) . fix . snd) foundFixities
+       let (pre, inf) = partition (\(_, fx) => fx.fix == (the Fixity Prefix)) foundFixities
        case (isPrefix, pre, inf) of
             -- If we do not find any fixity, and it is a backticked operator, then we
             -- return the default fixity and associativity for backticked operators

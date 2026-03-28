@@ -112,7 +112,7 @@ prettyInfo (n, idx, d)
          def <- Resugared.prettyDef def
          setPPrint ({ showMachineNames := showMachineNames pp } pp)
          pure $ vcat $
-           [ reAnnotate Syntax (prettyRig $ multiplicity d) <+> showCategory Syntax d (pretty0 nm)
+           [ reAnnotate (the (IdrisSyntax -> IdrisDocAnn) Syntax) (prettyRig $ multiplicity d) <+> showCategory (the (IdrisSyntax -> IdrisDocAnn) Syntax) d (pretty0 nm)
            , def
            ] ++
            catMaybes
@@ -961,7 +961,7 @@ process Edit
          case mainfile opts of
               Nothing => pure NoFileLoaded
               Just f =>
-                do let line = maybe [] (\i => ["+" ++ show (i + 1)]) (errorLine opts)
+                do let line : List String = maybe [] (\i => ["+" ++ show (i + 1)]) (errorLine opts)
                    coreLift_ $ system $ [editor opts, f] ++ line
                    loadMainFile f
 process (Compile ctm outfile)

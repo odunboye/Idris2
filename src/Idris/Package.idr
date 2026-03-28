@@ -779,7 +779,7 @@ makeDoc pkg opts =
              log "doc.module" 15 $ unwords
                [ "All imported:", show reexports]
 
-           let modExports = map (map (reAnnotate Syntax . prettyImport)) mreexports
+           let modExports = map (map (reAnnotate (the (IdrisSyntax -> IdrisDocAnn) Syntax) . prettyImport)) mreexports
 
            Right () <- do doc <- renderModuleDoc mod modDoc modExports
                                    (allDecls <$ guard (not $ null allDocs))

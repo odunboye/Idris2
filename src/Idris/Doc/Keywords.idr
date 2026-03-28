@@ -3,6 +3,7 @@ module Idris.Doc.Keywords
 import Decidable.Equality
 import Parser.Lexer.Source
 import Data.List.Quantifiers
+import Data.Maybe
 import Data.String
 
 import Idris.Doc.Annotations
@@ -639,7 +640,6 @@ keywordsDoc =
   :: "public" ::= visibility
   :: "export" ::= visibility
   :: "private" ::= visibility
-  :: "pattern" ::= patternsyn
   :: "infixl" ::= fixity
   :: "infixr" ::= fixity
   :: "infix" ::= fixity
@@ -649,11 +649,17 @@ keywordsDoc =
   :: "covering" ::= totality
   :: []
 
+-- Contextual keywords not in Source.keywords but still documented
+contextualKeywordsDoc : List (String, Doc IdrisDocAnn)
+contextualKeywordsDoc = [("pattern", patternsyn)]
+
 export
 getDocsForKeyword : String -> Doc IdrisDocAnn
 getDocsForKeyword k
-  = maybe (annotate (Syntax Keyword) $ pretty0 k) doc
-  $ lookup k keywordsDoc
+  = case map doc (lookup k keywordsDoc) of
+      Just d  => d
+      Nothing => fromMaybe (annotate (the IdrisDocAnn (Syntax Keyword)) $ pretty0 k)
+                   (lookup k contextualKeywordsDoc)
 
 
 unusedSymbol : Doc IdrisDocAnn
@@ -802,5 +808,5 @@ symbolsDoc
 export
 getDocsForSymbol : String -> Doc IdrisDocAnn
 getDocsForSymbol k
-  = maybe (annotate (Syntax Keyword) $ pretty0 k) doc
+  = maybe (annotate (the IdrisDocAnn (Syntax Keyword)) $ pretty0 k) doc
   $ lookup k symbolsDoc

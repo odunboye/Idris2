@@ -13,31 +13,31 @@ Nil = MkDList id
 
 export %inline
 singleton : a -> DList a
-singleton a = MkDList (a ::)
+singleton a = MkDList (\xs => a :: xs)
 
 export %inline
 (::) : a -> DList a -> DList a
-(::) a as = MkDList ((a ::) . as.runDList)
+(::) a as = MkDList (\xs => a :: runDList as xs)
 
 export %inline
 snoc : DList a -> a -> DList a
-snoc as a = MkDList (as.runDList . (a ::))
+snoc as a = MkDList (runDList as . (a ::))
 
 export %inline
 appendR : DList a -> List a -> DList a
-appendR as bs = MkDList (as.runDList . (bs ++))
+appendR as bs = MkDList (runDList as . (bs ++))
 
 export %inline
 appendL : List a -> DList a -> DList a
-appendL as bs = MkDList ((as ++) . bs.runDList)
+appendL as bs = MkDList ((as ++) . runDList bs)
 
 export %inline
 (++) : DList a -> DList a -> DList a
-as ++ bs = MkDList (as.runDList . bs.runDList)
+as ++ bs = MkDList (runDList as . runDList bs)
 
 export %inline
 reify : DList a -> List a
-reify as = as.runDList []
+reify as = runDList as []
 
 -- NB: No Functor instance because it's too expensive to reify, map, put back
 -- Consider using a different data structure if you need mapping (e.g. a rope)

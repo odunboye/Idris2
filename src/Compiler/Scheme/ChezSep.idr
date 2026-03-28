@@ -215,11 +215,11 @@ compileToSS c chez appdir tm = do
       -- write the files
       log "compiler.scheme.chez" 3 $ "Generating code for " ++ chezLib
       Core.writeFile (appdir </> chezLib <.> "ss") $ build $ concat $
-        [header]
+        the (List Builder) ([header]
         ++ map snd fgndefs  -- definitions using foreign libs
         ++ compdefs
         ++ loadlibs  -- foreign library load statements
-        ++ [footer]
+        ++ [footer])
 
       Core.writeFile (appdir </> chezLib <.> "hash") cuHash
 

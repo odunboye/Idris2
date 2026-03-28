@@ -2080,7 +2080,7 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
   patSynDecl
       = do doc   <- optDocumentation fname
            vis   <- visibility fname
-           decoratedKeyword fname "pattern"
+           decorate fname Keyword (exactIdent "pattern")
            n     <- mustWork (decoratedDataTypeName fname)
            -- Parse pattern parameters (typed binders)
            params <- many patSynParam
