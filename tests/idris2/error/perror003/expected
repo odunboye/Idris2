@@ -1,5 +1,5 @@
 1/1: Building PError (PError.idr)
-Error: Bracket is not properly closed.
+Error: Parentheses are not properly closed.
 
 PError:5:17--5:18
  1 | foo : Int -> Int
@@ -10,7 +10,7 @@ PError:5:17--5:18
                      ^
 
 1/1: Building PError2 (PError2.idr)
-Error: Bracket is not properly closed.
+Error: Parentheses are not properly closed.
 
 PError2:5:18--5:19
  1 | foo : Int -> Int

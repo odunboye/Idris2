@@ -1,5 +1,5 @@
 1/1: Building PError (PError.idr)
-Error: Bracket is not properly closed.
+Error: Parentheses are not properly closed.
 
 PError:4:7--4:8
  1 | foo : Int -> Int

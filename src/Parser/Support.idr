@@ -3,6 +3,7 @@ module Parser.Support
 import public Libraries.Text.Lexer.Tokenizer
 import public Libraries.Text.Lexer
 import public Libraries.Text.Parser
+import Data.String
 import Libraries.Data.String.Extra
 import public Libraries.Text.PrettyPrint.Prettyprinter
 
@@ -17,10 +18,27 @@ export
 fromLitError : OriginDesc -> LiterateError -> Error
 fromLitError origin (MkLitErr l c _) = LitFail (MkFC origin (l, c) (l, c + 1))
 
+describeUnclosed : String -> String
+describeUnclosed openTok =
+  let core = pack (dropWhile (== '#') (unpack openTok))
+  in if isPrefixOf "\"\"\"" core
+        then "Multiline string literal is not properly closed."
+        else if isPrefixOf "\"" core
+                then "String literal is not properly closed."
+                else if isPrefixOf "\\" openTok
+                        then "String interpolation is not properly closed."
+                        else if openTok `elem` the (List String) ["(", ".(", "`("]
+                                then "Parentheses are not properly closed."
+                                else if openTok `elem` the (List String) ["{", "@{", "`{"]
+                                        then "Brace is not properly closed."
+                                        else if openTok `elem` the (List String) ["[", "[<", "[>", "[|", ".[|", "`["]
+                                                then "Bracket is not properly closed."
+                                                else "'\{openTok}' is not properly closed."
+
 export
 fromLexError : OriginDesc -> (StopReason, Int, Int, String) -> Error
-fromLexError origin (ComposeNotClosing begin end, _, _, _)
-    = LexFail (MkFC origin begin end) "Bracket is not properly closed."
+fromLexError origin (ComposeNotClosing begin end openTok, _, _, _)
+    = LexFail (MkFC origin begin end) (describeUnclosed openTok)
 fromLexError origin (_, l, c, _)
     = LexFail (MkFC origin (l, c) (l, c + 1)) "Can't recognise token."
 
