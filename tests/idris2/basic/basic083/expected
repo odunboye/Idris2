@@ -1,0 +1,9 @@
+True
+True
+False
+1/1: Building NeverDefined (NeverDefined.idr)
+Warning: NeverDefined.ghost was declared but never defined.
+
+NeverDefined:5:1--5:18
+ 5 | ghost : Nat -> Nat
+

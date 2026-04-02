@@ -1,0 +1,2 @@
+Error: SafeMode: Safe module violations:
+  - SafeMode.foo: %terminating is not permitted in a safe module
