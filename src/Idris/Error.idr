@@ -301,31 +301,31 @@ pwarning : {auto c : Ref Ctxt Defs} ->
            Warning -> Core (Doc IdrisAnn)
 pwarning wrn = pwarningRaw !(toFullNames wrn)
 
+-- Run an action with a different Context for name resolution (e.g. the
+-- context captured at error-site). The original Context is restored
+-- afterwards, even if the action throws.
+withGam : {auto c : Ref Ctxt Defs} -> Context -> Core a -> Core a
+withGam gam action = wrapRef Ctxt (\_ => pure ()) (do setCtxt gam; action)
+
 perrorRaw : {auto c : Ref Ctxt Defs} ->
             {auto s : Ref Syn SyntaxInfo} ->
             {auto o : Ref ROpts REPLOpts} ->
             Error -> Core (Doc IdrisAnn)
 perrorRaw (Fatal err) = perrorRaw err
 perrorRaw (CantConvert fc gam env l r)
-    = do defs <- get Ctxt
-         setCtxt gam
-         let res = errorDesc (hsep [ reflow "Mismatch between" <+> colon
-                  , code !(pshow env l)
-                  , "and"
-                  , code !(pshow env r) <+> dot
-                  ]) <+> line <+> !(ploc fc)
-         put Ctxt defs
-         pure res
+    = withGam gam $ do
+        pure $ errorDesc (hsep [ reflow "Mismatch between" <+> colon
+                 , code !(pshow env l)
+                 , "and"
+                 , code !(pshow env r) <+> dot
+                 ]) <+> line <+> !(ploc fc)
 perrorRaw (CantSolveEq fc gam env l r)
-    = do defs <- get Ctxt
-         setCtxt gam
-         let res = errorDesc (hsep [ reflow "Can't solve constraint between" <+> colon
-                      , code !(pshow env l)
-                      , "and"
-                      , code !(pshow env r) <+> dot
-                      ]) <+> line <+> !(ploc fc)
-         put Ctxt defs
-         pure res
+    = withGam gam $ do
+        pure $ errorDesc (hsep [ reflow "Can't solve constraint between" <+> colon
+                     , code !(pshow env l)
+                     , "and"
+                     , code !(pshow env r) <+> dot
+                     ]) <+> line <+> !(ploc fc)
 perrorRaw (PatternVariableUnifies fc fct env n tm)
     = do let (min, max) = order fc fct
          pure $ errorDesc (hsep [ reflow "Pattern variable"
@@ -350,13 +350,10 @@ perrorRaw (CyclicMeta fc env n tm)
         <++> meta (pretty0 !(prettyName n)) <++> equals
         <++> code !(pshow env tm)) <+> line <+> !(ploc fc)
 perrorRaw (WhenUnifying _ gam env x y err)
-    = do defs <- get Ctxt
-         setCtxt gam
-         let res = errorDesc (reflow "When unifying:" <+> line
-                   <+> "    " <+> code !(pshow env x) <+> line <+> "and:" <+> line
-                   <+> "    " <+> code !(pshow env y)) <+> line <+> !(perrorRaw err)
-         put Ctxt defs
-         pure res
+    = withGam gam $ do
+        pure $ errorDesc (reflow "When unifying:" <+> line
+                <+> "    " <+> code !(pshow env x) <+> line <+> "and:" <+> line
+                <+> "    " <+> code !(pshow env y)) <+> line <+> !(perrorRaw err)
 perrorRaw (ValidCase fc env (Left tm))
     = pure $ errorDesc (code !(pshow env tm) <++> reflow "is not a valid impossible case.")
         <+> line <+> !(ploc fc)
@@ -434,12 +431,7 @@ perrorRaw (AmbiguousName fc ns)
 perrorRaw (AmbiguousElab fc env ts_in)
     = do pp <- getPPrint
          setPPrint ({ fullNamespace := True } pp)
-         ts_show <- traverse (\ (gam, t) =>
-                                  do defs <- get Ctxt
-                                     setCtxt gam
-                                     res <- pshow env t
-                                     put Ctxt defs
-                                     pure res) ts_in
+         ts_show <- traverse (\ (gam, t) => withGam gam (pshow env t)) ts_in
          let res = vsep [ errorDesc (reflow "Ambiguous elaboration. Possible results" <+> colon)
                         , indent 4 (vsep ts_show)
                         ] <+> line <+> !(ploc fc)
@@ -512,12 +504,10 @@ perrorRaw (BadUnboundImplicit fc env n ty)
         <++> reflow "with type" <++> code !(pshow env ty)
         <+> colon) <+> line <+> !(ploc fc) <+> line <+> reflow "Suggestion: try an explicit bind."
 perrorRaw (CantSolveGoal fc gam env g reason)
-    = do defs <- get Ctxt
-         setCtxt gam
-         let (_ ** (env', g')) = dropEnv env g
-         let res = errorDesc (reflow "Can't find an implementation for" <++> code !(pshow env' g')
-                     <+> dot) <+> line <+> !(ploc fc)
-         put Ctxt defs
+    = do res <- withGam gam $ do
+                  let (_ ** (env', g')) = dropEnv env g
+                  pure $ errorDesc (reflow "Can't find an implementation for" <++> code !(pshow env' g')
+                          <+> dot) <+> line <+> !(ploc fc)
          case reason of
               Nothing => pure res
               Just r => do rdesc <- perrorRaw r
