@@ -289,6 +289,21 @@ TTC NameType where
              3 => do y <- fromBuf; pure (TyCon y)
              _ => corrupt "NameType"
 
+export
+TTC UnivLevel where
+  toBuf UZero      = tag 0
+  toBuf (UVar n)   = do tag 1; toBuf n
+  toBuf (USucc u)  = do tag 2; toBuf u
+  toBuf (UMax l r) = do tag 3; toBuf l; toBuf r
+
+  fromBuf
+      = case !getTag of
+             0 => pure UZero
+             1 => do n <- fromBuf; pure (UVar n)
+             2 => do u <- fromBuf; pure (USucc u)
+             3 => do l <- fromBuf; r <- fromBuf; pure (UMax l r)
+             _ => corrupt "UnivLevel"
+
 -- Assumption is that it was type safe when we wrote it out, so believe_me
 -- to rebuild proofs is fine.
 -- We're just making up the implicit arguments - this is only fine at run
@@ -544,6 +559,7 @@ TTC PartialReason where
   toBuf (BadCall xs) = do tag 1; toBuf xs
   toBuf (BadPath xs n) = do tag 2; toBuf xs; toBuf n
   toBuf (RecPath xs) = do tag 3; toBuf xs
+  toBuf (NotProductive xs) = do tag 4; toBuf xs
 
   fromBuf
       = case !getTag of
@@ -555,6 +571,8 @@ TTC PartialReason where
                      pure (BadPath xs n)
              3 => do xs <- fromBuf
                      pure (RecPath xs)
+             4 => do xs <- fromBuf
+                     pure (NotProductive xs)
              _ => corrupt "PartialReason"
 
 export

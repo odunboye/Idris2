@@ -403,6 +403,26 @@ getSC defs (PMDef _ args _ _ pats)
         pure $ nub (concat sc)
 getSC defs _ = pure []
 
+-- Like findCalls but with a configurable initial Guardedness.
+findCallsFrom : {auto c : Ref Ctxt Defs} ->
+                Defs -> Guardedness ->
+                (vars ** (Env Term vars, Term vars, Term vars)) ->
+                Core (List SCCall)
+findCallsFrom defs g0 (_ ** (env, lhs, rhs_in))
+   = do let pargs = getArgs (delazy defs lhs)
+        rhs <- normaliseOpts tcOnly defs env rhs_in
+        findSC defs env g0 pargs (delazy defs rhs)
+
+-- Like getSC but with a configurable initial Guardedness.
+-- Used by the productivity checker to start analysis from Guarded state.
+export
+getSCFrom : {auto c : Ref Ctxt Defs} ->
+            Defs -> Guardedness -> Def -> Core (List SCCall)
+getSCFrom defs g0 (PMDef _ args _ _ pats)
+   = do sc <- traverse (findCallsFrom defs g0) pats
+        pure $ nub (concat sc)
+getSCFrom defs _ _ = pure []
+
 export
 calculateSizeChange : {auto c : Ref Ctxt Defs} ->
                       FC -> Name -> Core (List SCCall)
