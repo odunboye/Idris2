@@ -202,6 +202,10 @@ data Error : Type where
      InCon : WithFC Name -> Error -> Error
      InLHS : FC -> Name -> Error -> Error
      InRHS : FC -> Name -> Error -> Error
+     ||| Raised when type-checking a specific explicit argument fails.
+     ||| Carries the call-site FC, the function being applied (if known),
+     ||| the parameter name from the function's type, and the underlying error.
+     InArg : FC -> Maybe Name -> Name -> Error -> Error
 
      MaybeMisspelling : Error -> List1 String -> Error
      WarningAsError : Warning -> Error
@@ -407,6 +411,10 @@ Show Error where
   show (InRHS fc n err)
        = show fc ++ ":When elaborating right hand side of " ++ show n ++ ":\n" ++
          show err
+  show (InArg fc fn x err)
+       = show fc ++ ":In argument `" ++ show x ++ "`" ++
+         maybe "" (\n => " of `" ++ show n ++ "`") fn ++ ":\n" ++
+         show err
 
   show (MaybeMisspelling err ns)
        = show err ++ "\nDid you mean" ++ case ns of
@@ -508,6 +516,7 @@ getErrorLoc (FailingDidNotFail loc) = Just loc
 getErrorLoc (FailingWrongError loc _ _) = Just loc
 getErrorLoc (InLHS _ _ err) = getErrorLoc err
 getErrorLoc (InRHS _ _ err) = getErrorLoc err
+getErrorLoc (InArg _ _ _ err) = getErrorLoc err
 getErrorLoc (MaybeMisspelling err _) = getErrorLoc err
 getErrorLoc (WarningAsError warn) = Just (getWarningLoc warn)
 getErrorLoc (OperatorBindingMismatch loc _ _ _ _ _) = Just loc
@@ -599,6 +608,7 @@ killErrorLoc (InType fc x err) = InType emptyFC x (killErrorLoc err)
 killErrorLoc (InCon x err) = InCon (NoFC x.val) (killErrorLoc err)
 killErrorLoc (InLHS fc x err) = InLHS emptyFC x (killErrorLoc err)
 killErrorLoc (InRHS fc x err) = InRHS emptyFC x (killErrorLoc err)
+killErrorLoc (InArg fc fn x err) = InArg emptyFC fn x (killErrorLoc err)
 killErrorLoc (MaybeMisspelling err xs) = MaybeMisspelling (killErrorLoc err) xs
 killErrorLoc (WarningAsError wrn) = WarningAsError (killWarningLoc wrn)
 killErrorLoc (OperatorBindingMismatch {print} fc expected actual opName rhs candidates)

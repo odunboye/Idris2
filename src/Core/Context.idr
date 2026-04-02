@@ -838,6 +838,7 @@ HasNames Error where
   full gam (InCon n err) = InCon <$> traverse (full gam) n <*> full gam err
   full gam (InLHS fc n err) = InLHS fc <$> full gam n <*> full gam err
   full gam (InRHS fc n err) = InRHS fc <$> full gam n <*> full gam err
+  full gam (InArg fc fn x err) = InArg fc <$> maybe (pure Nothing) (\n => Just <$> full gam n) fn <*> full gam x <*> full gam err
   full gam (MaybeMisspelling err xs) = MaybeMisspelling <$> full gam err <*> pure xs
   full gam (WarningAsError wrn) = WarningAsError <$> full gam wrn
   full gam (OperatorBindingMismatch {print} fc expected actual (Left opName) rhs candidates)
@@ -937,6 +938,7 @@ HasNames Error where
   resolved gam (InCon n err) = InCon <$> traverse (resolved gam) n <*> resolved gam err
   resolved gam (InLHS fc n err) = InLHS fc <$> resolved gam n <*> resolved gam err
   resolved gam (InRHS fc n err) = InRHS fc <$> resolved gam n <*> resolved gam err
+  resolved gam (InArg fc fn x err) = InArg fc <$> maybe (pure Nothing) (\n => Just <$> resolved gam n) fn <*> resolved gam x <*> resolved gam err
   resolved gam (MaybeMisspelling err xs) = MaybeMisspelling <$> resolved gam err <*> pure xs
   resolved gam (WarningAsError wrn) = WarningAsError <$> resolved gam wrn
   resolved gam (OperatorBindingMismatch {print} fc expected actual (Left opName) rhs candidates)

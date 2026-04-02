@@ -126,6 +126,7 @@ Eq Error where
   InCon n1 err1 == InCon n2 err2 = n1 == n2 && err1 == err2
   InLHS fc1 n1 err1 == InLHS fc2 n2 err2 = fc1 == fc2 && n1 == n2 && err1 == err2
   InRHS fc1 n1 err1 == InRHS fc2 n2 err2 = fc1 == fc2 && n1 == n2 && err1 == err2
+  InArg fc1 fn1 x1 err1 == InArg fc2 fn2 x2 err2 = fc1 == fc2 && fn1 == fn2 && x1 == x2 && err1 == err2
   MaybeMisspelling err1 xs1 == MaybeMisspelling err2 xs2 = err1 == err2 && xs1 == xs2
   WarningAsError wrn1 == WarningAsError wrn2 = wrn1 == wrn2
   _ == _ = False
@@ -778,6 +779,11 @@ perrorRaw (InLHS fc n err)
                   ]
 perrorRaw (InRHS fc n err)
     = pure $ hsep [ errorDesc (reflow "While processing right hand side of" <++> code (pretty0 !(prettyName n))) <+> dot
+                  , !(perrorRaw err)
+                  ]
+perrorRaw (InArg fc fn x err)
+    = pure $ hsep [ errorDesc $ reflow "In argument" <++> code (pretty0 x) <++>
+                                maybe neutral (\n => reflow "of" <++> code (pretty0 n)) fn <+> dot
                   , !(perrorRaw err)
                   ]
 
