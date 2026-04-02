@@ -163,7 +163,9 @@ mutual
             rigb = multiplicity b
             ty = binderType b in
             do log "quantity" 15 "lcheck Local"
-               when (not erase) $ rigSafe rigb rig
+               when (not erase) $ case b of
+                 Pi _ _ Irrelevant _ => throw (IrrelevantUsed fc (nameAt prf))
+                 _ => rigSafe rigb rig
                pure (Local fc x idx prf, gnf env ty, used rig)
     where
       rigSafe : RigCount -> RigCount -> Core ()
