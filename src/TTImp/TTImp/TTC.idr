@@ -80,8 +80,8 @@ mutual
 
     toBuf (IPrimVal fc y)
         = do tag 26; toBuf fc; toBuf y
-    toBuf (IType fc)
-        = do tag 27; toBuf fc
+    toBuf (IType fc lvl)
+        = do tag 27; toBuf fc; toBuf lvl
     toBuf (IHole fc y)
         = do tag 28; toBuf fc; toBuf y
     toBuf (IUnifyLog fc lvl x) = toBuf x
@@ -172,8 +172,7 @@ mutual
 
                26 => do fc <- fromBuf; y <- fromBuf
                         pure (IPrimVal fc y)
-               27 => do fc <- fromBuf
-                        pure (IType fc)
+               27 => do fc <- fromBuf; lvl <- fromBuf; pure (IType fc lvl)
                28 => do fc <- fromBuf; y <- fromBuf
                         pure (IHole fc y)
                29 => do fc <- fromBuf
@@ -382,6 +381,8 @@ mutual
         = do tag 8; toBuf n
     toBuf (IBuiltin fc type name)
         = do tag 9; toBuf fc; toBuf type; toBuf name
+    toBuf (IPatSyn fc vis n params body bidir)
+        = do tag 10; toBuf fc; toBuf vis; toBuf n; toBuf params; toBuf body; toBuf bidir
     toBuf (IFail {})
         = pure ()
 
@@ -416,4 +417,7 @@ mutual
                        type <- fromBuf
                        name <- fromBuf
                        pure (IBuiltin fc type name)
+               10 => do fc <- fromBuf; vis <- fromBuf; n <- fromBuf
+                        params <- fromBuf; body <- fromBuf; bidir <- fromBuf
+                        pure (IPatSyn fc vis n params body bidir)
                _ => corrupt "ImpDecl"

@@ -6,7 +6,9 @@ import Core.Normalise
 import Core.Value
 
 import Core.Termination.CallGraph
+import Core.Termination.Guarded
 import Core.Termination.Positivity
+import Core.Termination.Productivity
 import Core.Termination.SizeChange
 
 import Libraries.Data.NameMap

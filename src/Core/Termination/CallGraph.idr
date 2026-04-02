@@ -14,6 +14,7 @@ import Data.String
 
 %default covering
 
+public export
 data Guardedness = Toplevel | Unguarded | Guarded | InDelay
 
 Show Guardedness where

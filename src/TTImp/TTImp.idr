@@ -118,7 +118,7 @@ mutual
        IRunElab : FC -> (requireExtension : Bool) -> RawImp' nm -> RawImp' nm
 
        IPrimVal : FC -> (c : Constant) -> RawImp' nm
-       IType : FC -> RawImp' nm
+       IType : FC -> (level : Maybe Nat) -> RawImp' nm
        IHole : FC -> String -> RawImp' nm
 
        IUnifyLog : FC -> LogLevel -> RawImp' nm -> RawImp' nm
@@ -207,7 +207,8 @@ mutual
       show (IPrimVal fc c) = show c
       show (IHole _ x) = "?" ++ x
       show (IUnifyLog _ lvl x) = "(%logging " ++ show lvl ++ " " ++ show x ++ ")"
-      show (IType fc) = "%type"
+      show (IType fc Nothing)  = "%type"
+      show (IType fc (Just k)) = "%type " ++ show k
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
       show (IWithUnambigNames fc ns rhs) = "(%with " ++ show ns ++ " " ++ show rhs ++ ")"
@@ -484,6 +485,12 @@ mutual
                  ImpDecl' nm
        ILog : Maybe (List String, Nat) -> ImpDecl' nm
        IBuiltin : FC -> BuiltinType -> Name -> ImpDecl' nm
+       IPatSyn : FC -> (vis : Visibility) ->
+                 Name -> -- pattern name
+                 List (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm) -> -- parameters
+                 RawImp' nm -> -- pattern body
+                 Bool -> -- bidirectional?
+                 ImpDecl' nm
 
   %name ImpDecl' decl
 
@@ -514,6 +521,7 @@ mutual
       [] => show lvl
       _  => concat (intersperse "." topic) ++ " " ++ show lvl
     show (IBuiltin _ type name) = "%builtin " ++ show type ++ " " ++ show name
+    show (IPatSyn _ _ name _ _ _) = "%pattern " ++ show name
 
 
 export
@@ -882,7 +890,7 @@ getFC (ICoerced x _) = x
 getFC (IPrimVal x _) = x
 getFC (IHole x _) = x
 getFC (IUnifyLog x _ _) = x
-getFC (IType x) = x
+getFC (IType x _) = x
 getFC (IBindVar x _) = x
 getFC (IBindHere x _ _) = x
 getFC (IMustUnify x _ _) = x
@@ -914,6 +922,7 @@ namespace ImpDecl
   getFC (IPragma fc _ _) = fc
   getFC (ILog _) = EmptyFC
   getFC (IBuiltin fc _ _) = fc
+  getFC (IPatSyn fc _ _ _ _ _) = fc
 
 public export
 data Arg' nm

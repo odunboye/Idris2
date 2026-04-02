@@ -67,8 +67,8 @@ mutual
       = IRunElab fc re (map f t)
     map f (IPrimVal fc c)
       = IPrimVal fc c
-    map f (IType fc)
-      = IType fc
+    map f (IType fc lvl)
+      = IType fc lvl
     map f (IHole fc str)
       = IHole fc str
     map f (IUnifyLog fc lvl t)
@@ -115,6 +115,12 @@ mutual
     map f (IPragma fc xs k) = IPragma fc xs k
     map f (ILog x) = ILog x
     map f (IBuiltin fc ty n) = IBuiltin fc ty n
+    map f (IPatSyn fc vis n params body bidir)
+      = IPatSyn fc vis n (map (mapParam f) params) (map f body) bidir
+      where
+        mapParam : (nm -> nm') -> (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm) ->
+                   (Name, RigCount, PiInfo (RawImp' nm'), RawImp' nm')
+        mapParam g (n, rig, info, ty) = (n, rig, map (map g) info, map g ty)
 
   export
   Functor FnOpt' where

@@ -69,6 +69,12 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapImpDecl (IPragma fc ns g) = IPragma fc ns g
   mapImpDecl (ILog x) = ILog x
   mapImpDecl (IBuiltin fc x n) = IBuiltin fc x n
+  mapImpDecl (IPatSyn fc vis n params body bidir)
+    = IPatSyn fc vis n (map mapParam params) (mapTTImp body) bidir
+    where
+      mapParam : (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm) ->
+                 (Name, RigCount, PiInfo (RawImp' nm), RawImp' nm)
+      mapParam (n, rig, info, ty) = (n, rig, map mapTTImp info, mapTTImp ty)
 
   export
   mapIFieldUpdate : IFieldUpdate' nm -> IFieldUpdate' nm
@@ -115,7 +121,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapTTImp (IUnquote fc t) = f $ IUnquote fc (mapTTImp t)
   mapTTImp (IRunElab fc re t) = f $ IRunElab fc re (mapTTImp t)
   mapTTImp (IPrimVal fc c) = f $ IPrimVal fc c
-  mapTTImp (IType fc) = f $ IType fc
+  mapTTImp (IType fc lvl) = f $ IType fc lvl
   mapTTImp (IHole fc str) = f $ IHole fc str
   mapTTImp (IUnifyLog fc x t) = f $ IUnifyLog fc x (mapTTImp t)
   mapTTImp (Implicit fc bindIfUnsolved) = f $ Implicit fc bindIfUnsolved

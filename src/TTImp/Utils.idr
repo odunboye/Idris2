@@ -42,6 +42,7 @@ rawImpFromDecl decl = case decl of
     IPragma _ _ f => []
     ILog k => []
     IBuiltin {} => []
+    IPatSyn _ _ _ params body _ => body :: concatMap (\(_, _, _, ty) => [ty]) params
   where getParamTy : ImpParameter' RawImp -> RawImp
         getParamTy binder = binder.val.boundType
         getFromClause : ImpClause -> List RawImp
@@ -169,7 +170,7 @@ findBindableNamesQuot env used (ISearch fc depth) = []
 findBindableNamesQuot env used (IAlternative fc x xs) = []
 findBindableNamesQuot env used (IBindVar fc x) = []
 findBindableNamesQuot env used (IPrimVal fc c) = []
-findBindableNamesQuot env used (IType fc) = []
+findBindableNamesQuot env used (IType fc _) = []
 findBindableNamesQuot env used (IHole fc x) = []
 findBindableNamesQuot env used (Implicit fc bindIfUnsolved) = []
 -- These are the ones I'm not sure about
