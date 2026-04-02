@@ -135,6 +135,11 @@ process eopts nest env (ILog lvl)
     = addLogLevel (uncurry unsafeMkLogLevel <$> lvl)
 process eopts nest env (IBuiltin fc type name)
     = processBuiltin nest env fc type name
+process eopts nest env (IPatSyn fc vis n params body bidir)
+    = do -- Pattern synonyms are already registered in SyntaxInfo during desugaring
+         -- Here we just log the processing for debugging
+         log "elab.patsyn" 10 "Processing pattern synonym \{show n}"
+         pure ()
 
 TTImp.Elab.Check.processDecl = process
 
