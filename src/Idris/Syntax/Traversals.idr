@@ -46,6 +46,8 @@ mapPTermM f = goPTerm where
       PLocal fc <$> traverse (traverse goPDecl) xs
                 <*> goPTerm scope
       >>= f
+    goPTerm (POpen fc r scope) =
+      POpen fc <$> goPTerm r <*> goPTerm scope >>= f
     goPTerm (PUpdate fc xs) =
       PUpdate fc <$> goPFieldUpdates xs
       >>= f
@@ -421,6 +423,8 @@ mapPTerm f = goPTerm where
       = f $ PCase fc (goPFnOpt <$>  opts) (goPTerm x) (goPClause <$> xs)
     goPTerm (PLocal fc xs scope)
       = f $ PLocal fc (map goPDecl <$> xs) (goPTerm scope)
+    goPTerm (POpen fc r scope)
+      = f $ POpen fc (goPTerm r) (goPTerm scope)
     goPTerm (PUpdate fc xs)
       = f $ PUpdate fc (goPFieldUpdate <$> xs)
     goPTerm (PApp fc x y)
@@ -625,6 +629,7 @@ substFC fc = mapPTerm $ \case
   PLet _ x pat nTy nVal scope alts => PLet fc x pat nTy nVal scope alts
   PCase _ opts x xs => PCase fc opts x xs
   PLocal _ xs scope => PLocal fc xs scope
+  POpen _ r scope => POpen fc r scope
   PUpdate _ xs => PUpdate fc xs
   PApp _ x y => PApp fc x y
   PWithApp _ x y => PWithApp fc x y

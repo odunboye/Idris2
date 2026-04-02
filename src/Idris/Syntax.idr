@@ -99,6 +99,7 @@ mutual
               (alts : List (PClause' nm)) -> PTerm' nm
        PCase : FC -> List (PFnOpt' nm) -> PTerm' nm -> List (PClause' nm) -> PTerm' nm
        PLocal : FC -> List (PDecl' nm) -> (scope : PTerm' nm) -> PTerm' nm
+       POpen  : FC -> PTerm' nm -> PTerm' nm -> PTerm' nm  -- let open r in scope
        PUpdate : FC -> List (PFieldUpdate' nm) -> PTerm' nm
        PApp : FC -> PTerm' nm -> PTerm' nm -> PTerm' nm
        PWithApp : FC -> PTerm' nm -> PTerm' nm -> PTerm' nm
@@ -174,6 +175,7 @@ mutual
   getPTermLoc (PLet fc _ _ _ _ _ _) = fc
   getPTermLoc (PCase fc _ _ _) = fc
   getPTermLoc (PLocal fc _ _) = fc
+  getPTermLoc (POpen fc _ _) = fc
   getPTermLoc (PUpdate fc _) = fc
   getPTermLoc (PApp fc _ _) = fc
   getPTermLoc (PWithApp fc _ _) = fc
@@ -565,7 +567,6 @@ mutual
                  PDeclNoFC' nm
 
        -- TODO: PPostulate
-       -- TODO: POpen (for opening named interfaces)
        ||| PFail is a failing block. The string must appear as a
        ||| substring of the error message raised when checking the block.
        PFail : Maybe String -> List (PDecl' nm) -> PDeclNoFC' nm
@@ -882,6 +883,8 @@ parameters {0 nm : Type} (toName : nm -> Name)
         showCase (MkImpossible _ lhs) = showPTerm lhs ++ " impossible"
   showPTermPrec d (PLocal _ ds sc) -- We'll never see this when displaying a normal form...
         = "let { << definitions >>  } in " ++ showPTermPrec d sc
+  showPTermPrec d (POpen _ r sc)
+        = "let open " ++ showPTermPrec d r ++ " in " ++ showPTermPrec d sc
   showPTermPrec d (PUpdate _ fs)
         = "record { " ++ showSep ", " (map showUpdate fs) ++ " }"
   showPTermPrec d (PApp _ f a) =

@@ -378,6 +378,11 @@ mutual
       = let ps' = definedIn (map val xs) ++ ps in
             pure $ ILocal fc (concat !(traverse (desugarDecl ps') xs))
                              !(desugar side ps' scope)
+  desugarB side ps (POpen fc r scope)
+      = do -- 'let open M in scope': stub — desugar to scope only
+           -- TODO: bring exported names from namespace M into scope
+           log "desugar.open" 5 "let open: namespace scoping not yet implemented"
+           desugar side ps scope
   desugarB side ps (PApp pfc (PUpdate fc fs) rec)
       = pure $ IUpdate pfc !(traverse (desugarUpdate side ps) fs)
                            !(desugarB side ps rec)
