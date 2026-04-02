@@ -718,6 +718,16 @@ mutual
                Just ((_, arg), namedargs') =>
                      checkRestApp rig argRig elabinfo nest env fc
                                   tm x aty sc argdata arg expargs autoargs namedargs' kr expty
+  -- Irrelevant Pi: consume next explicit argument at erased rig
+  checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
+               argdata (arg :: expargs') autoargs namedargs kr expty
+     = do let argRig = rig |*| rigb
+          checkRestApp rig argRig elabinfo nest env fc
+                       tm x aty sc argdata arg expargs' autoargs namedargs kr expty
+  -- Irrelevant Pi with no explicit args: auto-insert erased metavar
+  checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
+               argdata [] autoargs namedargs kr expty
+     = makeImplicit rig erased elabinfo nest env fc tm x aty sc argdata [] autoargs namedargs kr expty
   -- Invent a function type if we have extra explicit arguments but type is further unknown
   checkAppWith' {vars} rig elabinfo nest env fc tm ty (n, argpos) (arg :: expargs) autoargs namedargs kr expty
       = -- Invent a function type,  and hope that we'll know enough to solve it

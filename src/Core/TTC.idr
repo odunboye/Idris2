@@ -142,6 +142,7 @@ TTC t => TTC (PiInfo t) where
   toBuf Explicit = tag 1
   toBuf AutoImplicit = tag 2
   toBuf (DefImplicit r) = do tag 3; toBuf r
+  toBuf Irrelevant = tag 4
 
   fromBuf
       = case !getTag of
@@ -149,6 +150,7 @@ TTC t => TTC (PiInfo t) where
              1 => pure Explicit
              2 => pure AutoImplicit
              3 => do t <- fromBuf; pure (DefImplicit t)
+             4 => pure Irrelevant
              _ => corrupt "PiInfo"
 
 export

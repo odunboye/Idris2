@@ -562,6 +562,7 @@ mutual
   quotePi q defs bounds env (DefImplicit t)
       = do t' <- quoteGenNF q defs bounds env !(evalClosure defs t)
            pure (DefImplicit t')
+  quotePi q defs bounds env Irrelevant = pure Irrelevant
 
   quoteBinder : {bound, free : _} ->
                 {auto c : Ref Ctxt Defs} ->

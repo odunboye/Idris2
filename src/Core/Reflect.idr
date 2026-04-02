@@ -738,6 +738,7 @@ Reify t => Reify (PiInfo t) where
              (UN (Basic "DefImplicit"), [_, (_, t)])
                  => do t' <- reify defs !(evalClosure defs t)
                        pure (DefImplicit t')
+             (UN (Basic "IrrelevantArg"), _) => pure Irrelevant
              _ => cantReify val "PiInfo"
   reify defs val = cantReify val "PiInfo"
 
@@ -752,6 +753,8 @@ Reflect t => Reflect (PiInfo t) where
   reflect fc defs lhs env (DefImplicit t)
       = do t' <- reflect fc defs lhs env t
            appCon fc defs (reflectiontt "DefImplicit") [Erased fc Placeholder, t']
+  reflect fc defs lhs env Irrelevant
+      = appCon fc defs (reflectiontt "IrrelevantArg") [Erased fc Placeholder]
 
 export
 Reify LazyReason where

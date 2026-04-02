@@ -43,6 +43,7 @@ checkPiInfo rig elabinfo nest env AutoImplicit exp = pure AutoImplicit
 checkPiInfo rig elabinfo nest env (DefImplicit t) exp
     = do (tv, _) <- check rig elabinfo nest env t exp
          pure (DefImplicit tv)
+checkPiInfo rig elabinfo nest env Irrelevant exp = pure Irrelevant
 
 export
 checkPi : {vars : _} ->
