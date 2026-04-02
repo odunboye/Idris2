@@ -144,6 +144,61 @@ ci-macos-test: test
 ci-windows-test:
 	@${MAKE} test except="idris2/repl005"
 
+# Run only the RefC backend tests.
+ci-refc-test: testenv
+	@echo
+	@echo "NOTE: \`${MAKE} ci-refc-test\` does not rebuild Idris or the libraries packaged with it; to do that run \`${MAKE}\`"
+	@if [ ! -x "${TARGET}" ]; then echo "ERROR: Missing IDRIS2 executable. Cannot run tests!\n"; exit 1; fi
+	@echo
+	@${MAKE} -C tests only=refc IDRIS2=${TARGET} IDRIS2_PREFIX=${TEST_PREFIX} CPPFLAGS="${CPPFLAGS}" LDFLAGS="${LDFLAGS}"
+
+# Build WebAssembly versions of the RefC runtime libraries.
+#
+# Prerequisites: emscripten (emcc) or a WASI-capable clang on PATH.
+#   apt install emscripten          (Debian/Ubuntu)
+#   brew install emscripten         (macOS)
+#   # or: export WASM_CC=/path/to/wasi-sdk/bin/clang
+#
+# Usage:
+#   make wasm-support                  # build with emcc (default)
+#   make wasm-support WASM_CC=clang WASM_TRIPLE=wasm32-wasi
+#
+# Output: build/wasm/{libidris2_refc.a,libidris2_support.a}
+# Then compile an Idris program to WASM:
+#   IDRIS2_CC=emcc \
+#   IDRIS2_REFC_LIB_DIR=build/wasm \
+#   IDRIS2_REFC_SUPPORT_LIB=build/wasm/libidris2_support.a \
+#     idris2 --cg refc --directive "target=wasm32-unknown-emscripten" \
+#            --directive "no-gmp" --directive "no-ffi" --directive "no-threads" \
+#            -o MyProg MyProg.idr
+
+WASM_CC     ?= emcc
+WASM_TRIPLE ?= wasm32-unknown-emscripten
+WASM_CFLAGS ?= -O2
+WASM_DIR    := ${IDRIS2_CURDIR}/build/wasm
+WASM_CPPFLAGS := -DIDRIS2_NO_GMP -DIDRIS2_NO_THREADS --target=${WASM_TRIPLE}
+
+.PHONY: wasm-support
+wasm-support:
+	@command -v ${WASM_CC} >/dev/null 2>&1 || \
+	  { echo "Error: '${WASM_CC}' not found. Install emscripten or set WASM_CC."; exit 1; }
+	mkdir -p ${WASM_DIR}
+	${MAKE} -C support/refc clean
+	${MAKE} -C support/refc build \
+	    CC="${WASM_CC}" AR="emar" RANLIB="emranlib" \
+	    CFLAGS="${WASM_CFLAGS}" CPPFLAGS="${WASM_CPPFLAGS}"
+	cp support/refc/libidris2_refc.a ${WASM_DIR}/
+	${MAKE} -C support/refc clean
+	${MAKE} -C support/c clean
+	${MAKE} -C support/c build \
+	    CC="${WASM_CC}" AR="emar" RANLIB="emranlib" \
+	    CFLAGS="${WASM_CFLAGS}" CPPFLAGS="${WASM_CPPFLAGS}"
+	cp support/c/libidris2_support.a ${WASM_DIR}/
+	${MAKE} -C support/c clean
+	@echo "WASM libraries written to ${WASM_DIR}/"
+	@echo "  libidris2_refc.a"
+	@echo "  libidris2_support.a"
+
 test: testenv
 	@echo
 	@echo "NOTE: \`${MAKE} test\` does not rebuild Idris or the libraries packaged with it; to do that run \`${MAKE}\`"

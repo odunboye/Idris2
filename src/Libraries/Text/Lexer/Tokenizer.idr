@@ -48,21 +48,22 @@ compose = Compose
 
 ||| Stop reason why tokenizer can't make more progress.
 ||| @ ComposeNotClosing carries the span of composition begin token in the
-|||                     form of `(startLine, startCol), (endLine, endCol)`.
+|||                     form of `(startLine, startCol), (endLine, endCol)`,
+|||                     and the text of the opening token.
 public export
-data StopReason = EndInput | NoRuleApply | ComposeNotClosing (Int, Int) (Int, Int)
+data StopReason = EndInput | NoRuleApply | ComposeNotClosing (Int, Int) (Int, Int) String
 
 export
 Show StopReason where
   show EndInput = "EndInput"
   show NoRuleApply = "NoRuleApply"
-  show (ComposeNotClosing start end) = "ComposeNotClosing " ++ show start ++ " " ++ show end
+  show (ComposeNotClosing start end tok) = "ComposeNotClosing " ++ show start ++ " " ++ show end ++ " " ++ show tok
 
 export
 Pretty Void StopReason where
   pretty EndInput = pretty "EndInput"
   pretty NoRuleApply = pretty "NoRuleApply"
-  pretty (ComposeNotClosing start end) = "ComposeNotClosing" <++> pretty (show start) <++> pretty (show end)
+  pretty (ComposeNotClosing start end tok) = "ComposeNotClosing" <++> pretty (show start) <++> pretty (show end) <++> pretty tok
 
 tokenise : Lexer ->
            Tokenizer a ->
@@ -120,7 +121,7 @@ tokenise reject tokenizer line col acc str
                    ComposeNotClosing {} => Left reason
                    _ => let Just (endTok', lineEnd, colEnd, restEnd) =
                                 getNext end line'' col'' rest''
-                              | _ => Left $ ComposeNotClosing (line, col) (line', col')
+                              | _ => Left $ ComposeNotClosing (line, col) (line', col') beginTok'
                             endTok'' = MkBounded (mapEnd endTok') False (MkBounds line'' col'' lineEnd colEnd)
                          in Right ([endTok''] ++ reverse midToks ++ [beginTok''], lineEnd, colEnd, restEnd)
     getFirstMatch (Alt t1 t2) str
