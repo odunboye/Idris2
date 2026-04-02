@@ -156,6 +156,9 @@ data CLOpt
    ||| Use SHA256 hashes to determine if a source file needs rebuilding instead
    ||| of modification time.
   HashesInsteadOfModTime |
+   ||| Use modification time to determine if a source file needs rebuilding
+   ||| instead of SHA256 hashes (overrides the default hash-based mode).
+  ModTimeInsteadOfHashes |
    ||| Apply experimental heuristics to case tree generation that
    ||| sometimes improves performance and reduces compiled code
    ||| size.
@@ -269,7 +272,9 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
 
            optSeparator,
            MkOpt ["-Xcheck-hashes"] [] [HashesInsteadOfModTime]
-             (Just "Use SHA256 hashes instead of modification time to determine if a source file needs rebuilding"),
+             (Just "Use SHA256 hashes instead of modification time to determine if a source file needs rebuilding (default)"),
+           MkOpt ["--no-check-hashes"] [] [ModTimeInsteadOfHashes]
+             (Just "Use modification time instead of SHA256 hashes to determine if a source file needs rebuilding"),
            MkOpt ["-Xcase-tree-opt"] [] [CaseTreeHeuristics]
               (Just "Apply experimental optimizations to case tree generation"),
 

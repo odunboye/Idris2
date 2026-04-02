@@ -156,24 +156,40 @@ needsBuildingTime : {auto c : Ref Ctxt Defs} ->
 needsBuildingTime sourceFile ttcFile depFiles
   = isTTCOutdated ttcFile (sourceFile :: depFiles)
 
-needsBuildingDepHash : {auto c : Ref Ctxt Defs} ->
-                 String -> Core Bool
-needsBuildingDepHash depFileName
-  = catch (do defs                   <- get Ctxt
-              depTTCFileName         <- getTTCFileName depFileName "ttc"
-              not <$> unchangedHash defs.options.hashFn depTTCFileName depFileName)
-          (\error => pure False)
-
-||| Build from source if any of the dependencies, or the associated source file,
-||| have been modified from the stored hashes.
+||| Deps are checked via their interface (iface) hash rather than source hash,
+||| so a change to a dep's implementation that does not alter its public
+||| interface will not trigger a rebuild of the current module.
 needsBuildingHash : {auto c : Ref Ctxt Defs} ->
                     (sourceFile : String) -> (ttcFile : String) ->
                     (depFiles : List String) -> Core Bool
 needsBuildingHash sourceFile ttcFile depFiles
-  = do defs                <- get Ctxt
+  = do defs <- get Ctxt
        sourceUnchanged <- unchangedHash defs.options.hashFn ttcFile sourceFile
-       depFilesHashDiffers <- any id <$> traverse needsBuildingDepHash depFiles
-       pure $ (not sourceUnchanged) || depFilesHashDiffers
+       if not sourceUnchanged
+         then pure True   -- own source changed → always rebuild
+         else catch checkDepIfaceHashes (\_ => pure True)
+             -- ^ if anything goes wrong reading stored/dep hashes, be
+             --   conservative: assume a dep's interface may have changed
+  where
+    checkDepIfaceHashes : Core Bool
+    checkDepIfaceHashes
+      = do -- Compare each dep's CURRENT interface hash against the interface
+           -- hash we stored the last time we compiled this module.  If all
+           -- interface hashes are unchanged we can skip recompilation even
+           -- when a dep's source file was touched.
+           storedIfaceHashes <- readImportHashes ttcFile  -- List (Namespace, Int)
+           currentIfaceHashes <- mapMaybe id <$>
+             traverse (\dep => catch
+                                 (do depTTC <- getTTCFileName dep "ttc"
+                                     (_, h) <- readHashes depTTC
+                                     pure (Just h))
+                                 (\_ => pure Nothing))
+               depFiles
+           -- Compare sorted value lists: different length means a dep was
+           -- added or removed; different values means an interface changed.
+           let storedValues  = sort (snd <$> storedIfaceHashes)
+           let currentValues = sort currentIfaceHashes
+           pure (storedValues /= currentValues)
 
 export
 needsBuilding :

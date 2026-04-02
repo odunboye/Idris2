@@ -524,8 +524,10 @@ preOptions (IgnoreShadowingWarnings :: opts)
     = do updateSession ({ showShadowingWarning := False })
          preOptions opts
 preOptions (HashesInsteadOfModTime :: opts)
-    = do throw (InternalError "-Xcheck-hashes disabled (see issue #1935)")
-         updateSession ({ checkHashesInsteadOfModTime := True })
+    = do updateSession ({ checkHashesInsteadOfModTime := True })
+         preOptions opts
+preOptions (ModTimeInsteadOfHashes :: opts)
+    = do updateSession ({ checkHashesInsteadOfModTime := False })
          preOptions opts
 preOptions (CaseTreeHeuristics :: opts)
     = do updateSession ({ caseTreeHeuristics := True })
