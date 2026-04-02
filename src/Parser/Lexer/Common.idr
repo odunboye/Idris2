@@ -70,16 +70,26 @@ blockComment = is '{' <+> is '-' <+> many (is '-') <+> (eof <|> toEndComment 1)
 public export
 data Flavour = AllowDashes | Capitalised | Normal
 
+-- True for chars in the Unicode Mathematical Operators blocks,
+-- or selected General Punctuation chars used as operators.
+-- These are excluded from identifier chars so they lex as Symbol tokens.
+isUnicodeMathOp : Char -> Bool
+isUnicodeMathOp c =
+  let o = ord c
+  in o == 0x2016  -- ‖ DOUBLE VERTICAL LINE (squash types ‖A‖)
+  || (o >= 0x2200 && o <= 0x22FF)
+  || (o >= 0x2A00 && o <= 0x2AFF)
+
 isIdentStart : Flavour -> Char -> Bool
 isIdentStart _           '_' = True
-isIdentStart Capitalised  x  = isUpper x || x > chr 160
-isIdentStart _            x  = isAlpha x || x > chr 160
+isIdentStart Capitalised  x  = isUpper x || (x > chr 160 && not (isUnicodeMathOp x))
+isIdentStart _            x  = isAlpha x || (x > chr 160 && not (isUnicodeMathOp x))
 
 isIdentTrailing : Flavour -> Char -> Bool
 isIdentTrailing AllowDashes '-'  = True
 isIdentTrailing _           '\'' = True
 isIdentTrailing _           '_'  = True
-isIdentTrailing _            x   = isAlphaNum x || x > chr 160
+isIdentTrailing _            x   = isAlphaNum x || (x > chr 160 && not (isUnicodeMathOp x))
 
 export %inline
 isIdent : Flavour -> String -> Bool

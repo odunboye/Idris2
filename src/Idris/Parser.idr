@@ -595,6 +595,13 @@ mutual
                   decoratedSymbol fname "|]"
                   pure (t, mns)
            pure (PIdiom (boundToFC fname b) (snd b.val) (fst b.val))
+    <|> do b <- bounds $ do
+                  decoratedSymbol fname "‖"
+                  commit
+                  t <- typeExpr pdef fname indents
+                  decoratedSymbol fname "‖"
+                  pure t
+           pure (PApp (boundToFC fname b) (PRef (boundToFC fname b) (UN $ Basic "Squash")) b.val)
     <|> atom fname
     <|> record_ fname indents
     <|> singlelineStr pdef fname indents
