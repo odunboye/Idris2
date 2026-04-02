@@ -31,6 +31,7 @@ Eq Warning where
     = fc1 == fc2 && x1 == x2 && y1 == y2 && n1 == n2
   Deprecated fc1 x1 y1 == Deprecated fc2 x2 y2 = fc1 == fc2 && x1 == x2 && y1 == y2
   GenericWarn fc1 x1 == GenericWarn fc2 x2 = fc1 == fc2 && x1 == x2
+  NeverDefined fc1 n1 == NeverDefined fc2 n2 = fc1 == fc2 && n1 == n2
   _ == _ = False
 
 export
@@ -294,6 +295,10 @@ pwarningRaw (Deprecated fc s fcAndName)
                                  ]
 pwarningRaw (GenericWarn fc s)
     = pure $ vcat [pretty0 s, !(ploc fc)]
+pwarningRaw (NeverDefined fc n)
+    = pure $ warning (code (pretty0 (sugarName n))
+        <++> reflow "was declared but never defined.")
+        <+> line <+> !(ploc fc)
 
 export
 pwarning : {auto c : Ref Ctxt Defs} ->
