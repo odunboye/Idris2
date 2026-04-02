@@ -1,3 +1,4 @@
 . ../../../testutils.sh
 
 idris2 TerminationPragmas.idr --exec main
+run ProofIrrel.idr

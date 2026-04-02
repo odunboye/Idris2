@@ -53,6 +53,9 @@ getNameType elabMode rigc env fc x
               do rigSafe rigb rigc
                  let binder = getBinder lv env
                  let bty = binderType binder
+                 case binder of
+                   Pi _ _ Irrelevant _ => throw (IrrelevantUsed fc x)
+                   _ => pure ()
 
                  log "metadata.names" 7 $ "getNameType is adding ↓"
                  addNameType fc x env bty
@@ -186,7 +189,8 @@ mutual
            let fntm = App fc tm metaval
            fnty <- sc defs (toClosure defaultOpts env metaval)
            when (bindingVars elabinfo) $ update EST $
-             addBindIfUnsolved nm (getLoc (getFn tm)) argRig Implicit env metaval metaty
+             addBindIfUnsolved nm (getLoc (getFn tm)) argRig
+               (if inIrrelevantPi elabinfo then Irrelevant else Implicit) env metaval metaty
            checkAppWith rig elabinfo nest env fc
                         fntm fnty (n, 1 + argpos) expargs autoargs namedargs kr expty
 
@@ -718,6 +722,17 @@ mutual
                Just ((_, arg), namedargs') =>
                      checkRestApp rig argRig elabinfo nest env fc
                                   tm x aty sc argdata arg expargs autoargs namedargs' kr expty
+  -- Irrelevant Pi: consume next explicit argument at erased rig
+  checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
+               argdata (arg :: expargs') autoargs namedargs kr expty
+     = do let argRig = rig |*| rigb
+              elabinfo' = record { inIrrelevantPi = True } elabinfo
+          checkRestApp rig argRig elabinfo' nest env fc
+                       tm x aty sc argdata arg expargs' autoargs namedargs kr expty
+  -- Irrelevant Pi with no explicit args: auto-insert erased metavar
+  checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
+               argdata [] autoargs namedargs kr expty
+     = makeImplicit rig erased elabinfo nest env fc tm x aty sc argdata [] autoargs namedargs kr expty
   -- Invent a function type if we have extra explicit arguments but type is further unknown
   checkAppWith' {vars} rig elabinfo nest env fc tm ty (n, argpos) (arg :: expargs) autoargs namedargs kr expty
       = -- Invent a function type,  and hope that we'll know enough to solve it

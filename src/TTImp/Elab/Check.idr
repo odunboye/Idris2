@@ -475,10 +475,11 @@ record ElabInfo where
   preciseInf : Bool -- are types inferred precisely (True) or do we generalise
                     -- pi bindings to RigW (False, default)
   ambigTries : List Name
+  inIrrelevantPi : Bool
 
 export
 initElabInfo : ElabMode -> ElabInfo
-initElabInfo m = MkElabInfo m NONE False True False []
+initElabInfo m = MkElabInfo m NONE False True False [] False
 
 export
 tryError : {vars : _} ->

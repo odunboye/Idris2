@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_04_02_00  -- TFix/TLater/TNext/TTickAbs/TTickApp Term constructors added
+ttcVersion = 2026_04_02_01  -- Irrelevant PiInfo + TFix/TLater/TNext/TTickAbs/TTickApp + unicode operators
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()

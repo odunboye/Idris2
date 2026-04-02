@@ -524,6 +524,7 @@ tryInstantiate {newvars} loc mode env mname mref num mdef locs otm tm
         updateIVarsPi ivs (DefImplicit t)
             = do t' <- updateIVars ivs t
                  Just (DefImplicit t')
+        updateIVarsPi ivs Irrelevant = Just Irrelevant
 
         updateIVarsB : {vs, newvars : _} ->
                        IVars vs newvars -> Binder (Term newvars) -> Maybe (Binder (Term vs))
@@ -969,8 +970,26 @@ mutual
   unifyBothApps mode loc env xfc (NLocal xr x xp) [] yfc (NLocal yr y yp) []
       = if x == y
            then pure success
-           else convertError loc env (NApp xfc (NLocal xr x xp) [])
-                                     (NApp yfc (NLocal yr y yp) [])
+           else -- Row 42: definitional proof irrelevance.
+                -- Abstract locals (Lam/Pi/PVar) of a proof-irrelevant type are
+                -- definitionally equal. Let-bound locals have concrete values and
+                -- must NOT be treated as proof-irrelevant, or proof search will
+                -- find wrong witnesses (see basic047).
+                let b = getBinder xp env in
+                if isLet b
+                   then convertError loc env (NApp xfc (NLocal xr x xp) [])
+                                             (NApp yfc (NLocal yr y yp) [])
+                   else do gam <- get Ctxt
+                           xtyNF <- nf gam env (binderType b)
+                           case xtyNF of
+                             NTCon _ nm _ _ =>
+                               do irrel <- isProofIrrelevantTyCon gam nm
+                                  if irrel
+                                     then pure success
+                                     else convertError loc env (NApp xfc (NLocal xr x xp) [])
+                                                               (NApp yfc (NLocal yr y yp) [])
+                             _ => convertError loc env (NApp xfc (NLocal xr x xp) [])
+                                                       (NApp yfc (NLocal yr y yp) [])
   -- Locally bound things, in a term (not LHS). Since we have to unify
   -- for *all* possible values, we can safely unify the arguments.
   unifyBothApps mode@(MkUnifyInfo p InTerm) loc env xfc (NLocal xr x xp) xargs yfc (NLocal yr y yp) yargs
@@ -1052,6 +1071,7 @@ mutual
   unifyPiInfo mode loc env Implicit Implicit = pure $ Just success
   unifyPiInfo mode loc env AutoImplicit AutoImplicit = pure $ Just success
   unifyPiInfo mode loc env (DefImplicit x) (DefImplicit y) = Just <$> unify mode loc env x y
+  unifyPiInfo mode loc env Irrelevant Irrelevant = pure $ Just success
   unifyPiInfo mode loc env _ _ = pure Nothing
 
   unifyBothBinders: {auto c : Ref Ctxt Defs} ->
@@ -1161,19 +1181,13 @@ mutual
       = do gam <- get Ctxt
            if tagx == tagy
              then
-                  do -- Constantly checking the log setting appears to have
-                     -- a bit of overhead, but I'm keeping this here because it
-                     -- may prove useful again...
-                     {-
-                     ust <- get UST
-                     when (logging ust) $
-                        do logC "unify" 20 $ do pure $ "Constructor " ++ show !(toFullNames x) ++ " " ++ show loc
-                           log "unify" 20 "ARGUMENTS:"
-                           traverse_ (dumpArg env) xs
-                           log "unify" 20 "WITH:"
-                           traverse_ (dumpArg env) ys
-                     -}
-                     unifyArgs mode loc env (map snd xs) (map snd ys)
+                  do -- Row 42: if the constructor is proof-irrelevant (all
+                     -- explicit args erased), any two values are definitionally
+                     -- equal — skip argument unification entirely.
+                     irrel <- isProofIrrelevantCon gam x
+                     if irrel
+                        then pure success
+                        else unifyArgs mode loc env (map snd xs) (map snd ys)
              else convertError loc env
                        (NDCon xfc x tagx ax xs)
                        (NDCon yfc y tagy ay ys)

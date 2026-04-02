@@ -82,9 +82,20 @@ userNameRoot (UN n) = Just n
 userNameRoot (DN _ n) = userNameRoot n
 userNameRoot _ = Nothing
 
+-- True for characters in the Unicode Mathematical Operators block (U+2200–U+22FF),
+-- the Supplemental Mathematical Operators block (U+2A00–U+2AFF),
+-- or selected General Punctuation characters used as operators
+-- (U+2016 ‖ DOUBLE VERTICAL LINE — squash-type bracket).
+isUnicodeMathOp : Char -> Bool
+isUnicodeMathOp c =
+  let o = ord c
+  in o == 0x2016  -- ‖ DOUBLE VERTICAL LINE (squash types ‖A‖)
+  || (o >= 0x2200 && o <= 0x22FF)
+  || (o >= 0x2A00 && o <= 0x2AFF)
+
 export
 isOpChar : Char -> Bool
-isOpChar c = c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")
+isOpChar c = (c `elem` (unpack ":!#$%&*+./<=>?@\\^|-~")) || isUnicodeMathOp c
 
 export
 ||| Test whether a user name begins with an operator symbol.

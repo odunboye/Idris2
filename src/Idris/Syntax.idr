@@ -832,6 +832,7 @@ parameters {0 nm : Type} (toName : nm -> Name)
   showPBinder d (MkPBinder Explicit bind) = "(\{showBasicMultiBinder bind})"
   showPBinder d (MkPBinder AutoImplicit bind) = "{auto \{showBasicMultiBinder bind}}"
   showPBinder d (MkPBinder (DefImplicit x) bind) = "{default \{showPTerm x} \{ showBasicMultiBinder bind}}"
+  showPBinder d (MkPBinder Irrelevant bind) = ".(\{showBasicMultiBinder bind})"
 
   showPTermPrec d (PRef _ n) = showPrec d (toName n)
   showPTermPrec d (Forall (MkWithData _ (names, scope)))
@@ -857,6 +858,10 @@ parameters {0 nm : Type} (toName : nm -> Name)
         = "{default " ++ showPTermPrec App t ++ " " ++ showCount rig ++ "_ : " ++ showPTermPrec d arg ++ "} -> " ++ showPTermPrec d ret
   showPTermPrec d (PPi _ rig (DefImplicit t) (Just n) arg ret)
         = "{default " ++ showPTermPrec App t ++ " " ++ showCount rig ++ showPrec d n ++ " : " ++ showPTermPrec d arg ++ "} -> " ++ showPTermPrec d ret
+  showPTermPrec d (PPi _ rig Irrelevant Nothing arg ret) -- shouldn't happen
+        = ".(_ : " ++ showPTermPrec d arg ++ ") -> " ++ showPTermPrec d ret
+  showPTermPrec d (PPi _ rig Irrelevant (Just n) arg ret)
+        = ".(" ++ showCount rig ++ showPrec d n ++ " : " ++ showPTermPrec d arg ++ ") -> " ++ showPTermPrec d ret
   showPTermPrec d (PLam _ rig _ n (PImplicit _) sc)
         = "\\" ++ showCount rig ++ showPTermPrec d n ++ " => " ++ showPTermPrec d sc
   showPTermPrec d (PLam _ rig _ n ty sc)
