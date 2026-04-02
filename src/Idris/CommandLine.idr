@@ -28,6 +28,7 @@ data PkgCommand
       | Init
       | DumpJson
       | DumpInstallDir
+      | Watch
 
 export
 Show PkgCommand where
@@ -41,6 +42,7 @@ Show PkgCommand where
   show Init = "--init"
   show DumpJson = "--dump-ipkg-json"
   show DumpInstallDir = "--dump-installdir"
+  show Watch = "--watch"
 
 public export
 data DirCommand
@@ -317,6 +319,8 @@ options = [MkOpt ["--check", "-c"] [] [CheckOnly]
               (Just "Clean intermediate files/executables for the given package"),
            MkOpt ["--repl"] [Optional "package file"] (\f => [Package REPL f])
               (Just "Build the given package and launch a REPL instance."),
+           MkOpt ["--watch"] [Optional "package file"] (\f => [Package Watch f])
+              (Just "Build package then watch source files and rebuild on changes"),
            MkOpt ["--find-ipkg"] [] [FindIPKG]
               (Just "Find and use an .ipkg file in a parent directory."),
            MkOpt ["--ignore-missing-ipkg"] [] [IgnoreMissingIPKG]

@@ -936,6 +936,67 @@ localPackageFile Nothing
          [] => throw $ UserError "No .ipkg file supplied and none could be found in the working directory."
          _ => throw $ UserError "No .ipkg file supplied and the working directory contains more than one."
 
+-- Returns 0 if the file cannot be opened.
+getModTimeSec : String -> Core Integer
+getModTimeSec fname
+  = do Right f <- coreLift $ openFile fname Read
+         | Left _ => pure 0
+       Right t <- coreLift $ fileTime f
+         | Left _ => do coreLift $ closeFile f
+                        pure 0
+       coreLift $ closeFile f
+       pure (cast t.mtime.sec)
+
+-- Collect modification timestamps for a list of files.
+getStamps : List String -> Core (List (String, Integer))
+getStamps files = traverse (\f => do t <- getModTimeSec f; pure (f, t)) files
+
+-- One rebuild pass: run build in a fresh context and display errors or success.
+rebuildOnce : {auto c : Ref Ctxt Defs} ->
+              {auto s : Ref Syn SyntaxInfo} ->
+              {auto o : Ref ROpts REPLOpts} ->
+              PkgDesc -> List CLOpt -> Core ()
+rebuildOnce pkg opts
+    = catch (withCtxt . withSyn . withROpts $
+        do coreLift $ putStrLn "\nRebuilding \{pkg.name}..."
+           errs <- build pkg opts
+           case errs of
+             [] => coreLift $ putStrLn "Build succeeded."
+             _  => traverse_ (\e => do doc <- display e
+                                       msg <- render doc
+                                       coreLift $ putStrLn msg) errs)
+      (\err => do doc <- display err
+                  msg <- render doc
+                  coreLift $ putStrLn msg)
+
+-- Poll loop: every second compare file stamps and trigger a rebuild if any changed.
+watchLoop : {auto c : Ref Ctxt Defs} ->
+            {auto s : Ref Syn SyntaxInfo} ->
+            {auto o : Ref ROpts REPLOpts} ->
+            PkgDesc -> List CLOpt -> List String ->
+            List (String, Integer) -> Core ()
+watchLoop pkg opts files stamps
+    = do coreLift $ sleep 1
+         newStamps <- getStamps files
+         if newStamps /= stamps
+           then do rebuildOnce pkg opts
+                   watchLoop pkg opts files newStamps
+           else watchLoop pkg opts files stamps
+
+-- Watch a package: initial build then poll for changes forever.
+watchPkg : {auto c : Ref Ctxt Defs} ->
+           {auto s : Ref Syn SyntaxInfo} ->
+           {auto o : Ref ROpts REPLOpts} ->
+           PkgDesc -> List CLOpt -> String -> Core ()
+watchPkg pkg opts ipkgFile
+    = do coreLift $ putStrLn "Watching \{pkg.name} for changes (Ctrl-C to exit)..."
+         rebuildOnce pkg opts
+         let srcFiles = map snd (modules pkg)
+                     ++ maybe [] (\m => [snd m]) (mainmod pkg)
+                     ++ [ipkgFile]
+         stamps <- getStamps srcFiles
+         watchLoop pkg opts srcFiles stamps
+
 processPackage : {auto c : Ref Ctxt Defs} ->
                  {auto s : Ref Syn SyntaxInfo} ->
                  {auto o : Ref ROpts REPLOpts} ->
@@ -993,6 +1054,7 @@ processPackage opts (cmd, mfile)
                     libInstallDir <- libInstallDirectory (installDir pkg)
                     dir <- absoluteInstallDir libInstallDir
                     coreLift (putStrLn dir)
+                  Watch => watchPkg pkg opts file
 
 record PackageOpts where
   constructor MkPFR
