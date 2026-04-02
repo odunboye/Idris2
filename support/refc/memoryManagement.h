@@ -9,7 +9,18 @@ void idris2_removeReference(Value *source);
 #define IDRIS2_NEW_VALUE(t) ((t *)idris2_newValue(sizeof(t)))
 
 Value_Constructor *idris2_newConstructor(int total, int tag);
-Value_Closure *idris2_mkClosure(Value *(*f)(), uint8_t arity, uint8_t filled);
+
+/* Canonical storage type for closure function pointers.
+ * All closures use FUN0..FUN16 or FUNStar at call sites; this type is used
+ * only for storing the pointer in Value_Closure and passing it around.
+ * Guard matches _datatypes.h so the two headers can be included independently.
+ */
+#ifndef CLOSUREFUN_DEFINED
+#define CLOSUREFUN_DEFINED
+typedef Value *(*ClosureFun)(void);
+#endif
+
+Value_Closure *idris2_mkClosure(ClosureFun f, uint8_t arity, uint8_t filled);
 
 Value *idris2_mkDouble(double d);
 #define idris2_mkChar(x)                                                       \
@@ -37,7 +48,7 @@ Value *idris2_mkDouble(double d);
 
 #elif UINTPTR_WIDTH >= 32
 #define idris2_mkBits32(x) (idris2_mkBits32_Boxed(x))
-#define idris2_mkInt32(x) (idris2_mkInt32_Boxed(x)))
+#define idris2_mkInt32(x) (idris2_mkInt32_Boxed(x))
 
 #else
 #error "unsupported uintptr_t width"
@@ -54,8 +65,12 @@ Value *idris2_mkBits64(uint64_t i);
 Value *idris2_mkInt32_Boxed(int32_t i);
 Value *idris2_mkInt64(int64_t i);
 
-Value_Integer *idris2_mkInteger();
+Value_Integer *idris2_mkInteger(void);
 Value *idris2_mkIntegerLiteral(char *i);
+#ifndef IDRIS2_NO_GMP
+/* Fast-path allocator: stores v as an int64 with no mpz_init overhead. */
+Value *idris2_mkIntegerFast(int64_t v);
+#endif
 Value_String *idris2_mkEmptyString(size_t l);
 Value_String *idris2_mkString(char *);
 
@@ -73,3 +88,13 @@ extern Value_String const idris2_predefined_nullstring;
 
 // You need uncomment a debugging code in memoryManagement.c to use this.
 void idris2_dumpMemoryStats(void);
+
+// Run the Bacon-Rajan trial-deletion cycle collector.
+// Called automatically when the candidate buffer fills; also called at the end
+// of main() (injected by the code generator) to free any remaining cycles.
+void idris2_collectCycles(void);
+
+// Remove v from the cycle-collector's candidate buffer (cc_roots) if it is
+// currently buffered.  Must be called before directly free()-ing a Value that
+// bypasses idris2_removeReference (e.g. the fast-path in idris2_trampoline).
+void idris2_cc_remove_if_buffered(Value *v);

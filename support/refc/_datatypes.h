@@ -1,9 +1,22 @@
 #pragma once
 
+#include "idris2_config.h"
+
+#ifndef IDRIS2_NO_GMP
 #include <gmp.h>
-#include <pthread.h>
+#else
 #include <stdint.h>
+#endif
+
+#ifndef IDRIS2_NO_THREADS
+#include <pthread.h>
+#endif
+
+#include <stdatomic.h>
+#include <stdint.h>
+#ifndef IDRIS2_NO_STDIO
 #include <stdio.h>
+#endif
 #include <stdlib.h>
 #include <string.h>
 
@@ -29,18 +42,23 @@
 
 #define MUTEX_TAG 30
 #define CONDITION_TAG 31
+#define THREAD_TAG 32
+#define SEMAPHORE_TAG 33
+#define BARRIER_TAG 34
 
 typedef struct {
   // Objects that reach the maximum reference count will be immortalized.
   // This 'immortalization' feature is also utilized to prevent statically
   // allocated objects from being destroyed.
+  // The counter is atomic so that concurrent threads can share Values safely.
 #define IDRIS2_VP_REFCOUNTER_MAX UINT16_MAX
-  uint16_t refCounter;
+  _Atomic uint16_t refCounter;
   uint8_t tag;
   uint8_t reserved;
 } Value_header;
-#define IDRIS2_STOCKVAL(t)                                                     \
-  { IDRIS2_VP_REFCOUNTER_MAX, t, 0 }
+// clang-format off
+#define IDRIS2_STOCKVAL(t) {IDRIS2_VP_REFCOUNTER_MAX, t, 0}
+// clang-format on
 
 typedef struct {
   Value_header header;
@@ -59,7 +77,9 @@ pretending to be pointers cannot have that tag, so use that flag to identify
 them first. Of course, this flag is not used if it is clear that Value* is
 actually an Int. But places like newReference/removeReference require this flag.
  */
-#define idris2_vp_is_unboxed(p) ((uintptr_t)(p)&3)
+// clang-format off
+#define idris2_vp_is_unboxed(p) ((uintptr_t)(p) & 3)
+// clang-format on
 
 #define idris2_vp_int_shift                                                    \
   ((sizeof(uintptr_t) >= 8 && sizeof(Value *) >= 8) ? 32 : 16)
@@ -97,8 +117,7 @@ actually an Int. But places like newReference/removeReference require this flag.
 #define idris2_vp_to_Int64(p) (((Value_Int64 *)(p))->i64)
 #define idris2_vp_to_Int16(p) ((int16_t)((uintptr_t)(p) >> idris2_vp_int_shift))
 #define idris2_vp_to_Int8(p) ((int8_t)((uintptr_t)(p) >> idris2_vp_int_shift))
-#define idris2_vp_to_Char(p)                                                   \
-  ((unsigned char)((uintptr_t)(p) >> idris2_vp_int_shift))
+#define idris2_vp_to_Char(p) ((uint32_t)((uintptr_t)(p) >> idris2_vp_int_shift))
 #define idris2_vp_to_Double(p) (((Value_Double *)(p))->d)
 #define idris2_vp_to_Bool(p) (idris2_vp_to_Int8(p))
 
@@ -124,7 +143,20 @@ typedef struct {
 
 typedef struct {
   Value_header header;
-  mpz_t i;
+#ifndef IDRIS2_NO_GMP
+  /* header.reserved == 0 → val.mpz is valid (full GMP integer)
+   * header.reserved == 1 → val.fast is valid (small-integer fast path,
+   *                         no mpz_init/mpz_clear overhead) */
+  union {
+    mpz_t mpz;
+    int64_t fast;
+  } val;
+#define IDRIS2_INT_IS_SMALL(v) ((v)->header.reserved)
+#define IDRIS2_INT_MPZ(v) ((v)->val.mpz)
+#define IDRIS2_INT_FAST(v) ((v)->val.fast)
+#else
+  int64_t i; /* IDRIS2_NO_GMP: Integer backed by 64-bit signed integer */
+#endif
 } Value_Integer;
 
 typedef struct {
@@ -145,10 +177,18 @@ typedef struct {
   Value *args[];
 } Value_Constructor;
 
+/* ClosureFun: canonical storage type for closure function pointers.
+ * Full typedef lives in memoryManagement.h; replicated here so
+ * Value_Closure is self-contained without a forward-declaration cycle. */
+#ifndef CLOSUREFUN_DEFINED
+#define CLOSUREFUN_DEFINED
+typedef Value *(*ClosureFun)(void);
+#endif
+
 typedef struct {
   Value_header header;
   // function type depends on arity, see idris2_dispatch_closure
-  void *f;
+  ClosureFun f;
   uint8_t arity;
   uint8_t filled; // length of args.
   Value *args[];
@@ -181,6 +221,8 @@ typedef struct {
   Buffer *buffer;
 } Value_Buffer;
 
+#ifndef IDRIS2_NO_THREADS
+/* Thread-related types: only compiled when threading is enabled. */
 typedef struct {
   Value_header header;
   pthread_mutex_t *mutex;
@@ -190,5 +232,28 @@ typedef struct {
   Value_header header;
   pthread_cond_t *cond;
 } Value_Condition;
+
+typedef struct {
+  Value_header header;
+  pthread_t thread;
+} Value_Thread;
+
+/* Semaphore implemented via mutex + condvar for portability (pthread_barrier_t
+   and unnamed sem_t are not available on all platforms, e.g. macOS). */
+typedef struct {
+  Value_header header;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int count;
+} Value_Semaphore;
+
+typedef struct {
+  Value_header header;
+  pthread_mutex_t mutex;
+  pthread_cond_t cond;
+  int total;   /* number of threads that must arrive */
+  int arrived; /* number that have arrived so far */
+} Value_Barrier;
+#endif /* IDRIS2_NO_THREADS */
 
 void idris2_dumpMemoryStats(void);
