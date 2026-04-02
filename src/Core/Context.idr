@@ -1232,14 +1232,6 @@ showSimilarNames ns nm str kept
     Nothing
 
 
-getVisibility : {auto c : Ref Ctxt Defs} ->
-                FC -> Name -> Core (WithDefault Visibility Private)
-getVisibility fc n
-    = do defs <- get Ctxt
-         Just def <- lookupCtxtExact n (gamma defs)
-              | Nothing => throw (UndefinedName fc n)
-         pure $ visibility def
-
 maybeMisspelling : {auto c : Ref Ctxt Defs} ->
                    Error -> Name -> Core a
 maybeMisspelling err nm = do
@@ -1258,6 +1250,15 @@ undefinedName : {auto c : Ref Ctxt Defs} ->
 undefinedName loc nm = maybeMisspelling (UndefinedName loc nm) nm
 
 -- Throw a NoDeclaration exception. But try to find similar names first.
+export
+getVisibility : {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> Core (WithDefault Visibility Private)
+getVisibility fc n
+    = do defs <- get Ctxt
+         Just def <- lookupCtxtExact n (gamma defs)
+              | Nothing => maybeMisspelling (UndefinedName fc n) n
+         pure $ visibility def
+
 export
 noDeclaration : {auto c : Ref Ctxt Defs} ->
                 FC -> Name -> Core a

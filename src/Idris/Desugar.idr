@@ -1418,7 +1418,7 @@ mutual
                       defs <- get Ctxt
                       calls <- traverse getFnString cs'
                       [(n',_,gdef)] <- lookupCtxtName n (gamma defs)
-                        | [] => throw (UndefinedName fc n)
+                        | [] => undefinedName fc n
                         | xs => throw (AmbiguousName fc (map fst xs))
                       let ForeignDef arity xs = gdef.definition
                         | _ => throw (GenericMsg fc "\{show n} is not a foreign definition")
