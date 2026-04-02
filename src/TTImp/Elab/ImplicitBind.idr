@@ -202,6 +202,11 @@ swapVars (Erased fc Impossible) = Erased fc Impossible
 swapVars (Erased fc Placeholder) = Erased fc Placeholder
 swapVars (Erased fc (Dotted t)) = Erased fc $ Dotted (swapVars t)
 swapVars (TType fc u) = TType fc u
+swapVars (TFix fc c b) = TFix fc (swapVars c) (swapVars b)
+swapVars (TLater fc c t) = TLater fc (swapVars c) (swapVars t)
+swapVars (TNext fc c v) = TNext fc (swapVars c) (swapVars v)
+swapVars (TTickAbs fc v b) = TTickAbs fc (swapVars v) (swapVars b)
+swapVars (TTickApp fc fn a) = TTickApp fc (swapVars fn) (swapVars a)
 
 -- Push an explicit pi binder as far into a term as it'll go. That is,
 -- move it under implicit binders that don't depend on it, and stop
@@ -262,7 +267,7 @@ bindImplVars {vars} fc mode gam env imps_in scope scty
               case mode of
                    PI c =>
                       (Bind fc _ (Pi fc c Implicit bty') tm',
-                       TType fc (MN "top" 0))
+                       TType fc (UVar (MN "top" 0)))
                    _ =>
                       (Bind fc _ (PVar loc c (map (weakenNs (sizeOf bs)) p) bty') tm',
                        Bind fc _ (PVTy fc c bty') ty')

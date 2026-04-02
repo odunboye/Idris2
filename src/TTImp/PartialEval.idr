@@ -679,6 +679,22 @@ mutual
   quoteGenNF q defs bound env (NErased fc (Dotted t))
     = pure $ Erased fc $ Dotted !(quoteGenNF q defs bound env t)
   quoteGenNF q defs bound env (NType fc u) = pure $ TType fc u
+  quoteGenNF q defs bound env (NFix fc clk body)
+      = TFix fc <$> quoteGenNF q defs bound env clk <*> quoteGenNF q defs bound env body
+  quoteGenNF q defs bound env (NLater fc clk ty)
+      = TLater fc <$> quoteGenNF q defs bound env clk <*> quoteGenNF q defs bound env ty
+  quoteGenNF q defs bound env (NNext fc clk val)
+      = do clkQ <- quoteGenNF q defs bound env !(evalClosure defs clk)
+           valQ <- quoteGenNF q defs bound env !(evalClosure defs val)
+           pure (TNext fc clkQ valQ)
+  quoteGenNF q defs bound env (NTickAbs fc clkVar body)
+      = do clkQ  <- quoteGenNF q defs bound env !(evalClosure defs clkVar)
+           bodyQ <- quoteGenNF q defs bound env !(evalClosure defs body)
+           pure (TTickAbs fc clkQ bodyQ)
+  quoteGenNF q defs bound env (NTickApp fc fn clkArg)
+      = do fnQ  <- quoteGenNF q defs bound env fn
+           clkQ <- quoteGenNF q defs bound env !(evalClosure defs clkArg)
+           pure (TTickApp fc fnQ clkQ)
 
 evalRHS : {vars : _} ->
           {auto c : Ref Ctxt Defs} ->

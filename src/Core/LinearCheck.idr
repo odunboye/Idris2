@@ -336,7 +336,7 @@ mutual
   lcheck rig erase env (TDelayed fc r ty)
       = do log "quantity" 15 "lcheck Delayed"
            (ty', _, u) <- lcheck rig erase env ty
-           pure (TDelayed fc r ty', gType fc (MN "top" 0), u)
+           pure (TDelayed fc r ty', gType fc (UVar (MN "top" 0)), u)
   lcheck rig erase env (TDelay fc r ty val)
       = do (ty', _, _) <- lcheck erased erase env ty
            (val', gty, u) <- lcheck rig erase env val
@@ -358,9 +358,19 @@ mutual
       = do log "quantity" 15 "lcheck Erased"
            pure (Erased fc i, gErased fc, [])
   lcheck rig erase env (TType fc u)
-      -- Not universe checking here, just use the top of the hierarchy
+      -- LinearCheck doesn't need to recurse into universe levels
       = do log "quantity" 15 "lcheck TType"
-           pure (TType fc u, gType fc (MN "top" 0), [])
+           pure (TType fc u, gType fc (USucc u), [])
+  lcheck rig erase env (TFix fc c b)
+      = pure (TFix fc c b, gErased fc, [])
+  lcheck rig erase env (TLater fc c t)
+      = pure (TLater fc c t, gErased fc, [])
+  lcheck rig erase env (TNext fc c v)
+      = pure (TNext fc c v, gErased fc, [])
+  lcheck rig erase env (TTickAbs fc v b)
+      = pure (TTickAbs fc v b, gErased fc, [])
+  lcheck rig erase env (TTickApp fc fn a)
+      = pure (TTickApp fc fn a, gErased fc, [])
 
   lcheckBinder : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->

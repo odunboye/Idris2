@@ -217,11 +217,11 @@ mutual
                       (Nothing, NType {}) => pure True
                       (Just t1, NPrimVal _ (PrT t2)) => pure (t1 == t2)
                       _ => pure False
-      go (IType fc) _ _ _
+      go (IType fc _) _ _ _
           = do defs <- get Ctxt
                Just (NType {}) <- traverseOpt (evalClosure defs) mty
                  | _ => throw $ GenericMsg fc "Type does not match expected type"
-               pure (TType fc $ MN "top" 0)
+               pure (TType fc $ UVar (MN "top" 0))
       -- We're taking UniqueDefault here, _and_ we're falling through to error otherwise, which is sketchy.
       -- One option is to try each and emit an AmbiguousElab? We maybe should respect `UniqueDefault` if there
       -- is no evidence (mty), but we should _try_ to resolve here if there is an mty.

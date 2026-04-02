@@ -283,6 +283,11 @@ compileStk svs stk (Erased fc why)
   = do why' <- compileWhyErased svs stk why
        pure $ Vector (-6) [toScheme fc, toSchemeWhy why']
 compileStk svs stk (TType fc u) = pure $ Vector (-7) [toScheme fc, toScheme u]
+compileStk svs stk (TFix fc _ _) = pure $ Vector (-6) [toScheme fc, IntegerVal 1]
+compileStk svs stk (TLater fc _ _) = pure $ Vector (-6) [toScheme fc, IntegerVal 1]
+compileStk svs stk (TNext fc _ _) = pure $ Vector (-6) [toScheme fc, IntegerVal 1]
+compileStk svs stk (TTickAbs fc _ _) = pure $ Vector (-6) [toScheme fc, IntegerVal 1]
+compileStk svs stk (TTickApp fc _ _) = pure $ Vector (-6) [toScheme fc, IntegerVal 1]
 
 export
 compile : Ref Sym Integer =>

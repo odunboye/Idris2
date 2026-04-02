@@ -79,6 +79,15 @@ Scheme FC where
 
   fromScheme _ = Just EmptyFC
 
+-- Universe levels are serialized as their inner Name (for UVar), or as a
+-- sentinel MN "top" 0 for other forms (Phase 0 placeholder — solver not yet wired).
+export
+Scheme UnivLevel where
+  toScheme (UVar n)   = toScheme n
+  toScheme _          = toScheme (MN "top" 0)
+
+  fromScheme s = UVar <$> fromScheme s
+
 export
 Scheme LazyReason where
   toScheme LInf = IntegerVal 0

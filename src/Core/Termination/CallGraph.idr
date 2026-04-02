@@ -326,6 +326,11 @@ mutual
           urhs (Erased fc Placeholder) = Erased fc Placeholder
           urhs (Erased fc (Dotted t)) = Erased fc (Dotted (updateRHS ms t))
           urhs (TType fc u) = TType fc u
+          urhs (TFix fc c b) = TFix fc (updateRHS ms c) (updateRHS ms b)
+          urhs (TLater fc c t) = TLater fc (updateRHS ms c) (updateRHS ms t)
+          urhs (TNext fc c v) = TNext fc (updateRHS ms c) (updateRHS ms v)
+          urhs (TTickAbs fc v b) = TTickAbs fc (updateRHS ms v) (updateRHS ms b)
+          urhs (TTickApp fc fn a) = TTickApp fc (updateRHS ms fn) (updateRHS ms a)
 
           lookupTm : Term vs -> List (Term vs, Term vs') -> Maybe (Term vs')
           lookupTm tm [] = Nothing

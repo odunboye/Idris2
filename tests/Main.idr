@@ -129,6 +129,9 @@ idrisTestsMkdoc = testsInDir "idris2/mkdoc" "HTML documentation generator"
 idrisTestsMisc : IO TestPool
 idrisTestsMisc = testsInDir "idris2/misc" "Misc"
 
+idrisTestsUniverse : IO TestPool
+idrisTestsUniverse = testsInDir "idris2/universe" "Universe hierarchy"
+
 typeddTests : IO TestPool
 typeddTests = testsInDir "typedd-book" "Type Driven Development"
 
@@ -208,6 +211,7 @@ main = (runner =<<) $ sequence $
   , idrisTestsIPKG
   , idrisTestsMkdoc
   , idrisTestsMisc
+  , idrisTestsUniverse
   , typeddTests
   , ideModeTests
   , preludeTests

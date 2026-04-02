@@ -71,8 +71,10 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
          (scopev, scopet) <-
             inScope fc env' (\e' =>
               check {e=e'} pirig elabinfo nest' env' retTy (Just (gType fc scu)))
-         -- TODO Cumulativity: tyu <= max, scu <= max
-         piu <- uniVar fc
+         -- Pi formation rule: (x : A : Type tyu) -> (B : Type scu) : Type (max tyu scu)
+         let piu = UMax tyu scu
+         addUnivConstraint tyu piu
+         addUnivConstraint scu piu
          checkExp rig elabinfo env fc (Bind fc n (Pi (getFC argTy) rigf info' tyv) scopev) (gType fc piu) expTy
   where
     -- Might want to match on the LHS, so use the context rig, otherwise

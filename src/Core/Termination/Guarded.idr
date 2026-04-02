@@ -11,9 +11,8 @@ module Core.Termination.Guarded
 -- 'TLater κ' and 'TNext κ' transition us into a guarded context for that clock.
 -- Recursive calls outside a guarded context are reported as unguarded.
 --
--- NOTE: The TFix/TLater/TNext/TTickAbs/TTickApp Term constructors are not yet
--- present in Core.TT.Term. Those pattern match arms are commented out below
--- and will be enabled once the constructors are added.
+-- NOTE: The TFix/TLater/TNext/TTickAbs/TTickApp Term constructors are now
+-- present in Core.TT.Term. All pattern match arms are active.
 
 import Core.Case.CaseTree
 import Core.Context
@@ -38,12 +37,11 @@ usesGuardedRecursion (As fc s a p) = usesGuardedRecursion a || usesGuardedRecurs
 usesGuardedRecursion (TDelayed fc r ty) = usesGuardedRecursion ty
 usesGuardedRecursion (TDelay fc r ty tm) = usesGuardedRecursion ty || usesGuardedRecursion tm
 usesGuardedRecursion (TForce fc r tm) = usesGuardedRecursion tm
--- TODO: uncomment when TFix/TLater/TNext/TTickAbs/TTickApp are added to Term:
--- usesGuardedRecursion (TFix fc c body) = True
--- usesGuardedRecursion (TLater fc c ty) = usesGuardedRecursion c || usesGuardedRecursion ty
--- usesGuardedRecursion (TNext fc c arg) = usesGuardedRecursion c || usesGuardedRecursion arg
--- usesGuardedRecursion (TTickAbs fc c body) = usesGuardedRecursion body
--- usesGuardedRecursion (TTickApp fc fn c) = usesGuardedRecursion fn || usesGuardedRecursion c
+usesGuardedRecursion (TFix fc c body) = True
+usesGuardedRecursion (TLater fc c ty) = usesGuardedRecursion c || usesGuardedRecursion ty
+usesGuardedRecursion (TNext fc c arg) = usesGuardedRecursion c || usesGuardedRecursion arg
+usesGuardedRecursion (TTickAbs fc c body) = usesGuardedRecursion body
+usesGuardedRecursion (TTickApp fc fn c) = usesGuardedRecursion fn || usesGuardedRecursion c
 usesGuardedRecursion _ = False
 
 -- True iff the definition body contains guarded recursion (TFix or TNext terms).
@@ -98,46 +96,44 @@ mutual
   findUnguarded defs env g mclock self (TForce _ _ tm)
       = findUnguarded defs env CGUnguarded mclock self tm
 
-  -- TODO: uncomment when TFix/TLater/TNext/TTickAbs/TTickApp are added to Term:
-  --
-  -- -- Row 41: Guarded recursion / clock variables
-  -- -- TLater marks a guarded context for its clock
-  -- findUnguarded defs env g mclock self (TLater fc c ty)
-  --     = do clockSC <- findUnguarded defs env g mclock self c
-  --          tySC <- case mclock of
-  --                    Nothing => findUnguarded defs env g Nothing self ty
-  --                    Just targetClock =>
-  --                      if clocksMatch c targetClock
-  --                         then findUnguarded defs env CGInLater mclock self ty
-  --                         else findUnguarded defs env g mclock self ty
-  --          pure (clockSC ++ tySC)
-  --
-  -- -- TNext introduces a guarded value
-  -- findUnguarded defs env g mclock self (TNext fc c arg)
-  --     = do clockSC <- findUnguarded defs env g mclock self c
-  --          argSC <- case mclock of
-  --                     Nothing => findUnguarded defs env g Nothing self arg
-  --                     Just targetClock =>
-  --                       if clocksMatch c targetClock
-  --                          then findUnguarded defs env CGInLater mclock self arg
-  --                          else findUnguarded defs env g mclock self arg
-  --          pure (clockSC ++ argSC)
-  --
-  -- -- TTickAbs binds a clock variable
-  -- findUnguarded defs env g mclock self (TTickAbs fc c body)
-  --     = findUnguarded defs env g mclock self body
-  --
-  -- -- TTickApp applies to a clock
-  -- findUnguarded defs env g mclock self (TTickApp fc fn c)
-  --     = do fnSC <- findUnguarded defs env g mclock self fn
-  --          cSC <- findUnguarded defs env g mclock self c
-  --          pure (fnSC ++ cSC)
-  --
-  -- -- TFix is the fixpoint - check body with this clock as target
-  -- findUnguarded defs env g mclock self (TFix fc c body)
-  --     = do clockSC <- findUnguarded defs env g mclock self c
-  --          bodySC <- findUnguarded defs env CGGuarded (Just c) self body
-  --          pure (clockSC ++ bodySC)
+  -- Row 41: Guarded recursion / clock variables
+  -- TLater marks a guarded context for its clock
+  findUnguarded defs env g mclock self (TLater fc c ty)
+      = do clockSC <- findUnguarded defs env g mclock self c
+           tySC <- case mclock of
+                     Nothing => findUnguarded defs env g Nothing self ty
+                     Just targetClock =>
+                       if clocksMatch c targetClock
+                          then findUnguarded defs env CGInLater mclock self ty
+                          else findUnguarded defs env g mclock self ty
+           pure (clockSC ++ tySC)
+
+  -- TNext introduces a guarded value
+  findUnguarded defs env g mclock self (TNext fc c arg)
+      = do clockSC <- findUnguarded defs env g mclock self c
+           argSC <- case mclock of
+                      Nothing => findUnguarded defs env g Nothing self arg
+                      Just targetClock =>
+                        if clocksMatch c targetClock
+                           then findUnguarded defs env CGInLater mclock self arg
+                           else findUnguarded defs env g mclock self arg
+           pure (clockSC ++ argSC)
+
+  -- TTickAbs binds a clock variable
+  findUnguarded defs env g mclock self (TTickAbs fc c body)
+      = findUnguarded defs env g mclock self body
+
+  -- TTickApp applies to a clock
+  findUnguarded defs env g mclock self (TTickApp fc fn c)
+      = do fnSC <- findUnguarded defs env g mclock self fn
+           cSC <- findUnguarded defs env g mclock self c
+           pure (fnSC ++ cSC)
+
+  -- TFix is the fixpoint - check body with this clock as target
+  findUnguarded defs env g mclock self (TFix fc c body)
+      = do clockSC <- findUnguarded defs env g mclock self c
+           bodySC <- findUnguarded defs env CGGuarded (Just c) self body
+           pure (clockSC ++ bodySC)
 
   -- For applications, check for self-calls
   findUnguarded defs env g mclock self tm

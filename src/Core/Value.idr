@@ -134,9 +134,15 @@ mutual
        NDelayed : FC -> LazyReason -> NF vars -> NF vars
        NDelay   : FC -> LazyReason -> Closure vars -> Closure vars -> NF vars
        NForce   : FC -> LazyReason -> NF vars -> List (FC, Closure vars) -> NF vars
+       -- Clock-based guarded recursion
+       NFix     : FC -> NF vars -> NF vars -> NF vars
+       NLater   : FC -> NF vars -> NF vars -> NF vars
+       NNext    : FC -> Closure vars -> Closure vars -> NF vars
+       NTickAbs : FC -> Closure vars -> Closure vars -> NF vars
+       NTickApp : FC -> NF vars -> Closure vars -> NF vars
        NPrimVal : FC -> Constant -> NF vars
        NErased  : FC -> WhyErased (NF vars) -> NF vars
-       NType    : FC -> Name -> NF vars
+       NType    : FC -> UnivLevel -> NF vars
 
 %name LocalEnv lenv
 %name Closure cl
@@ -160,7 +166,7 @@ export
 ntCon : FC -> Name -> Nat -> List (FC, Closure vars) -> NF vars
 -- Part of the machinery for matching on types - I believe this won't affect
 -- universe checking so put a dummy name.
-ntCon fc (UN (Basic "Type")) Z [] = NType fc (MN "top" 0)
+ntCon fc (UN (Basic "Type")) Z [] = NType fc (UVar (MN "top" 0))
 ntCon fc n Z [] = case isConstantType n of
   Just c => NPrimVal fc $ PrT c
   Nothing => NTCon fc n Z []
@@ -176,6 +182,11 @@ getLoc (NAs fc _ _ _) = fc
 getLoc (NDelayed fc _ _) = fc
 getLoc (NDelay fc _ _ _) = fc
 getLoc (NForce fc _ _ _) = fc
+getLoc (NFix fc _ _)     = fc
+getLoc (NLater fc _ _)   = fc
+getLoc (NNext fc _ _)    = fc
+getLoc (NTickAbs fc _ _) = fc
+getLoc (NTickApp fc _ _) = fc
 getLoc (NPrimVal fc _) = fc
 getLoc (NErased fc i) = fc
 getLoc (NType fc _) = fc
@@ -207,6 +218,11 @@ HasNames (NF free) where
   full defs (NDelayed fc lz nf) = pure $ NDelayed fc lz !(full defs nf)
   full defs (NDelay fc lz cl cl1) = pure $ NDelay fc lz cl cl1
   full defs (NForce fc lz nf xs) = pure $ NForce fc lz !(full defs nf) xs
+  full defs (NFix fc c b)     = pure $ NFix fc !(full defs c) !(full defs b)
+  full defs (NLater fc c t)   = pure $ NLater fc !(full defs c) !(full defs t)
+  full defs (NNext fc c v)    = pure $ NNext fc c v
+  full defs (NTickAbs fc v b) = pure $ NTickAbs fc v b
+  full defs (NTickApp fc f a) = pure $ NTickApp fc !(full defs f) a
   full defs (NPrimVal fc cst) = pure $ NPrimVal fc cst
   full defs (NErased fc imp) = pure $ NErased fc imp
   full defs (NType fc n) = pure $ NType fc !(full defs n)
@@ -219,6 +235,11 @@ HasNames (NF free) where
   resolved defs (NDelayed fc lz nf) = pure $ NDelayed fc lz !(resolved defs nf)
   resolved defs (NDelay fc lz cl cl1) = pure $ NDelay fc lz cl cl1
   resolved defs (NForce fc lz nf xs) = pure $ NForce fc lz !(resolved defs nf) xs
+  resolved defs (NFix fc c b)     = pure $ NFix fc !(resolved defs c) !(resolved defs b)
+  resolved defs (NLater fc c t)   = pure $ NLater fc !(resolved defs c) !(resolved defs t)
+  resolved defs (NNext fc c v)    = pure $ NNext fc c v
+  resolved defs (NTickAbs fc v b) = pure $ NTickAbs fc v b
+  resolved defs (NTickApp fc f a) = pure $ NTickApp fc !(resolved defs f) a
   resolved defs (NPrimVal fc cst) = pure $ NPrimVal fc cst
   resolved defs (NErased fc imp) = pure $ NErased fc imp
   resolved defs (NType fc n) = pure $ NType fc !(resolved defs n)
@@ -251,6 +272,11 @@ covering
   show (NDelayed _ _ tm) = "%Delayed " ++ show tm
   show (NDelay {}) = "%Delay [closure]"
   show (NForce _ _ tm args) = "%Force " ++ show tm ++ " [" ++ show (length args) ++ " closures]"
+  show (NFix _ c b)     = "%Fix " ++ show c ++ " " ++ show b
+  show (NLater _ c t)   = "%Later " ++ show c ++ " " ++ show t
+  show (NNext {})       = "%Next [closures]"
+  show (NTickAbs {})    = "%TickAbs [closures]"
+  show (NTickApp _ f _) = "%TickApp " ++ show f ++ " [closure]"
   show (NPrimVal _ c) = show c
   show (NErased {}) = "[__]"
   show (NType {}) = "Type"

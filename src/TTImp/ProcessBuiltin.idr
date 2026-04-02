@@ -130,6 +130,11 @@ isStrict (TForce _ _ tm) = isStrict tm
 isStrict (PrimVal {}) = True
 isStrict (Erased {}) = True
 isStrict (TType {}) = True
+isStrict (TFix {}) = False
+isStrict (TLater {}) = False
+isStrict (TNext {}) = False
+isStrict (TTickAbs {}) = False
+isStrict (TTickApp {}) = False
 
 ||| Get the name and definition of a list of names.
 getConsGDef :

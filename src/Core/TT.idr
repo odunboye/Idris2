@@ -456,6 +456,16 @@ mkLocals outer bs (TDelay fc x t y)
     = TDelay fc x (mkLocals outer bs t) (mkLocals outer bs y)
 mkLocals outer bs (TForce fc r x)
     = TForce fc r (mkLocals outer bs x)
+mkLocals outer bs (TFix fc c b)
+    = TFix fc (mkLocals outer bs c) (mkLocals outer bs b)
+mkLocals outer bs (TLater fc c t)
+    = TLater fc (mkLocals outer bs c) (mkLocals outer bs t)
+mkLocals outer bs (TNext fc c v)
+    = TNext fc (mkLocals outer bs c) (mkLocals outer bs v)
+mkLocals outer bs (TTickAbs fc v b)
+    = TTickAbs fc (mkLocals outer bs v) (mkLocals outer bs b)
+mkLocals outer bs (TTickApp fc f a)
+    = TTickApp fc (mkLocals outer bs f) (mkLocals outer bs a)
 mkLocals outer bs (PrimVal fc c) = PrimVal fc c
 mkLocals outer bs (Erased fc Impossible) = Erased fc Impossible
 mkLocals outer bs (Erased fc Placeholder) = Erased fc Placeholder
@@ -518,6 +528,11 @@ addMetas res ns (TDelayed fc x y) = addMetas res ns y
 addMetas res ns (TDelay fc x t y)
     = addMetas res (addMetas res ns t) y
 addMetas res ns (TForce fc r x) = addMetas res ns x
+addMetas res ns (TFix fc c b)     = addMetas res (addMetas res ns c) b
+addMetas res ns (TLater fc c t)   = addMetas res (addMetas res ns c) t
+addMetas res ns (TNext fc c v)    = addMetas res (addMetas res ns c) v
+addMetas res ns (TTickAbs fc v b) = addMetas res (addMetas res ns v) b
+addMetas res ns (TTickApp fc f a) = addMetas res (addMetas res ns f) a
 addMetas res ns (PrimVal fc c) = ns
 addMetas res ns (Erased fc i) = foldr (flip $ addMetas res) ns i
 addMetas res ns (TType fc u) = ns
@@ -553,6 +568,11 @@ addRefs ua at ns (TDelayed fc x y) = addRefs ua at ns y
 addRefs ua at ns (TDelay fc x t y)
     = addRefs ua at (addRefs ua at ns t) y
 addRefs ua at ns (TForce fc r x) = addRefs ua at ns x
+addRefs ua at ns (TFix fc c b)     = addRefs ua at (addRefs ua at ns c) b
+addRefs ua at ns (TLater fc c t)   = addRefs ua at (addRefs ua at ns c) t
+addRefs ua at ns (TNext fc c v)    = addRefs ua at (addRefs ua at ns c) v
+addRefs ua at ns (TTickAbs fc v b) = addRefs ua at (addRefs ua at ns v) b
+addRefs ua at ns (TTickApp fc f a) = addRefs ua at (addRefs ua at ns f) a
 addRefs ua at ns (PrimVal fc c) = ns
 addRefs ua at ns (Erased fc i) = foldr (flip $ addRefs ua at) ns i
 addRefs ua at ns (TType fc u) = ns

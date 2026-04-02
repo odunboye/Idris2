@@ -39,7 +39,7 @@ mutual
        SForce   : FC -> LazyReason -> SNF vars -> SNF vars
        SPrimVal : FC -> Constant -> SNF vars
        SErased  : FC -> WhyErased (SNF vars) -> SNF vars
-       SType    : FC -> Name -> SNF vars
+       SType    : FC -> UnivLevel -> SNF vars
 
 getAllNames : {auto c : Ref Ctxt Defs} ->
               NameMap () -> List Name -> Core (NameMap ())
@@ -114,8 +114,8 @@ quoteFC fc_in = fromMaybe emptyFC (fromScheme (decodeObj fc_in))
 quoteLazyReason : ForeignObj -> LazyReason
 quoteLazyReason r_in = fromMaybe LUnknown (fromScheme (decodeObj r_in))
 
-quoteTypeLevel : ForeignObj -> Name
-quoteTypeLevel u_in = fromMaybe (MN "top" 0) (fromScheme (decodeObj u_in))
+quoteTypeLevel : ForeignObj -> UnivLevel
+quoteTypeLevel u_in = UVar $ fromMaybe (MN "top" 0) (fromScheme (decodeObj u_in))
 
 quoteRigCount : ForeignObj -> RigCount
 quoteRigCount rig_in = fromMaybe top (fromScheme (decodeObj rig_in))

@@ -45,7 +45,7 @@ mutual
                 _ => do fty' <- getTerm fty
                         throw (NotFunctionType fc env fty')
   chk env (As fc s n p) = chk env p
-  chk env (TDelayed fc r tm) = pure (gType fc (MN "top" 0))
+  chk env (TDelayed fc r tm) = pure (gType fc (UVar (MN "top" 0)))
   chk env (TDelay fc r dty tm)
       = do gtm <- chk env tm
            tm' <- getNF gtm
@@ -59,8 +59,14 @@ mutual
                        pure $ glueBack defs env fty
                 _ => throw (GenericMsg fc "Not a delayed type")
   chk env (PrimVal fc x) = pure $ gnf env (chkConstant fc x)
-  chk env (TType fc u) = pure (gType fc (MN "top" 0))
+  -- Type u : Type (u+1)  — the key universe stratification rule
+  chk env (TType fc u) = pure (gType fc (USucc u))
   chk env (Erased fc _) = pure (gErased fc)
+  chk env (TFix fc _ _) = pure (gErased fc)
+  chk env (TLater fc _ _) = pure (gErased fc)
+  chk env (TNext fc _ _) = pure (gErased fc)
+  chk env (TTickAbs fc _ _) = pure (gErased fc)
+  chk env (TTickApp fc _ _) = pure (gErased fc)
 
   chkMeta : {vars : _} ->
             {auto c : Ref Ctxt Defs} ->
@@ -113,7 +119,7 @@ mutual
   chkConstant fc (Ch x)   = PrimVal fc $ PrT CharType
   chkConstant fc (Db x)   = PrimVal fc $ PrT DoubleType
   chkConstant fc WorldVal = PrimVal fc $ PrT WorldType
-  chkConstant fc _        = TType fc (MN "top" 0)
+  chkConstant fc _        = TType fc (UVar (MN "top" 0))
 
 export
 getType : {vars : _} ->

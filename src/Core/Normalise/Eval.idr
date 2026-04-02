@@ -156,6 +156,24 @@ parameters (defs : Defs) (topopts : EvalOpts)
                   NDelay fc r _ arg =>
                       eval env (arg :: locs) (Local {name = UN (Basic "fvar")} fc Nothing _ First) stk
                   _ => pure (NForce fc r tm' stk)
+    -- Clock-based guarded recursion: TFix/TLater/TNext are evaluated as values
+    eval env locs (TFix fc clk body) stk
+        = do clk'  <- eval env locs clk []
+             body' <- eval env locs body []
+             pure (NFix fc clk' body')
+    eval env locs (TLater fc clk ty) stk
+        = do clk' <- eval env locs clk []
+             ty'  <- eval env locs ty []
+             pure (NLater fc clk' ty')
+    eval env locs (TNext fc clk val) stk
+        = pure (NNext fc (mkClosure topopts locs env clk)
+                         (mkClosure topopts locs env val))
+    eval env locs (TTickAbs fc clkVar body) stk
+        = pure (NTickAbs fc (mkClosure topopts locs env clkVar)
+                            (mkClosure topopts locs env body))
+    eval env locs (TTickApp fc fn clkArg) stk
+        = do fn' <- eval env locs fn []
+             pure (NTickApp fc fn' (mkClosure topopts locs env clkArg))
     eval env locs (PrimVal fc c) stk = pure $ NPrimVal fc c
     eval env locs (Erased fc a) stk
       = NErased fc <$> traverse @{%search} @{CORE} (\ t => eval env locs t stk) a
@@ -207,6 +225,11 @@ parameters (defs : Defs) (topopts : EvalOpts)
                  NDelay fc r _ arg =>
                     eval env [arg] (Local {name = UN (Basic "fvar")} fc Nothing _ First) stk
                  _ => pure (NForce fc r tm' (args ++ stk))
+    applyToStack env nf@(NFix fc clk body) stk   = pure nf
+    applyToStack env nf@(NLater fc clk ty) stk   = pure nf
+    applyToStack env nf@(NNext fc clk val) stk   = pure nf
+    applyToStack env nf@(NTickAbs fc v b) stk    = pure nf
+    applyToStack env nf@(NTickApp fc fn arg) stk = pure nf
     applyToStack env nf@(NPrimVal fc _) _ = pure nf
     applyToStack env (NErased fc a) stk
       = NErased fc <$> traverse @{%search} @{CORE} (\ t => applyToStack env t stk) a
@@ -604,7 +627,7 @@ gnfOpts opts env tm
                        nfOpts opts defs env tm)
 
 export
-gType : FC -> Name -> Glued vars
+gType : FC -> UnivLevel -> Glued vars
 gType fc u = MkGlue True (pure (TType fc u)) (const (pure (NType fc u)))
 
 export

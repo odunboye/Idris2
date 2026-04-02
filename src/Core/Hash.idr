@@ -122,6 +122,13 @@ Hashable Name where
   hashWithSalt h n = hashWithSalt h (show n)
 
 export
+Hashable UnivLevel where
+  hashWithSalt h UZero      = hashWithSalt h 0
+  hashWithSalt h (UVar n)   = h `hashWithSalt` 1 `hashWithSalt` n
+  hashWithSalt h (USucc u)  = h `hashWithSalt` 2 `hashWithSalt` u
+  hashWithSalt h (UMax l r) = h `hashWithSalt` 3 `hashWithSalt` l `hashWithSalt` r
+
+export
 Hashable RigCount where
   hashWithSalt h = elimSemi
                      (hashWithSalt h 0)
@@ -180,6 +187,16 @@ mutual
         = hashWithSalt h 10
     hashWithSalt h (TType fc u)
         = hashWithSalt h 11 `hashWithSalt` u
+    hashWithSalt h (TFix fc c b)
+        = h `hashWithSalt` 12 `hashWithSalt` c `hashWithSalt` b
+    hashWithSalt h (TLater fc c t)
+        = h `hashWithSalt` 13 `hashWithSalt` c `hashWithSalt` t
+    hashWithSalt h (TNext fc c v)
+        = h `hashWithSalt` 14 `hashWithSalt` c `hashWithSalt` v
+    hashWithSalt h (TTickAbs fc v b)
+        = h `hashWithSalt` 15 `hashWithSalt` v `hashWithSalt` b
+    hashWithSalt h (TTickApp fc fn a)
+        = h `hashWithSalt` 16 `hashWithSalt` fn `hashWithSalt` a
 
   export
   Hashable Pat where

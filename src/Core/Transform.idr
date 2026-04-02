@@ -82,6 +82,11 @@ tryReplace ms (Erased fc Impossible) = pure (Erased fc Impossible)
 tryReplace ms (Erased fc Placeholder) = pure (Erased fc Placeholder)
 tryReplace ms (Erased fc (Dotted t)) = Erased fc . Dotted <$> tryReplace ms t
 tryReplace ms (TType fc u) = pure (TType fc u)
+tryReplace ms (TFix fc c b) = TFix fc <$> tryReplace ms c <*> tryReplace ms b
+tryReplace ms (TLater fc c t) = TLater fc <$> tryReplace ms c <*> tryReplace ms t
+tryReplace ms (TNext fc c v) = TNext fc <$> tryReplace ms c <*> tryReplace ms v
+tryReplace ms (TTickAbs fc v b) = TTickAbs fc <$> tryReplace ms v <*> tryReplace ms b
+tryReplace ms (TTickApp fc fn a) = TTickApp fc <$> tryReplace ms fn <*> tryReplace ms a
 
 covering
 tryApply : Transform -> Term vs -> Maybe (Term vs)

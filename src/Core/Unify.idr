@@ -7,9 +7,11 @@ import Core.GetType
 import Core.Normalise
 import Core.Options
 import public Core.UnifyState
+import public Core.UnivSolver
 import Core.Value
 
 import Data.Maybe
+import Data.SortedMap
 
 import Libraries.Data.List.SizeOf
 
@@ -554,6 +556,16 @@ tryInstantiate {newvars} loc mode env mname mref num mdef locs otm tm
     updateIVars ivs (Erased fc Placeholder) = Just (Erased fc Placeholder)
     updateIVars ivs (Erased fc (Dotted t)) = Erased fc . Dotted <$> updateIVars ivs t
     updateIVars ivs (TType fc u) = Just (TType fc u)
+    updateIVars ivs (TFix fc c b)
+        = Just (TFix fc !(updateIVars ivs c) !(updateIVars ivs b))
+    updateIVars ivs (TLater fc c t)
+        = Just (TLater fc !(updateIVars ivs c) !(updateIVars ivs t))
+    updateIVars ivs (TNext fc c v)
+        = Just (TNext fc !(updateIVars ivs c) !(updateIVars ivs v))
+    updateIVars ivs (TTickAbs fc v b)
+        = Just (TTickAbs fc !(updateIVars ivs v) !(updateIVars ivs b))
+    updateIVars ivs (TTickApp fc fn a)
+        = Just (TTickApp fc !(updateIVars ivs fn) !(updateIVars ivs a))
 
     mkDef : {vs, newvars : _} ->
             List (Var newvars) ->
@@ -1534,6 +1546,26 @@ solveConstraintsAfter start umode smode
   where
     afterStart : (Int, a) -> Bool
     afterStart (x, _) = x >= start
+
+-- Solve accumulated universe level constraints.
+-- Returns the solved assignment so callers can back-substitute into terms.
+-- Clears univConstraints on success; throws GenericMsg on inconsistency.
+export
+solveUnivConstraints : {auto c : Ref Ctxt Defs} ->
+                       {auto u : Ref UST UState} ->
+                       FC -> Core UnivAssignment
+solveUnivConstraints fc
+    = do ust <- get UST
+         let cs = univConstraints ust
+         if isNil cs
+           then pure empty
+           else
+             let result = solveUniverse cs in
+             case result of
+               Left err   => throw (GenericMsg fc ("Universe error: " ++ err))
+               Right asgn =>
+                 do update UST { univConstraints := [] }
+                    pure asgn
 
 -- Replace any 'BySearch' with 'Hole', so that we don't keep searching
 -- fruitlessly while elaborating the rest of a source file

@@ -126,6 +126,11 @@ fuzzySearch expr = do
     fromMaybe [] ((:: []) <$> parseNameOrConst (PPrimVal fc c)) ++ ns
   doFind ns (Erased fc i) = ns
   doFind ns (TType fc _) = AType :: ns
+  doFind ns (TFix fc c b) = doFind (doFind ns c) b
+  doFind ns (TLater fc c t) = doFind (doFind ns c) t
+  doFind ns (TNext fc c v) = doFind (doFind ns c) v
+  doFind ns (TTickAbs fc v b) = doFind (doFind ns v) b
+  doFind ns (TTickApp fc fn a) = doFind (doFind ns fn) a
 
   toFullNames' : NameOrConst -> Core NameOrConst
   toFullNames' (AName x) = AName <$> toFullNames x

@@ -36,6 +36,11 @@ onPRefs f = go neutral where
   go acc (PrimVal fc c) = acc
   go acc (Erased fc imp) = acc
   go acc (TType fc u) = acc
+  go acc (TFix fc c b) = go (go acc c) b
+  go acc (TLater fc c t) = go (go acc c) t
+  go acc (TNext fc c v) = go (go acc c) v
+  go acc (TTickAbs fc v b) = go (go acc v) b
+  go acc (TTickApp fc fn a) = go (go acc fn) a
 
   gos acc [] = acc
   gos acc (x :: xs) = gos (go acc x) xs
@@ -65,6 +70,11 @@ onConstants f = go neutral where
   go acc (PrimVal fc c) = acc <+> f c
   go acc (Erased fc imp) = acc
   go acc (TType fc u) = acc
+  go acc (TFix fc c b) = go (go acc c) b
+  go acc (TLater fc c t) = go (go acc c) t
+  go acc (TNext fc c v) = go (go acc c) v
+  go acc (TTickAbs fc v b) = go (go acc v) b
+  go acc (TTickApp fc fn a) = go (go acc fn) a
 
   gos acc [] = acc
   gos acc (x :: xs) = gos (go acc x) xs
@@ -96,6 +106,11 @@ mapTermM f t = act t where
   go t@(PrimVal fc c) = pure t
   go t@(Erased fc imp) = pure t
   go t@(TType fc u) = pure t
+  go (TFix fc c b) = TFix fc <$> act c <*> act b
+  go (TLater fc c ty) = TLater fc <$> act c <*> act ty
+  go (TNext fc c v) = TNext fc <$> act c <*> act v
+  go (TTickAbs fc v b) = TTickAbs fc <$> act v <*> act b
+  go (TTickApp fc fn a) = TTickApp fc <$> act fn <*> act a
 
 export
 mapTerm : ({vars : _} -> Term vars -> Term vars) ->
@@ -119,3 +134,8 @@ mapTerm f t = act t where
   go t@(PrimVal fc c) = t
   go t@(Erased fc imp) = t
   go t@(TType fc u) = t
+  go (TFix fc c b) = TFix fc (act c) (act b)
+  go (TLater fc c ty) = TLater fc (act c) (act ty)
+  go (TNext fc c v) = TNext fc (act c) (act v)
+  go (TTickAbs fc v b) = TTickAbs fc (act v) (act b)
+  go (TTickApp fc fn a) = TTickApp fc (act fn) (act a)

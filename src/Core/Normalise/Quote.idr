@@ -226,6 +226,31 @@ mutual
                       pure $ applyStackWithFC !(quoteGenNF q opts defs bound env argNF) args'
                 _ => do arg' <- quoteGenNF q opts defs bound env arg
                         pure $ applyStackWithFC (TForce fc r arg') args'
+  quoteGenNF q opts defs bound env (NFix fc clk body)
+      = do clkQ  <- quoteGenNF q opts defs bound env clk
+           bodyQ <- quoteGenNF q opts defs bound env body
+           pure (TFix fc clkQ bodyQ)
+  quoteGenNF q opts defs bound env (NLater fc clk ty)
+      = do clkQ <- quoteGenNF q opts defs bound env clk
+           tyQ  <- quoteGenNF q opts defs bound env ty
+           pure (TLater fc clkQ tyQ)
+  quoteGenNF q opts defs bound env (NNext fc clk val)
+      = do clkNF <- evalClosure defs clk
+           valNF <- evalClosure defs val
+           clkQ  <- quoteGenNF q opts defs bound env clkNF
+           valQ  <- quoteGenNF q opts defs bound env valNF
+           pure (TNext fc clkQ valQ)
+  quoteGenNF q opts defs bound env (NTickAbs fc clkVar body)
+      = do clkNF  <- evalClosure defs clkVar
+           bodyNF <- evalClosure defs body
+           clkQ   <- quoteGenNF q opts defs bound env clkNF
+           bodyQ  <- quoteGenNF q opts defs bound env bodyNF
+           pure (TTickAbs fc clkQ bodyQ)
+  quoteGenNF q opts defs bound env (NTickApp fc fn clkArg)
+      = do fnQ   <- quoteGenNF q opts defs bound env fn
+           clkNF <- evalClosure defs clkArg
+           clkQ  <- quoteGenNF q opts defs bound env clkNF
+           pure (TTickApp fc fnQ clkQ)
   quoteGenNF q opts defs bound env (NPrimVal fc c) = pure $ PrimVal fc c
   quoteGenNF q opts defs bound env (NErased fc t)
     = Erased fc <$> traverse @{%search} @{CORE} (\ nf => quoteGenNF q opts defs bound env nf) t

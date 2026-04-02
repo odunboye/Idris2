@@ -349,7 +349,7 @@ mutual
   export
   {vars : _} -> TTC (Term vars) where
     toBuf (Local {name} fc c idx y)
-        = if idx < 243
+        = if idx < 238   -- tags 251-255 reserved for guarded recursion constructors
              then do tag (13 + cast idx)
                      toBuf c
              else do tag 0
@@ -386,6 +386,16 @@ mutual
     toBuf (TForce fc r tm)
         = do tag 8;
              toBuf r; toBuf tm
+    toBuf (TFix fc clk body)
+        = do tag 251; toBuf clk; toBuf body
+    toBuf (TLater fc clk ty)
+        = do tag 252; toBuf clk; toBuf ty
+    toBuf (TNext fc clk val)
+        = do tag 253; toBuf clk; toBuf val
+    toBuf (TTickAbs fc clkVar body)
+        = do tag 254; toBuf clkVar; toBuf body
+    toBuf (TTickApp fc fn clkArg)
+        = do tag 255; toBuf fn; toBuf clkArg
     toBuf (PrimVal fc c)
         = do tag 9;
              toBuf c
@@ -428,6 +438,16 @@ mutual
                12 => do fn <- fromBuf
                         args <- fromBuf
                         pure (apply emptyFC fn args)
+               251 => do clk <- fromBuf; body <- fromBuf
+                         pure (TFix emptyFC clk body)
+               252 => do clk <- fromBuf; ty <- fromBuf
+                         pure (TLater emptyFC clk ty)
+               253 => do clk <- fromBuf; val <- fromBuf
+                         pure (TNext emptyFC clk val)
+               254 => do clkVar <- fromBuf; body <- fromBuf
+                         pure (TTickAbs emptyFC clkVar body)
+               255 => do fn <- fromBuf; clkArg <- fromBuf
+                         pure (TTickApp emptyFC fn clkArg)
                idxp => do c <- fromBuf
                           let idx : Nat = fromInteger (cast (idxp - 13))
                           let Just name = getAt idx vars

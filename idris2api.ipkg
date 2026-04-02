@@ -104,6 +104,7 @@ modules =
     Core.TTC,
     Core.Unify,
     Core.UnifyState,
+    Core.UnivSolver,
     Core.Value,
     Core.WithData,
 

@@ -402,11 +402,11 @@ argVar fc rig env n ty
 export
 uniVar : {auto c : Ref Ctxt Defs} ->
          {auto u : Ref UST UState} ->
-         FC -> Core Name
+         FC -> Core UnivLevel
 uniVar fc
     = do n <- genName "u"
-         idx <- addDef n (newDef fc n erased Scope.empty (Erased fc Placeholder) (specified Public) None)
-         pure (Resolved idx)
+         ignore $ addDef n (newDef fc n erased Scope.empty (Erased fc Placeholder) (specified Public) None)
+         pure (UVar n)
 
 export
 searchVar : {vars : _} ->

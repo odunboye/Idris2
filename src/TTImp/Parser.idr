@@ -43,8 +43,9 @@ atom fname
          pure (IPrimVal (MkFC fname start end) (Str str))
   <|> do start <- location
          exactIdent "Type"
+         mlvl <- optional (integerToNat <$> intLit)
          end <- location
-         pure (IType (MkFC fname start end))
+         pure (IType (MkFC fname start end) mlvl)
   <|> do start <- location
          symbol "_"
          end <- location

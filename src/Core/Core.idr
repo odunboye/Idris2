@@ -922,6 +922,11 @@ mapTermM f = goTerm where
     goTerm (TDelayed fc la d) = f =<< TDelayed fc la <$> goTerm d
     goTerm (TDelay fc la ty arg) = f =<< TDelay fc la <$> goTerm ty <*> goTerm arg
     goTerm (TForce fc la t) = f =<< TForce fc la <$> goTerm t
+    goTerm (TFix fc c b)     = f =<< TFix fc <$> goTerm c <*> goTerm b
+    goTerm (TLater fc c t)   = f =<< TLater fc <$> goTerm c <*> goTerm t
+    goTerm (TNext fc c v)    = f =<< TNext fc <$> goTerm c <*> goTerm v
+    goTerm (TTickAbs fc v b) = f =<< TTickAbs fc <$> goTerm v <*> goTerm b
+    goTerm (TTickApp fc fn a) = f =<< TTickApp fc <$> goTerm fn <*> goTerm a
     goTerm tm@(PrimVal {}) = f tm
     goTerm tm@(Erased {}) = f tm
     goTerm tm@(TType {}) = f tm

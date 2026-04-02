@@ -13,6 +13,8 @@ import TTImp.Elab.Delayed
 import TTImp.Elab.Term
 import TTImp.TTImp
 
+import Data.SortedMap
+
 import Libraries.Data.IntMap
 import Libraries.Data.NameMap
 
@@ -146,6 +148,12 @@ elabTermSub {vars} defining mode opts nest env env' sub tm ty
               -- otherwise, this last go is most likely just to give us more
               -- helpful errors.
               solveConstraintsAfter constart solvemode LastChance
+
+         -- Discharge universe level constraints accumulated during elaboration.
+         -- Apply the solved assignment back into the term so UVar metavariables
+         -- become concrete levels (e.g. UVar u42 -> USucc UZero = level 1).
+         univAsgn <- solveUnivConstraints (getFC tm)
+         let chktm = applyAssignToTerm univAsgn chktm
 
          dumpConstraints "elab" 4 False
          defs <- get Ctxt

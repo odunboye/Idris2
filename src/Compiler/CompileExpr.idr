@@ -188,6 +188,11 @@ toCExpTm n (PrimVal fc $ PrT c) = pure $ CCon fc (UN $ Basic $ show c) TYCON Not
 toCExpTm n (PrimVal fc c) = pure $ CPrimVal fc c -- Non-type constant
 toCExpTm n (Erased fc _) = pure $ CErased fc
 toCExpTm n (TType fc _) = pure $ CCon fc (UN (Basic "Type")) TYCON Nothing []
+toCExpTm n (TFix fc _ _) = pure $ CErased fc
+toCExpTm n (TLater fc _ _) = pure $ CErased fc
+toCExpTm n (TNext fc _ _) = pure $ CErased fc
+toCExpTm n (TTickAbs fc _ _) = pure $ CErased fc
+toCExpTm n (TTickApp fc _ _) = pure $ CErased fc
 
 toCExp n tm
     = case getFnArgs tm of

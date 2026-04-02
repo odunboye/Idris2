@@ -5,6 +5,7 @@ import Libraries.Data.UserNameMap
 import Core.Env
 import Core.Metadata
 import Core.UnifyState
+import Core.UnivSolver
 import Core.Value
 
 import Idris.REPL.Opts
@@ -205,9 +206,12 @@ checkTerm rig elabinfo nest env (IRunElab fc re tm) exp
 checkTerm {vars} rig elabinfo nest env (IPrimVal fc c) exp
     = do let (cval, cty) = checkPrim {vars} fc c
          checkExp rig elabinfo env fc cval (gnf env cty) exp
-checkTerm rig elabinfo nest env (IType fc) exp
+checkTerm rig elabinfo nest env (IType fc Nothing) exp
     = do u <- uniVar fc
-         checkExp rig elabinfo env fc (TType fc u) (gType fc u) exp
+         checkExp rig elabinfo env fc (TType fc u) (gType fc (USucc u)) exp
+checkTerm rig elabinfo nest env (IType fc (Just k)) exp
+    = do let u = natToLevel k
+         checkExp rig elabinfo env fc (TType fc u) (gType fc (USucc u)) exp
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc (Basic str) exp
 checkTerm rig elabinfo nest env (IUnifyLog fc lvl tm) exp

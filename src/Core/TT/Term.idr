@@ -91,6 +91,41 @@ Traversable WhyErased where
 
 
 ------------------------------------------------------------------------
+-- Universe levels
+--
+-- UnivLevel represents a universe level expression.
+-- Phase 0: structural scaffolding — semantics unchanged (UVar is still
+-- treated as an opaque Name placeholder until Phase 3 solver lands).
+
+public export
+data UnivLevel : Type where
+  ||| A universe-level variable (metavariable to be solved)
+  UVar  : Name -> UnivLevel
+  ||| The successor of a level:  l+1
+  USucc : UnivLevel -> UnivLevel
+  ||| The maximum of two levels:  max(l, r)
+  UMax  : UnivLevel -> UnivLevel -> UnivLevel
+  ||| The ground level:  0
+  UZero : UnivLevel
+
+%name UnivLevel ul
+
+public export
+Show UnivLevel where
+  show UZero        = "0"
+  show (UVar n)     = show n
+  show (USucc ul)   = "(" ++ show ul ++ "+1)"
+  show (UMax l r)   = "max(" ++ show l ++ ", " ++ show r ++ ")"
+
+public export
+Eq UnivLevel where
+  UZero     == UZero     = True
+  UVar n    == UVar m    = n == m
+  USucc a   == USucc b   = a == b
+  UMax a b  == UMax c d  = a == c && b == d
+  _         == _         = False
+
+------------------------------------------------------------------------
 -- Core Terms
 
 public export
@@ -116,9 +151,15 @@ data Term : Scoped where
      TDelayed : FC -> LazyReason -> Term vars -> Term vars
      TDelay : FC -> LazyReason -> (ty : Term vars) -> (arg : Term vars) -> Term vars
      TForce : FC -> LazyReason -> Term vars -> Term vars
+     -- Clock-based guarded recursion (Nakano/Atkey-Plotkin style)
+     TFix     : FC -> (clock : Term vars) -> (body : Term vars) -> Term vars
+     TLater   : FC -> (clock : Term vars) -> (ty   : Term vars) -> Term vars
+     TNext    : FC -> (clock : Term vars) -> (val  : Term vars) -> Term vars
+     TTickAbs : FC -> (clkVar : Term vars) -> (body : Term vars) -> Term vars
+     TTickApp : FC -> (fn : Term vars) -> (clkArg : Term vars) -> Term vars
      PrimVal : FC -> (c : Constant) -> Term vars
      Erased : FC -> WhyErased (Term vars) -> Term vars
-     TType : FC -> Name -> -- universe variable
+     TType : FC -> UnivLevel -> -- universe level
              Term vars
 
 %name Term t, u
@@ -149,6 +190,11 @@ insertNames out ns (TDelayed fc r ty) = TDelayed fc r (insertNames out ns ty)
 insertNames out ns (TDelay fc r ty tm)
     = TDelay fc r (insertNames out ns ty) (insertNames out ns tm)
 insertNames out ns (TForce fc r tm) = TForce fc r (insertNames out ns tm)
+insertNames out ns (TFix fc c b)     = TFix fc (insertNames out ns c) (insertNames out ns b)
+insertNames out ns (TLater fc c t)   = TLater fc (insertNames out ns c) (insertNames out ns t)
+insertNames out ns (TNext fc c v)    = TNext fc (insertNames out ns c) (insertNames out ns v)
+insertNames out ns (TTickAbs fc v b) = TTickAbs fc (insertNames out ns v) (insertNames out ns b)
+insertNames out ns (TTickApp fc f a) = TTickApp fc (insertNames out ns f) (insertNames out ns a)
 insertNames out ns (PrimVal fc c) = PrimVal fc c
 insertNames out ns (Erased fc Impossible) = Erased fc Impossible
 insertNames out ns (Erased fc Placeholder) = Erased fc Placeholder
@@ -219,6 +265,16 @@ mutual
      = Just (TDelay fc x !(shrinkTerm t prf) !(shrinkTerm y prf))
   shrinkTerm (TForce fc r x) prf
      = Just (TForce fc r !(shrinkTerm x prf))
+  shrinkTerm (TFix fc c b) prf
+     = Just (TFix fc !(shrinkTerm c prf) !(shrinkTerm b prf))
+  shrinkTerm (TLater fc c t) prf
+     = Just (TLater fc !(shrinkTerm c prf) !(shrinkTerm t prf))
+  shrinkTerm (TNext fc c v) prf
+     = Just (TNext fc !(shrinkTerm c prf) !(shrinkTerm v prf))
+  shrinkTerm (TTickAbs fc v b) prf
+     = Just (TTickAbs fc !(shrinkTerm v prf) !(shrinkTerm b prf))
+  shrinkTerm (TTickApp fc f a) prf
+     = Just (TTickApp fc !(shrinkTerm f prf) !(shrinkTerm a prf))
   shrinkTerm (PrimVal fc c) prf = Just (PrimVal fc c)
   shrinkTerm (Erased fc Placeholder) prf = Just (Erased fc Placeholder)
   shrinkTerm (Erased fc Impossible) prf = Just (Erased fc Impossible)
@@ -255,6 +311,11 @@ mutual
   thinTerm (TDelay fc x t y) th
       = TDelay fc x (thinTerm t th) (thinTerm y th)
   thinTerm (TForce fc r x) th = TForce fc r (thinTerm x th)
+  thinTerm (TFix fc c b)     th = TFix fc (thinTerm c th) (thinTerm b th)
+  thinTerm (TLater fc c t)   th = TLater fc (thinTerm c th) (thinTerm t th)
+  thinTerm (TNext fc c v)    th = TNext fc (thinTerm c th) (thinTerm v th)
+  thinTerm (TTickAbs fc v b) th = TTickAbs fc (thinTerm v th) (thinTerm b th)
+  thinTerm (TTickApp fc f a) th = TTickApp fc (thinTerm f th) (thinTerm a th)
   thinTerm (PrimVal fc c) th = PrimVal fc c
   thinTerm (Erased fc Impossible) th = Erased fc Impossible
   thinTerm (Erased fc Placeholder) th = Erased fc Placeholder
@@ -370,6 +431,11 @@ StripNamespace (Term vars) where
       = TDelay fc x (trimNS ns t) (trimNS ns y)
   trimNS ns (TForce fc r y)
       = TForce fc r (trimNS ns y)
+  trimNS ns (TFix fc c b)     = TFix fc (trimNS ns c) (trimNS ns b)
+  trimNS ns (TLater fc c t)   = TLater fc (trimNS ns c) (trimNS ns t)
+  trimNS ns (TNext fc c v)    = TNext fc (trimNS ns c) (trimNS ns v)
+  trimNS ns (TTickAbs fc v b) = TTickAbs fc (trimNS ns v) (trimNS ns b)
+  trimNS ns (TTickApp fc f a) = TTickApp fc (trimNS ns f) (trimNS ns a)
   trimNS ns tm = tm
 
   restoreNS ns (Ref fc x nm)
@@ -388,6 +454,11 @@ StripNamespace (Term vars) where
       = TDelay fc x (restoreNS ns t) (restoreNS ns y)
   restoreNS ns (TForce fc r y)
       = TForce fc r (restoreNS ns y)
+  restoreNS ns (TFix fc c b)     = TFix fc (restoreNS ns c) (restoreNS ns b)
+  restoreNS ns (TLater fc c t)   = TLater fc (restoreNS ns c) (restoreNS ns t)
+  restoreNS ns (TNext fc c v)    = TNext fc (restoreNS ns c) (restoreNS ns v)
+  restoreNS ns (TTickAbs fc v b) = TTickAbs fc (restoreNS ns v) (restoreNS ns b)
+  restoreNS ns (TTickApp fc f a) = TTickApp fc (restoreNS ns f) (restoreNS ns a)
   restoreNS ns tm = tm
 
 
@@ -407,6 +478,11 @@ getLoc (As fc _ _ _) = fc
 getLoc (TDelayed fc _ _) = fc
 getLoc (TDelay fc _ _ _) = fc
 getLoc (TForce fc _ _) = fc
+getLoc (TFix fc _ _)     = fc
+getLoc (TLater fc _ _)   = fc
+getLoc (TNext fc _ _)    = fc
+getLoc (TTickAbs fc _ _) = fc
+getLoc (TTickApp fc _ _) = fc
 getLoc (PrimVal fc _) = fc
 getLoc (Erased fc i) = fc
 getLoc (TType fc _) = fc
@@ -459,9 +535,14 @@ eqTerm (As _ _ a p) (As _ _ a' p') = eqTerm a a' && eqTerm p p'
 eqTerm (TDelayed _ _ t) (TDelayed _ _ t') = eqTerm t t'
 eqTerm (TDelay _ _ t x) (TDelay _ _ t' x') = eqTerm t t' && eqTerm x x'
 eqTerm (TForce _ _ t) (TForce _ _ t') = eqTerm t t'
+eqTerm (TFix _ c b)     (TFix _ c' b')     = eqTerm c c' && eqTerm b b'
+eqTerm (TLater _ c t)   (TLater _ c' t')   = eqTerm c c' && eqTerm t t'
+eqTerm (TNext _ c v)    (TNext _ c' v')    = eqTerm c c' && eqTerm v v'
+eqTerm (TTickAbs _ v b) (TTickAbs _ v' b') = eqTerm v v' && eqTerm b b'
+eqTerm (TTickApp _ f a) (TTickApp _ f' a') = eqTerm f f' && eqTerm a a'
 eqTerm (PrimVal _ c) (PrimVal _ c') = c == c'
 eqTerm (Erased _ i) (Erased _ i') = assert_total (eqWhyErasedBy eqTerm i i')
-eqTerm (TType {}) (TType {}) = True
+eqTerm (TType _ u) (TType _ u') = u == u'
 eqTerm _ _ = False
 
 export
@@ -501,6 +582,16 @@ mutual
       = TDelay fc x (resolveNames vars t) (resolveNames vars y)
   resolveNames vars (TForce fc r x)
       = TForce fc r (resolveNames vars x)
+  resolveNames vars (TFix fc c b)
+      = TFix fc (resolveNames vars c) (resolveNames vars b)
+  resolveNames vars (TLater fc c t)
+      = TLater fc (resolveNames vars c) (resolveNames vars t)
+  resolveNames vars (TNext fc c v)
+      = TNext fc (resolveNames vars c) (resolveNames vars v)
+  resolveNames vars (TTickAbs fc v b)
+      = TTickAbs fc (resolveNames vars v) (resolveNames vars b)
+  resolveNames vars (TTickApp fc f a)
+      = TTickApp fc (resolveNames vars f) (resolveNames vars a)
   resolveNames vars tm = tm
 
 ------------------------------------------------------------------------
@@ -548,6 +639,11 @@ covering
       showApp (TDelayed _ _ tm) [] = "%Delayed " ++ show tm
       showApp (TDelay _ _ _ tm) [] = "%Delay " ++ show tm
       showApp (TForce _ _ tm) [] = "%Force " ++ show tm
+      showApp (TFix _ c b)     [] = "%Fix " ++ show c ++ " " ++ show b
+      showApp (TLater _ c t)   [] = "%Later " ++ show c ++ " " ++ show t
+      showApp (TNext _ c v)    [] = "%Next " ++ show c ++ " " ++ show v
+      showApp (TTickAbs _ v b) [] = "%TickAbs " ++ show v ++ " " ++ show b
+      showApp (TTickApp _ f a) [] = "%TickApp " ++ show f ++ " " ++ show a
       showApp (PrimVal _ c) [] = show c
       showApp (Erased _ (Dotted t)) [] = ".(" ++ show t ++ ")"
       showApp (Erased {}) [] = "[__]"

@@ -6,6 +6,7 @@ import public Core.Normalise.Quote
 import Core.Case.CaseTree
 import Core.Context
 import Core.Env
+import Core.UnivSolver
 import Core.Value
 
 import Libraries.Data.NatSet
@@ -80,6 +81,11 @@ tryUpdate ms (TForce fc r tm) = pure $ TForce fc r !(tryUpdate ms tm)
 tryUpdate ms (PrimVal fc c) = pure $ PrimVal fc c
 tryUpdate ms (Erased fc a) = Erased fc <$> traverse (tryUpdate ms) a
 tryUpdate ms (TType fc u) = pure $ TType fc u
+tryUpdate ms (TFix fc c b) = pure $ TFix fc !(tryUpdate ms c) !(tryUpdate ms b)
+tryUpdate ms (TLater fc c t) = pure $ TLater fc !(tryUpdate ms c) !(tryUpdate ms t)
+tryUpdate ms (TNext fc c v) = pure $ TNext fc !(tryUpdate ms c) !(tryUpdate ms v)
+tryUpdate ms (TTickAbs fc v b) = pure $ TTickAbs fc !(tryUpdate ms v) !(tryUpdate ms b)
+tryUpdate ms (TTickApp fc fn a) = pure $ TTickApp fc !(tryUpdate ms fn) !(tryUpdate ms a)
 
 mutual
   allConvNF : {auto c : Ref Ctxt Defs} ->
@@ -422,8 +428,13 @@ mutual
     convGen q i defs env (NErased {}) _ = pure True
     convGen q i defs env _ (NErased {}) = pure True
     convGen q i defs env (NType _ ul) (NType _ ur)
-        = -- TODO Cumulativity: Add constraint here
-          pure True
+        = -- Cumulativity: Type ul is a subtype of Type ur when ul ≤ ur.
+          -- leqUnivLevel returns Nothing for unresolved UVars; we fall back
+          -- to True (optimistic) so elaboration can proceed and the solver
+          -- enforces the constraint post-hoc.
+          case leqUnivLevel ul ur of
+            Just b  => pure b
+            Nothing => pure True
     convGen q i defs env x y = pure False
 
   export
