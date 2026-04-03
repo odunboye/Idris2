@@ -1,4 +1,44 @@
 1/1: Building using (using.idr)
+Warning: Main.baz was declared but never defined.
+
+using:12:3--12:16
+ 08 |   bar x = x + x
+ 09 |
+ 10 | using (xs : Vect n a, n : Nat) -- get reordered in dependency order by
+ 11 |                                -- the usual implicit rules
+ 12 |   baz : xs = xs
+        ^^^^^^^^^^^^^
+
+Warning: Main.nardle was declared but never defined.
+
+using:18:3--18:19
+ 14 | data Test : Type -> Type -> Type where
+ 15 |
+ 16 | using (Test a b)
+ 17 |   needle : a -> b -> ()
+ 18 |   nardle : a -> ()
+        ^^^^^^^^^^^^^^^^
+
+Warning: Main.needle was declared but never defined.
+
+using:17:3--17:24
+ 13 |
+ 14 | data Test : Type -> Type -> Type where
+ 15 |
+ 16 | using (Test a b)
+ 17 |   needle : a -> b -> ()
+        ^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.noo was declared but never defined.
+
+using:19:3--19:16
+ 15 |
+ 16 | using (Test a b)
+ 17 |   needle : a -> b -> ()
+ 18 |   nardle : a -> ()
+ 19 |   noo : b -> ()
+        ^^^^^^^^^^^^^
+
 Main> Main.foo : Show a => Eq a => a -> String
 Main> "9494"
 Main> Main.bar : Int -> Int

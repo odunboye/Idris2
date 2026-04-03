@@ -1,9 +1,17 @@
-zero
-one
-many
-5
-7
-4
-5
-7
-9
+Error: Couldn't parse any alternatives:
+1: Expected dot+identifier.
+
+LamClauses:9:12--9:13
+ 5 | module LamClauses
+ 6 |
+ 7 | -- 1. Single argument (degenerate — same as \case)
+ 8 | natName : Nat -> String
+ 9 | natName = \{ Z => "zero" ; (S Z) => "one" ; (S (S _)) => "many" }
+                ^
+... (29 others)
+Error: Undefined name unsafePerformIO. 
+
+(Interactive):1:1--1:1
+ 1 | main
+     
+

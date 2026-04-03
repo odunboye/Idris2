@@ -1,4 +1,21 @@
 1/1: Building Issue2072 (Issue2072.idr)
+Warning: Main.Types was declared but never defined.
+
+Issue2072:3:1--3:42
+ 1 | data Elem : Type -> List Type -> Type where
+ 2 |
+ 3 | Types : (0 a : Type) -> Eq a => List Type
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.body was declared but never defined.
+
+Issue2072:5:1--9:71
+ 5 | export
+ 6 | body :  (0 _ : Eq t1)
+ 7 |      => {auto 0 _ : Elem Bool (Types t1)}
+ 8 |      -> (obj : t1)
+ 9 |      -> (obj == obj) === maybe True (const False) (guard (obj == obj))
+
 Main> 2 holes:
   Main.Types : (0 a : Type) -> Eq a => List Type
   Main.body : {auto 0 conArg : Eq t1} -> {auto 0 _ : Elem Bool (Types t1)} -> (obj : t1) -> obj == obj = maybe (Delay True) (Delay (const False)) (if obj == obj then pure (let x = True in ()) else empty)

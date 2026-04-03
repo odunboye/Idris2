@@ -1,5 +1,16 @@
-one
-[0, 0, 0, 0]
-(True, 42)
-[2, 4, 6]
-OK
+Error: Couldn't parse declaration.
+
+Variable:11:1--11:10
+ 07 | -- Free occurrences of the declared names in subsequent type signatures are
+ 08 | -- auto-bound as implicit Pi binders with the declared type (rig top so they
+ 09 | -- are also usable in function bodies).
+ 10 |
+ 11 | %variable n : Nat
+      ^^^^^^^^^
+
+Error: Undefined name unsafePerformIO. 
+
+(Interactive):1:1--1:1
+ 1 | main
+     
+

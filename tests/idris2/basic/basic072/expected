@@ -1,4 +1,60 @@
 1/1: Building Issue3327 (Issue3327.idr)
+Warning: Main.bar was declared but never defined.
+
+Issue3327:28:1--28:21
+ 24 | test5 = do
+ 25 |   0 x <- foo
+ 26 |   printLn x
+ 27 |
+ 28 | bar : IO (Maybe Nat)
+      ^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.foo was declared but never defined.
+
+Issue3327:1:1--1:13
+ 1 | foo : IO Nat
+     ^^^^^^^^^^^^
+
+Warning: Main.test2 was declared but never defined.
+
+Issue3327:8:1--8:14
+ 4 | test1 = do
+ 5 |   x : Nat <- foo
+ 6 |   printLn x
+ 7 |
+ 8 | test2 : IO ()
+     ^^^^^^^^^^^^^
+
+Warning: Main.test3 was declared but never defined.
+
+Issue3327:13:1--13:14
+ 09 | test2 = do
+ 10 |   1 x : Nat <- foo
+ 11 |   printLn x
+ 12 |
+ 13 | test3 : IO ()
+      ^^^^^^^^^^^^^
+
+Warning: Main.test4 was declared but never defined.
+
+Issue3327:18:1--18:14
+ 14 | test3 = do
+ 15 |   0 x : Nat <- foo
+ 16 |   printLn x
+ 17 |
+ 18 | test4 : IO ()
+      ^^^^^^^^^^^^^
+
+Warning: Main.test5 was declared but never defined.
+
+Issue3327:23:1--23:14
+ 19 | test4 = do
+ 20 |   1 x <- foo
+ 21 |   printLn x
+ 22 |
+ 23 | test5 : IO ()
+      ^^^^^^^^^^^^^
+
 Error: While processing right hand side of test2. Trying to use linear name x in non-linear context.
 
 Issue3327:11:11--11:12

@@ -169,6 +169,16 @@ Fld:228:1--228:43
  228 | decIsNode : (x : Tree a) -> Dec (IsNode x)
        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Warning: Main.r2_shouldNotTypecheck1 was declared but never defined.
+
+Fld:73:1--73:27
+ 69 |
+ 70 | r1 : R1 -- explicit fields access
+ 71 | r1 = MkR {field = "string"}
+ 72 |
+ 73 | r2_shouldNotTypecheck1 : ?
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing right hand side of r2_shouldNotTypecheck1. Ambiguous elaboration. Possible results:
     Main.R2.MkR
     Main.R1.MkR (Prelude.the Prelude.Nat 22)

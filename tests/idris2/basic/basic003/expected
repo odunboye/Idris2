@@ -1,6 +1,40 @@
 1/1: Building Ambig1 (Ambig1.idr)
 Main> Bye for now!
 1/1: Building Ambig2 (Ambig2.idr)
+Warning: Main.Set.fromList was declared but never defined.
+
+Ambig2:22:3--23:29
+ 22 |   export
+ 23 |   fromList : List a -> Set a
+
+Warning: Main.Vect.fromList was declared but never defined.
+
+Ambig2:16:3--17:30
+ 16 |   export
+ 17 |   fromList : List a -> Vect a
+
+Warning: Main.keepUnique was declared but never defined.
+
+Ambig2:25:1--25:30
+ 21 |   toList : Set a -> List a
+ 22 |   export
+ 23 |   fromList : List a -> Set a
+ 24 |
+ 25 | keepUnique : List b -> List b
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.Set.toList was declared but never defined.
+
+Ambig2:20:3--21:27
+ 20 |   export
+ 21 |   toList : Set a -> List a
+
+Warning: Main.Vect.toList was declared but never defined.
+
+Ambig2:14:3--15:28
+ 14 |   export
+ 15 |   toList : Vect a -> List a
+
 Error: While processing right hand side of keepUnique. Ambiguous elaboration. Possible results:
     Main.Set.toList (Main.Set.fromList xs)
     Main.Vect.toList (Main.Vect.fromList xs)

@@ -1,5 +1,11 @@
 1/1: Building Dots1 (Dots1.idr)
 1/1: Building Dots2 (Dots2.idr)
+Warning: Main.foo was declared but never defined.
+
+Dots2:1:1--1:24
+ 1 | foo : Int -> Int -> Int
+     ^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing left hand side of foo. Can't match on ?x [no locals in scope] (Non linear pattern variable).
 
 Dots2:2:7--2:8
@@ -8,6 +14,15 @@ Dots2:2:7--2:8
            ^
 
 1/1: Building Dots3 (Dots3.idr)
+Warning: Main.addBaz was declared but never defined.
+
+Dots3:4:1--4:35
+ 1 | data Baz : Int -> Type where
+ 2 |      AddThings : (x : Int) -> (y : Int) -> Baz (x + y)
+ 3 |
+ 4 | addBaz : (x : Int) -> Baz x -> Int
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing left hand side of addBaz. Pattern variable z unifies with: ?y [no locals in scope].
 
 Dots3:5:13--5:30

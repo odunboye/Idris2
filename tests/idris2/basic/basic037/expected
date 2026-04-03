@@ -1,4 +1,14 @@
 1/1: Building Comments (Comments.idr)
 Main> Bye for now!
 1/1: Building Issue279 (Issue279.idr)
+Warning: Main.someFunction was declared but never defined.
+
+Issue279:5:1--5:21
+ 1 | module Main
+ 2 |
+ 3 | {-- comment 1 --}
+ 4 |
+ 5 | someFunction : IO ()
+     ^^^^^^^^^^^^^^^^^^^^
+
 Main> Bye for now!

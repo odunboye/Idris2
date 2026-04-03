@@ -1,4 +1,14 @@
 1/1: Building Eta (Eta.idr)
+Warning: Main.etaBad was declared but never defined.
+
+Eta:13:1--13:49
+ 09 |
+ 10 | etaGood3: (f : a -> b) -> f = (\x => f x)
+ 11 | etaGood3 f = Refl
+ 12 |
+ 13 | etaBad : MkTest = (\x : Nat => \y => MkTest ? ?)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing right hand side of etaBad. When unifying:
     (\x, y => MkTest x y) = (\x, y => MkTest x y)
 and:
@@ -14,6 +24,21 @@ Eta:14:10--14:14
                ^^^^
 
 1/1: Building Eta2 (Eta2.idr)
+Warning: Main.test was declared but never defined.
+
+Eta2:1:1--1:39
+ 1 | test : Builtin.Equal S (\x : a => S ?)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.test2 was declared but never defined.
+
+Eta2:4:1--4:10
+ 1 | test : Builtin.Equal S (\x : a => S ?)
+ 2 | test = Refl
+ 3 |
+ 4 | test2 : ?
+     ^^^^^^^^^
+
 Error: While processing right hand side of test. When unifying:
     (\x => S x) = (\x => S x)
 and:

@@ -1,4 +1,24 @@
 1/1: Building Rewrite (Rewrite.idr)
+Warning: Main.wrongCommutes was declared but never defined.
+
+Rewrite:13:1--13:46
+ 09 | plusCommutes : (n, m : Nat) -> n + m = m + n
+ 10 | plusCommutes Z m = sym (plusnZ m)
+ 11 | plusCommutes (S k) m = rewrite plusCommutes k m in sym (plusnSm m k)
+ 12 |
+ 13 | wrongCommutes : (n, m : Nat) -> n + m = m + n
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.wrongCommutes2 was declared but never defined.
+
+Rewrite:17:1--17:47
+ 13 | wrongCommutes : (n, m : Nat) -> n + m = m + n
+ 14 | wrongCommutes Z m = sym (plusnZ m)
+ 15 | wrongCommutes (S k) m = rewrite plusCommutes m k in ?bar
+ 16 |
+ 17 | wrongCommutes2 : (n, m : Nat) -> n + m = m + n
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing right hand side of wrongCommutes. Rewriting by m + k = k + m did not change type S k + m = m + S k.
 
 Rewrite:15:25--15:57

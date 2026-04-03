@@ -1,4 +1,23 @@
 1/1: Building Comp (Comp.idr)
+Warning: Main.comp was declared but never defined.
+
+Comp:4:1--4:38
+ 1 | -- Testing that unbound implicits get lifted appropriately
+ 2 |
+ 3 | -- Should all be at the top
+ 4 | comp : (b -> c) -> (a -> b) -> a -> c
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.comp2 was declared but never defined.
+
+Comp:7:1--7:50
+ 3 | -- Should all be at the top
+ 4 | comp : (b -> c) -> (a -> b) -> a -> c
+ 5 |
+ 6 | -- Leave 'a' where it is
+ 7 | comp2 : (b -> c) -> {a : _} -> (a -> b) -> a -> c
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Main> Main> Main.comp : {0 a : Type} -> {0 c : Type} -> {0 b : Type} -> (b -> c) -> (a -> b) -> a -> c
 Main> Main.comp2 : {0 c : Type} -> {0 b : Type} -> (b -> c) -> {a : Type} -> (a -> b) -> a -> c
 Main> Bye for now!

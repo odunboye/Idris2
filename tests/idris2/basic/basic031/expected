@@ -1,4 +1,14 @@
 1/1: Building erased (erased.idr)
+Warning: Main.nameOf was declared but never defined.
+
+erased:6:1--6:24
+ 2 |   MyNothing : MyMaybe a
+ 3 |   MyJust : a -> MyMaybe a
+ 4 |
+ 5 | -- Should fail since type argument is deleted
+ 6 | nameOf : Type -> String
+     ^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing left hand side of nameOf. Can't match on Bool (Erased argument).
 
 erased:7:17--7:21

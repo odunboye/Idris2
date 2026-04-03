@@ -1,4 +1,14 @@
 1/1: Building unboundimps (unboundimps.idr)
+Warning: Main.len was declared but never defined.
+
+unboundimps:15:1--15:32
+ 11 |      ECons : forall t, ts . t -> Env ts -> Env (t :: ts)
+ 12 |
+ 13 | -- fine because the only name used in bound, and it'll infer types for
+ 14 | -- xs and its indices
+ 15 | len : forall xs . Env xs -> Nat
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing type of len'. Undefined name xs. 
 
 unboundimps:18:11--18:13

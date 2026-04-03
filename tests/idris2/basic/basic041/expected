@@ -1,4 +1,14 @@
 1/1: Building QDo (QDo.idr)
+Warning: Main.test was declared but never defined.
+
+QDo:25:1--25:11
+ 21 |     export
+ 22 |     (>>) : Nat -> Nat -> Nat
+ 23 |     a >> f = a >>= const f
+ 24 |
+ 25 | test : Nat
+      ^^^^^^^^^^
+
 Error: While processing right hand side of test. Undefined name B.A.(>>). 
 
 QDo:27:10--27:11
