@@ -259,17 +259,17 @@ mutual
                  Core (Term vars, Glued vars)
   makeImplicit rig argRig elabinfo nest env fc tm x aty sc (n, argpos) expargs autoargs namedargs kr expty
       = do defs <- get Ctxt
-           -- For Level-typed implicits, create a UVar and a Level term
-           -- placeholder that will be filled in later.
            isLvl <- isLevelClosureFull defs aty
            nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
            metaval <- if isLvl
-                        then do -- Create a UVar for this level and a placeholder
-                                -- Level term.  The term won't be used at runtime
-                                -- (Level binders are Rig0), but we need it for
-                                -- the elaborator.
+                        then do -- Level-typed implicit: fill with a concrete Level
+                                -- term.  The binder is Rig0 so this won't appear
+                                -- at runtime.  The UVar mechanism in Type l handles
+                                -- actual level propagation.  We use LZero as the
+                                -- default; the universe solver resolves the real
+                                -- level through constraints on the UVar.
                                 natToLevelTerm fc env 0
                         else metaVar fc argRig env nm metaty
            let fntm = App fc tm metaval
