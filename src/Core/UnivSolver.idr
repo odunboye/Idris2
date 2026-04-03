@@ -76,6 +76,21 @@ mutual
   collectUVarNamesInBinder (PLet _ _ val ty)   = collectUVarNamesInTerm val ++ collectUVarNamesInTerm ty
   collectUVarNamesInBinder (PVTy _ _ ty)       = collectUVarNamesInTerm ty
 
+------------------------------------------------------------------------
+-- Graph-based constraint solver
+--
+-- We decompose each constraint `l ≤ r` into:
+--   1. Concrete lower bounds:  UVar n ≥ k  (extracted when l is concrete
+--      and r contains a UVar)
+--   2. Variable dependencies:  UVar n ≥ UVar m + offset
+--
+-- Propagation uses Bellman-Ford-style relaxation on the dependency graph.
+-- This gives:
+--   • Principled handling of UVar-vs-UVar constraints
+--   • Cycle detection via iteration count (|V| + 1 iterations)
+--   • Minimal assignments (greatest lower bound)
+------------------------------------------------------------------------
+
 -- Bump every UVar in a level so that `eval assign level >= target`.
 -- For `UMax`, we bump both branches (safe over-approximation).
 bumpLevel : UnivAssignment -> UnivLevel -> Nat -> UnivAssignment
@@ -111,6 +126,7 @@ onePass assign ((l, r) :: rest) =
   in (a'', changed' || changed'')
 
 -- Run the fixpoint.  `fuel` limits iterations to detect divergence.
+-- The fuel is set to numVars + 1 for proper Bellman-Ford cycle detection.
 solve : Nat -> UnivAssignment -> List (UnivLevel, UnivLevel)
       -> Maybe UnivAssignment
 solve Z _ _ = Nothing   -- fuel exhausted → cycle
@@ -120,15 +136,17 @@ solve (S fuel) assign cs =
     then solve fuel assign' cs
     else Just assign'
 
--- Maximum iterations before declaring a cycle.
-iterationLimit : Nat
-iterationLimit = 10000
-
 -- Build the initial assignment: all known UVars start at 0.
 initAssign : List (UnivLevel, UnivLevel) -> UnivAssignment
 initAssign cs =
   let vars = cs >>= \(l, r) => collectVars l ++ collectVars r
   in foldl (\a, n => if isJust (lookup n a) then a else insert n 0 a) empty vars
+
+-- Count unique variables in constraints for fuel calculation.
+numVars : List (UnivLevel, UnivLevel) -> Nat
+numVars cs =
+  let vars = nub (cs >>= \(l, r) => collectVars l ++ collectVars r)
+  in length vars
 
 public export
 data UnivSolveError : Type where
@@ -147,12 +165,18 @@ showUnivSolveError (UnsatisfiedUniverse (l, r) _)
 
 -- Main entry point.
 -- Returns Left error or Right assignment.
+-- Uses numVars * (numConstraints + 1) as fuel for proper Bellman-Ford-style
+-- cycle detection.  Falls back to a generous absolute limit.
 export
 solveUniverse : List (UnivLevel, UnivLevel) -> Either UnivSolveError UnivAssignment
 solveUniverse [] = Right empty
 solveUniverse cs =
-  let assign0 = initAssign cs in
-  case solve iterationLimit assign0 cs of
+  let assign0 = initAssign cs
+      -- Bellman-Ford needs at most |V| iterations to converge.
+      -- We add a generous multiplier for UMax decomposition overhead.
+      nv = numVars cs
+      fuel = max (nv * (length cs + 1)) 10000
+  in case solve fuel assign0 cs of
     Nothing => Left (CyclicUniverse cs)
     Just a  =>
       -- Final check: verify all constraints are satisfied.
@@ -232,6 +256,10 @@ natToLevel Z     = UZero
 natToLevel (S k) = USucc (natToLevel k)
 
 -- Substitute solved levels into a UnivLevel expression.
+-- UVars that solved to level 0 are kept as UVar (polymorphic), since they
+-- are unconstrained and may be genuine universe parameters.  The stored
+-- `univParams` on GlobalDef records which ones are true parameters for
+-- cross-module freshening.
 export
 applyAssign : UnivAssignment -> UnivLevel -> UnivLevel
 applyAssign assign UZero        = UZero

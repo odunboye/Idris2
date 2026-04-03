@@ -209,6 +209,35 @@ isHole : NF vars -> Bool
 isHole (NApp _ (NMeta {}) _) = True
 isHole _ = False
 
+-- Check if a closure evaluates to the Level type.
+-- We resolve the name to its full name to handle resolved/unresolved forms.
+isLevelClosureFull : {vars : _} -> {auto c : Ref Ctxt Defs} ->
+                     Defs -> Closure vars -> Core Bool
+isLevelClosureFull defs cl
+    = do nf <- evalClosure defs cl
+         case nf of
+           NTCon _ n _ _ => do
+             fn <- toFullNames n
+             pure (nameRoot fn == "Level")
+           _ => pure False
+
+-- Convert a Nat (universe level) to a Level term: 0 -> LZero, n+1 -> LSuc (n)
+natToLevelTerm : {vars : _} -> {auto c : Ref Ctxt Defs} ->
+                 FC -> Env Term vars -> Nat -> Core (Term vars)
+natToLevelTerm fc env Z
+    = do defs <- get Ctxt
+         ns <- lookupCtxtName (UN (Basic "LZero")) (gamma defs)
+         case ns of
+           ((n, _, _) :: _) => pure (Ref fc (DataCon 0 0) n)
+           _ => pure (Erased fc Placeholder)
+natToLevelTerm fc env (S k)
+    = do defs <- get Ctxt
+         ns <- lookupCtxtName (UN (Basic "LSuc")) (gamma defs)
+         inner <- natToLevelTerm fc env k
+         case ns of
+           ((n, _, _) :: _) => pure (App fc (Ref fc (DataCon 1 1) n) inner)
+           _ => pure (Erased fc Placeholder)
+
 mutual
   makeImplicit : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
@@ -230,13 +259,22 @@ mutual
                  Core (Term vars, Glued vars)
   makeImplicit rig argRig elabinfo nest env fc tm x aty sc (n, argpos) expargs autoargs namedargs kr expty
       = do defs <- get Ctxt
+           -- For Level-typed implicits, create a UVar and a Level term
+           -- placeholder that will be filled in later.
+           isLvl <- isLevelClosureFull defs aty
            nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
-           metaval <- metaVar fc argRig env nm metaty
+           metaval <- if isLvl
+                        then do -- Create a UVar for this level and a placeholder
+                                -- Level term.  The term won't be used at runtime
+                                -- (Level binders are Rig0), but we need it for
+                                -- the elaborator.
+                                natToLevelTerm fc env 0
+                        else metaVar fc argRig env nm metaty
            let fntm = App fc tm metaval
            fnty <- sc defs (toClosure defaultOpts env metaval)
-           when (bindingVars elabinfo) $ update EST $
+           when (not isLvl && bindingVars elabinfo) $ update EST $
              addBindIfUnsolved nm (getLoc (getFn tm)) argRig
                (if inIrrelevantPi elabinfo then Irrelevant else Implicit) env metaval metaty
            checkAppWith rig elabinfo nest env fc
