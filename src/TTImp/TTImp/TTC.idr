@@ -326,7 +326,8 @@ mutual
     toBuf TCInline = tag 11
     toBuf NoInline = tag 12
     toBuf Unsafe = tag 13
-    toBuf Deprecate = tag 14
+    toBuf (Deprecate Nothing) = tag 14
+    toBuf (Deprecate (Just msg)) = do tag 16; toBuf msg
     toBuf (ForeignExport cs) = do tag 15; toBuf cs
     toBuf Terminating = tag 18
     toBuf NoCoverage = tag 19
@@ -347,7 +348,8 @@ mutual
                11 => pure TCInline
                12 => pure NoInline
                13 => pure Unsafe
-               14 => pure Deprecate
+               14 => pure (Deprecate Nothing)
+               16 => do msg <- fromBuf; pure (Deprecate (Just msg))
                15 => do cs <- fromBuf; pure (ForeignExport cs)
                18 => pure Terminating
                19 => pure NoCoverage

@@ -1,1 +1,40 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Door (Door.idr)
+Warning: Main.closeDoor was declared but never defined.
+
+Door:21:1--21:75
+ 17 |            L io {use=1} (Res OpenResult (\case
+ 18 |                                            Jammed => Door CLOSED
+ 19 |                                            OK => Door OPEN))
+ 20 |
+ 21 | closeDoor : LinearIO io => (1 _ : Door OPEN) -> L io {use=1} (Door CLOSED)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.deleteDoor was declared but never defined.
+
+Door:22:1--22:59
+ 18 |                                            Jammed => Door CLOSED
+ 19 |                                            OK => Door OPEN))
+ 20 |
+ 21 | closeDoor : LinearIO io => (1 _ : Door OPEN) -> L io {use=1} (Door CLOSED)
+ 22 | deleteDoor : LinearIO io => (1 _ : Door CLOSED) -> L io ()
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.newDoor was declared but never defined.
+
+Door:13:1--13:75
+ 09 | data OpenResult = Jammed | OK
+ 10 |
+ 11 | data Door : DoorState -> Type where
+ 12 |
+ 13 | newDoor : LinearIO io => (1 _ : (1 _ : Door CLOSED) -> L io ()) -> L io ()
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.openDoor was declared but never defined.
+
+Door:15:1--19:61
+ 15 | openDoor : LinearIO io =>
+ 16 |            (1 _ : Door CLOSED) ->
+ 17 |            L io {use=1} (Res OpenResult (\case
+ 18 |                                            Jammed => Door CLOSED
+ 19 |                                            OK => Door OPEN))
+

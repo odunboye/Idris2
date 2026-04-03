@@ -855,6 +855,7 @@ HasNames Error where
   full gam (NoForeignCC fc xs) = pure (NoForeignCC fc xs)
   full gam (BadMultiline fc x) = pure (BadMultiline fc x)
   full gam (Timeout x) = pure (Timeout x)
+  full gam (SafeModuleViolation fc x) = pure (SafeModuleViolation fc x)
   full gam (FailingDidNotFail fc) = pure (FailingDidNotFail fc)
   full gam (FailingWrongError fc x err) = FailingWrongError fc x <$> traverseList1 (full gam) err
   full gam (InType fc n err) = InType fc <$> full gam n <*> full gam err
@@ -956,6 +957,7 @@ HasNames Error where
   resolved gam (NoForeignCC fc xs) = pure (NoForeignCC fc xs)
   resolved gam (BadMultiline fc x) = pure (BadMultiline fc x)
   resolved gam (Timeout x) = pure (Timeout x)
+  resolved gam (SafeModuleViolation fc x) = pure (SafeModuleViolation fc x)
   resolved gam (FailingDidNotFail fc) = pure (FailingDidNotFail fc)
   resolved gam (FailingWrongError fc x err) = FailingWrongError fc x <$> traverseList1 (resolved gam) err
   resolved gam (InType fc n err) = InType fc <$> resolved gam n <*> resolved gam err

@@ -1,1 +1,25 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue1313 (Issue1313.idr)
+Warning: Main.Y.g was declared but never defined.
+
+Issue1313:8:3--8:24
+ 4 |   f : Int -> Int
+ 5 |
+ 6 | namespace Y
+ 7 |
+ 8 |   g : Int -> Int -> Int
+       ^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of g. When unifying:
+    Int -> Int -> Int
+and:
+    Int
+Mismatch between: Int -> Int -> Int and Int.
+
+Issue1313:9:17--9:18
+ 5 |
+ 6 | namespace Y
+ 7 |
+ 8 |   g : Int -> Int -> Int
+ 9 |   g x y = x + f g
+                     ^
+

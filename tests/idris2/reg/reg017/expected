@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building lammult (lammult.idr)
+Warning: Main.badmap was declared but never defined.
+
+lammult:1:1--1:30
+ 1 | badmap : List Int -> List Int
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of badmap. Mismatch between: (0 _ : ?a) -> ?b and ?a -> ?b.
+
+lammult:2:18--2:19
+ 1 | badmap : List Int -> List Int
+ 2 | badmap = map (\0 x => 2)
+                      ^
+

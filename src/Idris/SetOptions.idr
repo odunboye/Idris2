@@ -555,6 +555,9 @@ preOptions (Total :: opts)
 preOptions (NoCSE :: opts)
     = do updateSession ({ noCSE := True })
          preOptions opts
+preOptions (Safe :: opts)
+    = do updateSession ({ safeMode := True })
+         preOptions opts
 preOptions (_ :: opts) = preOptions opts
 
 -- Options to be processed after type checking. Returns whether execution

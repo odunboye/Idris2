@@ -122,6 +122,7 @@ Eq Error where
   BadMultiline fc1 x1 == BadMultiline fc2 x2 = fc1 == fc2 && x1 == x2
   Timeout x1 == Timeout x2 = x1 == x2
   FailingDidNotFail fc1 == FailingDidNotFail fc2 = fc1 == fc2
+  SafeModuleViolation fc1 x1 == SafeModuleViolation fc2 x2 = fc1 == fc2 && x1 == x2
   FailingWrongError fc1 x1 err1 == FailingWrongError fc2 x2 err2
     = fc1 == fc2 && x1 == x2 && assert_total (err1 == err2)
   InType fc1 n1 err1 == InType fc2 n2 err2 = fc1 == fc2 && n1 == n2 && err1 == err2
@@ -754,6 +755,10 @@ perrorRaw (BadMultiline fc str)
   = pure $ errorDesc (reflow "While processing multi-line string" <+> dot <++> pretty0 str <+> dot)
       <+> line <+> !(ploc fc)
 perrorRaw (Timeout str) = pure $ errorDesc (reflow "Timeout in" <++> pretty0 str)
+
+perrorRaw (SafeModuleViolation fc str)
+    = pure $ annotate (Syntax Keyword) "Safe module violation:" <++> pretty0 str
+             <+> line <+> !(ploc fc)
 
 perrorRaw (FailingDidNotFail fc)
   = pure $ errorDesc (reflow "Failing block did not fail" <+> dot)

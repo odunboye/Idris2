@@ -1,1 +1,78 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/2: Building Stuff (Stuff.idr)
+2/2: Building Door (Door.idr)
+Warning: Main.(>>=) was declared but never defined.
+
+Door:15:1--15:69
+ 11 | contType : (Type -> Type) -> Usage -> Usage -> Type -> Type -> Type
+ 12 | contType m Once q a b = ((1 x : a) -> Use q m b)
+ 13 | contType m Many q a b = ((x : a) -> Use q m b)
+ 14 |
+ 15 | (>>=) : (1 f : Use p m a) -> (1 k : contType m p q a b) -> Use q m b
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.closeDoor was declared but never defined.
+
+Door:33:1--33:53
+ 29 | newDoor : One m (Door Closed)
+ 30 |
+ 31 | knock : (1 d : Door Closed) -> One m (Door Closed)
+ 32 | openDoor : (1 d : Door Closed) -> One m (Either (Door Closed) (Door Open))
+ 33 | closeDoor : (1 d : Door Open) -> One m (Door Closed)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.deleteDoor was declared but never defined.
+
+Door:35:1--35:47
+ 31 | knock : (1 d : Door Closed) -> One m (Door Closed)
+ 32 | openDoor : (1 d : Door Closed) -> One m (Either (Door Closed) (Door Open))
+ 33 | closeDoor : (1 d : Door Open) -> One m (Door Closed)
+ 34 |
+ 35 | deleteDoor : (1 d : Door Closed) -> Any m Unit
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.knock was declared but never defined.
+
+Door:31:1--31:51
+ 27 |      MkDoor : (isOpen : Bool) -> Door doorstate
+ 28 |
+ 29 | newDoor : One m (Door Closed)
+ 30 |
+ 31 | knock : (1 d : Door Closed) -> One m (Door Closed)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.newDoor was declared but never defined.
+
+Door:29:1--29:30
+ 25 |
+ 26 | data Door : DoorState -> Type where
+ 27 |      MkDoor : (isOpen : Bool) -> Door doorstate
+ 28 |
+ 29 | newDoor : One m (Door Closed)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.openDoor was declared but never defined.
+
+Door:32:1--32:75
+ 28 |
+ 29 | newDoor : One m (Door Closed)
+ 30 |
+ 31 | knock : (1 d : Door Closed) -> One m (Door Closed)
+ 32 | openDoor : (1 d : Door Closed) -> One m (Either (Door Closed) (Door Open))
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.pure was declared but never defined.
+
+Door:16:1--16:22
+ 12 | contType m Once q a b = ((1 x : a) -> Use q m b)
+ 13 | contType m Many q a b = ((x : a) -> Use q m b)
+ 14 |
+ 15 | (>>=) : (1 f : Use p m a) -> (1 k : contType m p q a b) -> Use q m b
+ 16 | pure : a -> Use u m a
+      ^^^^^^^^^^^^^^^^^^^^^
+
+Main>  0 m : Type -> Type
+ 0 d : Door Closed
+ 1 d' : Door Open
+------------------------------
+foo : Use Many m Unit
+Main> Bye for now!

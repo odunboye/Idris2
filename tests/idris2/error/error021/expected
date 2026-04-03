@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building DeepAmbig (DeepAmbig.idr)
+Error: Main.test was declared but never defined.
+
+DeepAmbig:17:1--17:19
+ 13 | %ambiguity_depth 1000
+ 14 |
+ 15 | -- There's an undefined name very deep here - if we don't take a shortcut,
+ 16 | -- this shows all the ambiguous branches with the undefined named!
+ 17 | test : Nat -> Bool
+      ^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of test. Undefined name va. 
+
+DeepAmbig:50:59--50:61
+ 46 |       x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $
+ 47 |       x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $
+ 48 |       x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $
+ 49 |       x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $
+ 50 |       x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ x $ va
+                                                                ^^
+

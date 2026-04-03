@@ -1,1 +1,30 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Holes (Holes.idr)
+Warning: Unreachable clause: f True
+
+Holes:12:1--12:7
+ 08 | Weird v =  Vect_ext ?hole0 ?hole1 ?hole2
+ 09 |
+ 10 | f : Bool -> Nat
+ 11 | f True = 0
+ 12 | f True = ?help
+      ^^^^^^
+
+Warning: Main.Vect_ext was declared but never defined.
+
+Holes:4:1--5:11
+ 4 | Vect_ext : (v : Vect n a) -> (w : Vect n a) -> ((i : Fin n) -> index i v = index i w)
+ 5 |   -> v = w
+
+Main> Main.help : Nat
+Main>  0 a : Type
+ 0 n : Nat
+   v : Vect n a
+------------------------------
+hole0 : Vect n a
+Main>  0 a : Type
+ 0 n : Nat
+   v : Vect n a
+------------------------------
+hole1 : Vect n a
+Main> v
+Main> Bye for now!

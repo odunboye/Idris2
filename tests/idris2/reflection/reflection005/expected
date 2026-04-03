@@ -1,1 +1,27 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building refdecl (refdecl.idr)
+Warning: Main.bad was declared but never defined.
+
+refdecl:12:1--12:8
+ 08 |                  mkMult x = x * ~(v) ]
+ 09 |
+ 10 | %runElab mkDecls `(94)
+ 11 |
+ 12 | bad : a
+      ^^^^^^^
+
+Error: While processing right hand side of bad. When unifying:
+    Elab ()
+and:
+    Elab a
+Mismatch between: () and a.
+
+refdecl:13:16--13:29
+ 09 |
+ 10 | %runElab mkDecls `(94)
+ 11 |
+ 12 | bad : a
+ 13 | bad = %runElab mkDecls `(94)
+                     ^^^^^^^^^^^^^
+
+Main> 9400
+Main> Bye for now!

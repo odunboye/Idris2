@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building anyfail (anyfail.idr)
+Warning: Main.showing was declared but never defined.
+
+anyfail:20:1--20:92
+ 16 |     SomethingVeryComplicatedIs :
+ 17 |         TooComplicatedToBeTrue
+ 18 |             (MkEvenMoreComplicated (MkMoreComplicated (MkComplicated (PtrAndSize addr len))))
+ 19 |
+ 20 | showing  :  (something : EvenMoreComplicated) -> (TooComplicatedToBeTrue something) -> Void
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: showing (MkEvenMoreComplicated (MkMoreComplicated (MkComplicated (PtrAndSize addr len)))) SomethingVeryComplicatedIs is not a valid impossible case.
+
+anyfail:21:1--21:48
+ 17 |         TooComplicatedToBeTrue
+ 18 |             (MkEvenMoreComplicated (MkMoreComplicated (MkComplicated (PtrAndSize addr len))))
+ 19 |
+ 20 | showing  :  (something : EvenMoreComplicated) -> (TooComplicatedToBeTrue something) -> Void
+ 21 | showing _ SomethingVeryComplicatedIs impossible
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

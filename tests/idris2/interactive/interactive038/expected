@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.idr)
+Warning: Main.replicate was declared but never defined.
+
+IEdit:7:1--7:39
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | replicate : {m : Nat} -> a -> Vect m a
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> No search results
+Main> replicate []
+Main> Bye for now!

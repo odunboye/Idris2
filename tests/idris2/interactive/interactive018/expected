@@ -1,1 +1,26 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building PlusPrf (PlusPrf.idr)
+Warning: Main.plusS was declared but never defined.
+
+PlusPrf:7:1--7:62
+ 3 | mycong f Refl = Refl
+ 4 |
+ 5 | plusZ : (n : Nat) -> plus n Z = n
+ 6 |
+ 7 | plusS : (n : Nat) -> (m : Nat) -> plus n (S m) = S (plus n m)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.plusZ was declared but never defined.
+
+PlusPrf:5:1--5:34
+ 1 | %hint
+ 2 | mycong : (f : a -> b) -> x = y -> f x = f y
+ 3 | mycong f Refl = Refl
+ 4 |
+ 5 | plusZ : (n : Nat) -> plus n Z = n
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> plusZ 0 = Refl
+plusZ (S k) = mycong S (plusZ k)
+Main> plusS 0 m = Refl
+plusS (S k) m = mycong S (plusS k m)
+Main> Bye for now!

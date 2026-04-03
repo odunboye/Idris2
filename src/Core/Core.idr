@@ -202,6 +202,8 @@ data Error : Type where
      FailingDidNotFail : FC -> Error
      FailingWrongError : FC -> String -> List1 Error -> Error
 
+     SafeModuleViolation : FC -> String -> Error
+
      InType : FC -> Name -> Error -> Error
      InCon : WithFC Name -> Error -> Error
      InLHS : FC -> Name -> Error -> Error
@@ -400,6 +402,8 @@ Show Error where
   show (BadMultiline fc str) = "Invalid multiline string: " ++ str
   show (Timeout str) = "Timeout in " ++ str
 
+  show (SafeModuleViolation _ str) = "Safe module violation: " ++ str
+
   show (FailingDidNotFail _) = "Failing block did not fail"
   show (FailingWrongError fc msg err)
        = show fc ++ ":Failing block failed with the wrong error:\n" ++
@@ -521,6 +525,7 @@ getErrorLoc (BadMultiline loc _) = Just loc
 getErrorLoc (Timeout _) = Nothing
 getErrorLoc (InType _ _ err) = getErrorLoc err
 getErrorLoc (InCon _ err) = getErrorLoc err
+getErrorLoc (SafeModuleViolation loc _) = Just loc
 getErrorLoc (FailingDidNotFail loc) = Just loc
 getErrorLoc (FailingWrongError loc _ _) = Just loc
 getErrorLoc (InLHS _ _ err) = getErrorLoc err
@@ -613,6 +618,7 @@ killErrorLoc (UserError x) = UserError x
 killErrorLoc (NoForeignCC fc xs) = NoForeignCC emptyFC xs
 killErrorLoc (BadMultiline fc x) = BadMultiline emptyFC x
 killErrorLoc (Timeout x) = Timeout x
+killErrorLoc (SafeModuleViolation fc x) = SafeModuleViolation emptyFC x
 killErrorLoc (FailingDidNotFail fc) = FailingDidNotFail emptyFC
 killErrorLoc (FailingWrongError fc x errs) = FailingWrongError emptyFC x (map killErrorLoc errs)
 killErrorLoc (InType fc x err) = InType emptyFC x (killErrorLoc err)

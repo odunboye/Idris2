@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.dj)
+Warning: Main.1:zipHere was declared but never defined.
+
+IEdit:15:5--15:63
+ 11 | ```idris
+ 12 | dupAll : Vect n a -> Vect n (a, a)
+ 13 | dupAll xs = zipHere xs xs
+ 14 |   where
+ 15 |     zipHere : forall n . Vect n a -> Vect n b -> Vect n (a, b)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main>     zipHere [] [] = []
+    zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
+Main> Bye for now!

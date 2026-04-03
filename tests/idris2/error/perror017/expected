@@ -1,1 +1,11 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building ParseImpl (ParseImpl.idr)
+Warning: Main.prod was declared but never defined.
+
+ParseImpl:10:1--10:63
+ 06 |
+ 07 | Product' : (Type -> Type) -> (Type -> Type) -> (Type -> Type -> Type)
+ 08 | Product' f g = (\a, b => (f a, g b))
+ 09 |
+ 10 | [prod] Functor' f => Functor' g => Functor' ((Product' f g) a)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

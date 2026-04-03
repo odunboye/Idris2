@@ -1,1 +1,95 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.idr)
+Warning: Main.append was declared but never defined.
+
+IEdit:13:1--13:48
+ 09 | my_curry : ((a, b) -> c) -> a -> b -> c
+ 10 |
+ 11 | my_uncurry : (a -> b -> c) -> (a, b) -> c
+ 12 |
+ 13 | append : Vect n a -> Vect m a -> Vect (n + m) a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.foo was declared but never defined.
+
+IEdit:35:1--35:15
+ 31 | data Tree : (a : Type) -> Type where
+ 32 |   Leaf : a -> Tree a
+ 33 |   Node : a -> Tree a -> Tree a -> Tree a
+ 34 |
+ 35 | foo : Tree Nat
+      ^^^^^^^^^^^^^^
+
+Warning: Main.lappend was declared but never defined.
+
+IEdit:15:1--15:55
+ 11 | my_uncurry : (a -> b -> c) -> (a, b) -> c
+ 12 |
+ 13 | append : Vect n a -> Vect m a -> Vect (n + m) a
+ 14 |
+ 15 | lappend : (1 xs : List a) -> (1 ys : List a) -> List a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.lookup was declared but never defined.
+
+IEdit:29:1--29:36
+ 25 | data Elem : a -> Vect n a -> Type where
+ 26 |      Here : Elem x (x :: xs)
+ 27 |      There : (p : Elem x xs) -> Elem x (y :: xs)
+ 28 |
+ 29 | lookup : Elem ty vs -> Env vs -> ty
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.my_cong was declared but never defined.
+
+IEdit:7:1--7:62
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.my_curry was declared but never defined.
+
+IEdit:9:1--9:40
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+ 8 |
+ 9 | my_curry : ((a, b) -> c) -> a -> b -> c
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.my_uncurry was declared but never defined.
+
+IEdit:11:1--11:42
+ 07 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+ 08 |
+ 09 | my_curry : ((a, b) -> c) -> a -> b -> c
+ 10 |
+ 11 | my_uncurry : (a -> b -> c) -> (a, b) -> c
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.zipWith was declared but never defined.
+
+IEdit:17:1--17:60
+ 13 | append : Vect n a -> Vect m a -> Vect (n + m) a
+ 14 |
+ 15 | lappend : (1 xs : List a) -> (1 ys : List a) -> List a
+ 16 |
+ 17 | zipWith : (a -> b -> c) -> Vect n a -> Vect n b -> Vect n c
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> my_cong x x Refl = Refl
+Main> my_curry f x y = f (x, y)
+Main> my_uncurry f x = f (fst x) (snd x)
+Main> append [] ys = ys
+append (x :: xs) ys = x :: append xs ys
+Main> lappend [] ys = ys
+lappend (x :: xs) ys = lappend ys (x :: xs)
+Main> zipWith f [] [] = []
+zipWith f (x :: xs) (y :: ys) = f x y :: zipWith f xs ys
+Main> lookup Here (ECons x es) = x
+lookup (There p) (ECons x es) = lookup p es
+Main> foo = Leaf 0
+Main> Main.my_uncurry : (a -> b -> c) -> (a, b) -> c
+Main> Bye for now!

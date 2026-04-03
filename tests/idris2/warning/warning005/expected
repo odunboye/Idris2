@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Main (Main.idr)
+Warning: You may be unintentionally shadowing the following local bindings:
+  x, y
+
+Main:1:1--1:108
+ 1 | f : Nat -> {x : Int} -> {y : Type} -> Bool -> {y : List a} -> {x : Nat} -> Double -> (x : Maybe Void) -> ()
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.f was declared but never defined.
+
+Main:1:1--1:108
+ 1 | f : Nat -> {x : Int} -> {y : Type} -> Bool -> {y : List a} -> {x : Nat} -> Double -> (x : Maybe Void) -> ()
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

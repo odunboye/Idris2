@@ -1,1 +1,10 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building timeout (timeout.idr)
+Warning: Main.tailIsNotSound was declared but never defined.
+
+timeout:54:1--56:25
+ 54 | tailIsNotSound : (contra : (AllInputsSound is ps ts -> Void))
+ 55 |                  -> AllInputsSound (i :: is) ps ts
+ 56 |                  -> Void
+
+Main> tailIsNotSound contra (ConsIsSound headIsSound tailIsSound) = contra tailIsSound
+Main> Bye for now!

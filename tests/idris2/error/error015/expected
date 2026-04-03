@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue110 (Issue110.idr)
+Warning: Main.f was declared but never defined.
+
+Issue110:7:1--7:17
+ 3 |
+ 4 | data Tup : (a,b : Type) -> Type where
+ 5 |   MkTup : (1 f : a) -> (1 s : b) -> Tup a b
+ 6 |
+ 7 | f : Tup a b -> a
+     ^^^^^^^^^^^^^^^^
+
+Error: Declaration name (f) shadowed by a pattern variable.
+
+Issue110:8:1--8:14
+ 4 | data Tup : (a,b : Type) -> Type where
+ 5 |   MkTup : (1 f : a) -> (1 s : b) -> Tup a b
+ 6 |
+ 7 | f : Tup a b -> a
+ 8 | f (MkTup f s) = f
+     ^^^^^^^^^^^^^
+

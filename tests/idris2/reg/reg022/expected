@@ -1,1 +1,8 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building case (case.idr)
+Warning: Main.foo was declared but never defined.
+
+case:3:1--5:37
+ 3 | foo : (x : Nat) -> case S x of
+ 4 |                         Z => Nat -> Nat
+ 5 |                         (S k) => Nat
+

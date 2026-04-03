@@ -163,6 +163,9 @@ record Session where
                       -- should be shown.
   noCSE : Bool -- disable common subexpression elimination
 
+  -- Safe mode: ban believe_me, assert_total, assert_smaller, %unsafe, unsafePerformIO
+  safeMode : Bool
+
   -- Warnings
   warningsAsErrors : Bool
   showShadowingWarning : Bool
@@ -241,7 +244,7 @@ export
 defaultSession : Session
 defaultSession = MkSessionOpts False CoveringOnly False False Chez [] 1000 False False
                                defaultLogLevel Nothing False Nothing Nothing
-                               Nothing Nothing False 1 False False True
+                               Nothing Nothing False 1 False False False True
                                False [] False False
 
 export

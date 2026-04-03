@@ -1,1 +1,37 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Deps (Deps.idr)
+Warning: We are about to implicitly bind the following lowercase names.
+You may be unintentionally shadowing the associated global definitions:
+  card is shadowing Main.card
+
+Deps:15:3--15:28
+ 11 |   to = id
+ 12 |
+ 13 | interface BadFinite t where
+ 14 |   badcard   : Nat
+ 15 |   badto     : t -> Fin card
+        ^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.badcard was declared but never defined.
+
+Deps:17:1--19:13
+ 17 | implementation BadFinite (Fin k) where
+ 18 |   badcard = k
+ 19 |   badto = id
+
+Warning: Main.badto was declared but never defined.
+
+Deps:17:1--19:13
+ 17 | implementation BadFinite (Fin k) where
+ 18 |   badcard = k
+ 19 |   badto = id
+
+Error: While processing right hand side of badcard. k is not accessible in this context.
+
+Deps:18:13--18:14
+ 14 |   badcard   : Nat
+ 15 |   badto     : t -> Fin card
+ 16 |
+ 17 | implementation BadFinite (Fin k) where
+ 18 |   badcard = k
+                  ^
+

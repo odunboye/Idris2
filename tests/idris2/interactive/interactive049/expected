@@ -1,1 +1,13 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Nats (Nats.idr)
+Warning: Nats.nats was declared but never defined.
+
+Nats:7:1--7:60
+ 3 | import Data.Nat
+ 4 |
+ 5 | %default total
+ 6 |
+ 7 | nats : (m : Nat) -> (n : Nat) -> (prf : NonZero n) -> m = n
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Nats> No search results
+Nats> Bye for now!

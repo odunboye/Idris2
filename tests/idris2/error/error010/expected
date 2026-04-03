@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Loop (Loop.idr)
+Warning: Main.example was declared but never defined.
+
+Loop:1:1--1:17
+ 1 | example : String
+     ^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of example. Main.example is already defined.
+
+Loop:2:11--2:19
+ 1 | example : String
+ 2 | example = ?example
+               ^^^^^^^^
+

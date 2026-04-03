@@ -1,1 +1,29 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue3251 (Issue3251.idr)
+Warning: Main.f was declared but never defined.
+
+Issue3251:7:1--7:17
+ 3 | (.fun) : Nat -> Nat
+ 4 |
+ 5 | x : TTImp
+ 6 |
+ 7 | f : Nat -> TTImp
+     ^^^^^^^^^^^^^^^^
+
+Warning: Main.x was declared but never defined.
+
+Issue3251:5:1--5:10
+ 1 | import Language.Reflection
+ 2 |
+ 3 | (.fun) : Nat -> Nat
+ 4 |
+ 5 | x : TTImp
+     ^^^^^^^^^
+
+Warning: Main.(.fun) was declared but never defined.
+
+Issue3251:3:1--3:20
+ 1 | import Language.Reflection
+ 2 |
+ 3 | (.fun) : Nat -> Nat
+     ^^^^^^^^^^^^^^^^^^^
+

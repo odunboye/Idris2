@@ -1,2 +1,13 @@
-../../../testutils.sh: line 21: --no-banner: command not found
-../../../testutils.sh: line 21: --no-banner: command not found
+1/2: Building A (A.idr)
+Warning: A.defA was declared but never defined.
+
+A:3:1--4:18
+ 3 | public export
+ 4 | defA : Int -> Int
+
+2/2: Building B (B.idr)
+B> 1 hole: A.defA : Int -> Int
+B> Bye for now!
+2/2: Building C (C.idr)
+C> 1 hole: C.newHole : Int -> Int
+C> Bye for now!

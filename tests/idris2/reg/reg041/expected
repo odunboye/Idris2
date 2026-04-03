@@ -1,1 +1,33 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building tuple (tuple.idr)
+Warning: Main.odd was declared but never defined.
+
+tuple:4:1--4:16
+ 1 | tupleBug : Pair () a -> ()
+ 2 | tupleBug (_, (_, _)) = ()
+ 3 |
+ 4 | odd : a -> Bool
+     ^^^^^^^^^^^^^^^
+
+Warning: Main.tupleBug was declared but never defined.
+
+tuple:1:1--1:27
+ 1 | tupleBug : Pair () a -> ()
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing left hand side of tupleBug. Can't match on (?_, ?_) as it must have a polymorphic type.
+
+tuple:2:15--2:19
+ 1 | tupleBug : Pair () a -> ()
+ 2 | tupleBug (_, (_, _)) = ()
+                   ^^^^
+
+Error: While processing left hand side of odd. Can't match on () as it must have a polymorphic type.
+
+tuple:5:5--5:7
+ 1 | tupleBug : Pair () a -> ()
+ 2 | tupleBug (_, (_, _)) = ()
+ 3 |
+ 4 | odd : a -> Bool
+ 5 | odd () = False
+         ^^
+

@@ -1,1 +1,31 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building DoBlockFC (DoBlockFC.idr)
+Warning: Main.bar was declared but never defined.
+
+DoBlockFC:2:1--2:16
+ 1 | -- We expect the error to occur at a non-empty FC
+ 2 | bar : Maybe Int
+     ^^^^^^^^^^^^^^^
+
+Warning: Main.foo was declared but never defined.
+
+DoBlockFC:4:1--4:24
+ 1 | -- We expect the error to occur at a non-empty FC
+ 2 | bar : Maybe Int
+ 3 |
+ 4 | foo : Either String Int
+     ^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of foo. When unifying:
+    Maybe Int
+and:
+    Either ?_ ?_
+Mismatch between: Maybe Int and Either ?_ ?_.
+
+DoBlockFC:6:3--6:10
+ 2 | bar : Maybe Int
+ 3 |
+ 4 | foo : Either String Int
+ 5 | foo = do
+ 6 |   Right n <- pure bar | _ => Left "fail"
+       ^^^^^^^
+

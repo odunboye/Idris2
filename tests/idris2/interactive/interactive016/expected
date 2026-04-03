@@ -1,1 +1,35 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Cont (Cont.idr)
+Warning: Main.callCC was declared but never defined.
+
+Cont:11:1--11:60
+ 07 | cbind : Cont r a -> (a -> Cont r b) -> Cont r b
+ 08 |
+ 09 | ctbind : ContT r m a -> (a -> ContT r m b) -> ContT r m b
+ 10 |
+ 11 | callCC : ((a -> ContT r m b) -> ContT r m a) -> ContT r m a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.cbind was declared but never defined.
+
+Cont:7:1--7:48
+ 3 |
+ 4 | data ContT : (r : Type) -> (m : Type -> Type) -> (a : Type) -> Type where
+ 5 |      MkContT : ((k : a -> m r) -> m r) -> ContT r m a
+ 6 |
+ 7 | cbind : Cont r a -> (a -> Cont r b) -> Cont r b
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.ctbind was declared but never defined.
+
+Cont:9:1--9:58
+ 5 |      MkContT : ((k : a -> m r) -> m r) -> ContT r m a
+ 6 |
+ 7 | cbind : Cont r a -> (a -> Cont r b) -> Cont r b
+ 8 |
+ 9 | ctbind : ContT r m a -> (a -> ContT r m b) -> ContT r m b
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> cbind (MkCont g) f = MkCont (\k => g (\x => let MkCont f1 = f x in f1 k))
+Main> ctbind (MkContT g) f = MkContT (\k => g (\x => let MkContT f1 = f x in f1 k))
+Main> callCC f = MkContT (\k => let MkContT g = f (\x => MkContT (\g => k x)) in g k)
+Main> Bye for now!

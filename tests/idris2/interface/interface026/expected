@@ -1,1 +1,52 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building UninhabitedRec (UninhabitedRec.idr)
+Warning: UninhabitedRec.fff was declared but never defined.
+
+UninhabitedRec:18:1--18:78
+ 14 | data Lookup : a -> List (a, b) -> Type where
+ 15 |   Here : (y : b) -> Lookup x $ (x, y)::xys
+ 16 |   There : (0 _ : Uninhabited $ x === z) => Lookup z xys -> Lookup z $ (x, y)::xys
+ 17 |
+ 18 | fff : (xs : List (Nat, String)) -> (n : Nat) -> (0 _ : Lookup n xs) => String
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: UninhabitedRec.lkup3Bad was declared but never defined.
+
+UninhabitedRec:29:1--29:18
+ 25 |
+ 26 | lkup2Good : String
+ 27 | lkup2Good = fff xxs 2
+ 28 |
+ 29 | lkup3Bad : String
+      ^^^^^^^^^^^^^^^^^
+
+Warning: UninhabitedRec.uniqBad was declared but never defined.
+
+UninhabitedRec:48:1--48:19
+ 44 |
+ 45 | uniqGood : Uniq Nat
+ 46 | uniqGood = [1, 2, 3]
+ 47 |
+ 48 | uniqBad : Uniq Nat
+      ^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of lkup3Bad. Can't find an implementation for Lookup 3 [(1, "one"), (2, "two"), (4, "four")].
+
+UninhabitedRec:30:12--30:21
+ 26 | lkup2Good : String
+ 27 | lkup2Good = fff xxs 2
+ 28 |
+ 29 | lkup3Bad : String
+ 30 | lkup3Bad = fff xxs 3
+                 ^^^^^^^^^
+
+Error: While processing right hand side of uniqBad. Can't find an implementation for Uninhabited (Elem 1 (toList [2, 1])).
+
+UninhabitedRec:49:11--49:12
+ 45 | uniqGood : Uniq Nat
+ 46 | uniqGood = [1, 2, 3]
+ 47 |
+ 48 | uniqBad : Uniq Nat
+ 49 | uniqBad = [1, 2, 1]
+                ^
+
+UninhabitedRec> Bye for now!

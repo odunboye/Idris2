@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building MyFirstIdrisProgram (MyFirstIdrisProgram.org)
+Warning: Main.cannotSeeThis was declared but never defined.
+
+MyFirstIdrisProgram:37:1--37:35
+ 33 | We can also abuse org-mode comments to hide code not required for publication.
+ 34 |
+ 35 | #+begin_comment idris
+ 36 |
+ 37 | cannotSeeThis : Natural -> Natural
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.plus was declared but never defined.
+
+MyFirstIdrisProgram:27:1--27:37
+ 23 | Thus:
+ 24 |
+ 25 | #+begin_example
+ 26 |
+ 27 | #+IDRIS: plus : Natural -> Natural -> Natural
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

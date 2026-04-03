@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.idr)
+Warning: Main.listElim was declared but never defined.
+
+IEdit:9:1--12:33
+ 09 | listElim : (p : List a -> Type) ->
+ 10 |            (mnil : p []) ->
+ 11 |            (mcons : (x : _) -> (xs : List a) -> p xs -> p (x :: xs)) ->
+ 12 |            (xs : List a) -> p xs
+
+Warning: Main.natElim was declared but never defined.
+
+IEdit:1:1--2:27
+ 1 | natElim : (p : Nat -> Type) -> p Z -> ((k : Nat) -> p k -> p (S k)) ->
+ 2 |           (x : Nat) -> p x
+
+Main> natElim p y f 0 = y
+natElim p y f (S k) = f k (natElim p y f k)
+Main> f k (natElim2 p x f k)
+Main> listElim p mnil mcons [] = mnil
+listElim p mnil mcons (x :: xs) = mcons x xs (listElim p mnil mcons xs)
+Main> Bye for now!

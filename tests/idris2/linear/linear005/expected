@@ -1,1 +1,72 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/2: Building Linear (Linear.idr)
+2/2: Building Door (Door.idr)
+Warning: Door.closeDoor was declared but never defined.
+
+Door:13:1--13:54
+ 09 |
+ 10 | newDoor    : One m (Door Closed)
+ 11 | knock      : (1 d : Door t) -> One m (Door t)
+ 12 | openDoor   : (1 d : Door Closed) -> One m (Res Bool (\r => Door (if r then Open else Closed)))
+ 13 | closeDoor  : (1 d : Door Open) -> One m (Door Closed)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Door.deleteDoor was declared but never defined.
+
+Door:14:1--14:45
+ 10 | newDoor    : One m (Door Closed)
+ 11 | knock      : (1 d : Door t) -> One m (Door t)
+ 12 | openDoor   : (1 d : Door Closed) -> One m (Res Bool (\r => Door (if r then Open else Closed)))
+ 13 | closeDoor  : (1 d : Door Open) -> One m (Door Closed)
+ 14 | deleteDoor : (1 d : Door Closed) -> Any m ()
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Door.knock was declared but never defined.
+
+Door:11:1--11:46
+ 07 | data Door : DoorState -> Type where
+ 08 |      MkDoor : (isOpen : Bool) -> Door (if isOpen then Open else Closed)
+ 09 |
+ 10 | newDoor    : One m (Door Closed)
+ 11 | knock      : (1 d : Door t) -> One m (Door t)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Door.newDoor was declared but never defined.
+
+Door:10:1--10:33
+ 06 |
+ 07 | data Door : DoorState -> Type where
+ 08 |      MkDoor : (isOpen : Bool) -> Door (if isOpen then Open else Closed)
+ 09 |
+ 10 | newDoor    : One m (Door Closed)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Door.openDoor was declared but never defined.
+
+Door:12:1--12:95
+ 08 |      MkDoor : (isOpen : Bool) -> Door (if isOpen then Open else Closed)
+ 09 |
+ 10 | newDoor    : One m (Door Closed)
+ 11 | knock      : (1 d : Door t) -> One m (Door t)
+ 12 | openDoor   : (1 d : Door Closed) -> One m (Res Bool (\r => Door (if r then Open else Closed)))
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Door>  0 m : Type -> Type
+ 1 d : Door Closed
+------------------------------
+something : Int
+Door>  0 m : Type -> Type
+ 1 d : Door Closed
+   x : Int
+------------------------------
+bar : Use Many m ()
+Door>  0 m : Type -> Type
+ 0 d : Door Closed
+------------------------------
+something2 : Int
+Door>  0 m : Type -> Type
+ 0 d : Door Closed
+   x : Int
+ 1 d' : Door Closed
+------------------------------
+bar2 : Use Many m ()
+Door> Bye for now!

@@ -1,2 +1,8 @@
-../../../testutils.sh: line 21: --no-banner: command not found
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue3448 (Issue3448.idr)
+Warning: Main.X was declared but never defined.
+
+Issue3448:1:1--1:9
+ 1 | X : Type
+     ^^^^^^^^
+
+1/1: Building NoUnbound (NoUnbound.idr)

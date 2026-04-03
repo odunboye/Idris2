@@ -1,1 +1,11 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Recordname (Recordname.idr)
+Warning: Recordname.test was declared but never defined.
+
+Recordname:12:1--12:27
+ 08 |
+ 09 |   x : Name -> Int
+ 10 |   x = foo
+ 11 |
+ 12 | test : Recordname.Foo.Name
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^
+

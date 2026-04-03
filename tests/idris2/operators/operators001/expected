@@ -1,1 +1,41 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Test (Test.idr)
+Warning: Test.map2 was declared but never defined.
+
+Test:30:1--30:48
+ 26 |   Mk4 : ty -@ (x : ty) =@ S x
+ 27 |
+ 28 | -- map : (x : a) =@@ b -@ (y : List a) =@ List b
+ 29 |
+ 30 | map2 : ((x : a) =@ b) -@ (y : List a) =@ List b
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Test.map3 was declared but never defined.
+
+Test:32:1--32:46
+ 28 | -- map : (x : a) =@@ b -@ (y : List a) =@ List b
+ 29 |
+ 30 | map2 : ((x : a) =@ b) -@ (y : List a) =@ List b
+ 31 |
+ 32 | map3 : (x : a) =@ b -@ (y : List a) =@ List b
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Test.map4 was declared but never defined.
+
+Test:34:1--34:48
+ 30 | map2 : ((x : a) =@ b) -@ (y : List a) =@ List b
+ 31 |
+ 32 | map3 : (x : a) =@ b -@ (y : List a) =@ List b
+ 33 |
+ 34 | map4 : (x : a) =@ (b -@ (y : List a) =@ List b)
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Test.test3 was declared but never defined.
+
+Test:42:1--42:32
+ 38 | -- test : Test.map === Test.map2
+ 39 | -- failing
+ 40 | --   test2 : Test.map === Test.map3
+ 41 |
+ 42 | test3 : Test.map3 === Test.map4
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

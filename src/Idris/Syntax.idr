@@ -454,6 +454,7 @@ mutual
        SearchTimeout : Integer -> Directive
        -- There is no nm on Directive
        ForeignImpl : Name -> List PTerm -> Directive
+       SafeModule : Directive
 
   public export
   RecordField' : Type -> Type

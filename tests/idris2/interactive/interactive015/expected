@@ -1,1 +1,78 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.idr)
+Warning: Main.append was declared but never defined.
+
+IEdit:9:1--9:48
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+ 8 |
+ 9 | append : Vect n a -> Vect m a -> Vect (n + m) a
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.lappend was declared but never defined.
+
+IEdit:11:1--11:53
+ 07 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+ 08 |
+ 09 | append : Vect n a -> Vect m a -> Vect (n + m) a
+ 10 |
+ 11 | lappend : (1 _ : List a) -> (1 _ : List a) -> List a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.lappend1 was declared but never defined.
+
+IEdit:13:1--13:38
+ 09 | append : Vect n a -> Vect m a -> Vect (n + m) a
+ 10 |
+ 11 | lappend : (1 _ : List a) -> (1 _ : List a) -> List a
+ 12 |
+ 13 | lappend1 : List a -> List a -> List a
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.my_cong was declared but never defined.
+
+IEdit:7:1--7:62
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | my_cong : forall f . (x : a) -> (y : a) -> x = y -> f x = f y
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> my_cong x x Refl = Refl
+Main> No more results
+Main> append [] ys = ys
+append (x :: xs) ys = x :: append xs ys
+Main> append [] ys = ys
+append (x :: xs) [] = x :: append xs []
+append (x :: xs) (y :: ys) = x :: append xs (y :: ys)
+Main> lappend [] ys = ys
+lappend (x :: xs) ys = lappend ys (x :: xs)
+Main> lappend [] ys = ys
+lappend (x :: xs) ys = lappend ys (x :: (x :: xs))
+Main> lappend [] ys = ys
+lappend (x :: xs) ys = lappend ys (x :: (x :: (x :: xs)))
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs ys
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs (x :: ys)
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs (x :: (x :: ys))
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs xs
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs []
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs (x :: xs)
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs [x]
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs (x :: (x :: xs))
+Main> lappend1 [] ys = ys
+lappend1 (x :: xs) ys = x :: lappend1 xs (x :: (x :: xs))
+Main> ys
+Main> []
+Main> lappend2 ys ys
+Main> lappend2 ys []
+Main> No more results
+Main> Bye for now!

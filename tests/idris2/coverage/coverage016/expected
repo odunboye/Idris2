@@ -1,2 +1,19 @@
-../../../testutils.sh: line 21: --no-banner: command not found
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue633 (Issue633.idr)
+Warning: Main.test was declared but never defined.
+
+Issue633:3:1--3:39
+ 1 | %default total
+ 2 |
+ 3 | test : (f : () -> Bool) -> f () = True
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing left hand side of test. Can't match on \x => True (Not a constructor application or primitive).
+
+Issue633:4:1--4:18
+ 1 | %default total
+ 2 |
+ 3 | test : (f : () -> Bool) -> f () = True
+ 4 | test (\x => True) = Refl
+     ^^^^^^^^^^^^^^^^^
+
+1/1: Building Issue633-2 (Issue633-2.idr)

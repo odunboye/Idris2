@@ -1,2 +1,22 @@
-../../../testutils.sh: line 21: --no-banner: command not found
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Issue762 (Issue762.idr)
+1/1: Building IsS (IsS.idr)
+Warning: Main.fail was declared but never defined.
+
+IsS:30:1--30:24
+ 26 | indeed4 (Indeed S Refl) = Refl
+ 27 | --              ^ forced by Refl
+ 28 |
+ 29 | -- If you don't: too bad!
+ 30 | fail : IsS s -> s === S
+      ^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing left hand side of fail. Can't match on S (Under-applied constructor).
+
+IsS:31:14--31:15
+ 27 | --              ^ forced by Refl
+ 28 |
+ 29 | -- If you don't: too bad!
+ 30 | fail : IsS s -> s === S
+ 31 | fail (Indeed S eq) = eq
+                   ^
+

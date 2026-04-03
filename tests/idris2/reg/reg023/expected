@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building boom (boom.idr)
+Warning: Main.eraseVar was declared but never defined.
+
+boom:19:1--19:92
+ 15 |   countGreater thr (x :: xs) | False = S $ countGreater thr xs
+ 16 |
+ 17 | -- map a variable from the old context to the erased context
+ 18 | -- where we erase all bindings less than or equal to the threshold
+ 19 | eraseVar : (thr : Int) -> (ctx : Vect n Int) -> Fin n -> Maybe (Fin (countGreater thr ctx))
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of with block in eraseVar. Can't solve constraint between: S (countGreater thr xs) and countGreater thr xs.
+
+boom:23:42--23:44
+ 19 | eraseVar : (thr : Int) -> (ctx : Vect n Int) -> Fin n -> Maybe (Fin (countGreater thr ctx))
+ 20 | eraseVar thr (x :: xs) j with (x .<=. thr)
+ 21 |   eraseVar thr (x :: xs) FZ | True = Nothing
+ 22 |   eraseVar thr (x :: xs) FZ | False = Just FZ
+ 23 |   eraseVar thr (x :: xs) (FS i) | True = FS <$> eraseVar thr xs i
+                                               ^^
+

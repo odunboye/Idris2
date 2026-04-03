@@ -2,6 +2,7 @@ module TTImp.ProcessFnOpt
 
 import Core.Context.Log
 import Core.Env
+import Core.Options
 import Core.Normalise
 import Core.Value
 
@@ -35,15 +36,18 @@ processFnOpt : {auto c : Ref Ctxt Defs} ->
                FC -> Bool -> -- ^ top level name?
                Name -> FnOpt -> Core ()
 processFnOpt fc _ ndef Unsafe
-    = do setIsEscapeHatch fc ndef
+    = do opts <- getSession
+         when (safeMode opts) $
+           throw (SafeModuleViolation fc "%unsafe is not permitted in a safe module")
+         setIsEscapeHatch fc ndef
 processFnOpt fc _ ndef Inline
     = do throwIfHasFlag fc ndef NoInline "%noinline and %inline are mutually exclusive"
          setFlag fc ndef Inline
 processFnOpt fc _ ndef NoInline
     = do throwIfHasFlag fc ndef Inline "%inline and %noinline are mutually exclusive"
          setFlag fc ndef NoInline
-processFnOpt fc _ ndef Deprecate
-    = setFlag fc ndef Deprecate
+processFnOpt fc _ ndef (Deprecate msg)
+    = setFlag fc ndef (Deprecate msg)
 processFnOpt fc _ ndef TCInline
     = setFlag fc ndef TCInline
 processFnOpt fc True ndef (Hint d)
@@ -181,8 +185,14 @@ processFnOpt fc _ ndef (SpecArgs ns)
     getNamePos _ _ = pure []
 
 processFnOpt fc _ ndef Terminating
-    = do setIsEscapeHatch fc ndef
+    = do opts <- getSession
+         when (safeMode opts) $
+           throw (SafeModuleViolation fc "%terminating is not permitted in a safe module")
+         setIsEscapeHatch fc ndef
          setTotality fc ndef (MkTotality IsTerminating IsCovering)
 processFnOpt fc _ ndef NoCoverage
-    = do setFlag fc ndef NoCoverage
+    = do opts <- getSession
+         when (safeMode opts) $
+           throw (SafeModuleViolation fc "%nocoverage is not permitted in a safe module")
+         setFlag fc ndef NoCoverage
          setCovering fc ndef IsCovering

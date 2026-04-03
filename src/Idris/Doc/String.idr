@@ -453,8 +453,10 @@ getDocsForName fc n config
              let cat = showCategory Syntax def
              let nm = prettyKindedName typ $ cat
                     $ ifThenElse longNames (pretty0 (show nm)) (prettyName nm)
-             let deprecated = if Context.Deprecate `elem` def.flags
-                                 then annotate Deprecation "=DEPRECATED=" <+> line else emptyDoc
+             let deprecated = case mapMaybe (\case { Context.Deprecate m => Just m; _ => Nothing }) def.flags of
+                   [] => emptyDoc
+                   (Nothing :: _)  => annotate Deprecation "=DEPRECATED=" <+> line
+                   (Just m :: _)   => annotate Deprecation ("=DEPRECATED= " <+> pretty0 m) <+> line
              let docDecl = deprecated
                      <+> annotate (Decl n) (hsep [prig <+> nm, colon, prettyBy Syntax ty])
 

@@ -1,1 +1,24 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building RLE (RLE.idr)
+Warning: RLE.rep was declared but never defined.
+
+RLE:5:1--5:25
+ 1 | module RLE
+ 2 |
+ 3 | import Decidable.Equality
+ 4 |
+ 5 | rep : Nat -> a -> List a
+     ^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: RLE.uncompress was declared but never defined.
+
+RLE:15:1--15:42
+ 11 |
+ 12 | data Singleton : a -> Type where
+ 13 |      Val : (x : a) -> Singleton x
+ 14 |
+ 15 | uncompress : RunLength xs -> Singleton xs
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+RLE> uncompress Empty = Val []
+uncompress (Run n x rest) = let Val ys = uncompress rest in Val (rep n x ++ _)
+RLE> Bye for now!

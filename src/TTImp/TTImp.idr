@@ -228,8 +228,8 @@ mutual
        Unsafe : FnOpt' nm
        Inline : FnOpt' nm
        NoInline : FnOpt' nm
-       ||| Mark a function as deprecated.
-       Deprecate : FnOpt' nm
+       ||| Mark a function as deprecated, with an optional custom message.
+       Deprecate : Maybe String -> FnOpt' nm
        TCInline : FnOpt' nm
        -- Flag means the hint is a direct hint, not a function which might
        -- find the result (e.g. chasing parent interface dictionaries)
@@ -270,7 +270,8 @@ mutual
     show Unsafe = "%unsafe"
     show Inline = "%inline"
     show NoInline = "%noinline"
-    show Deprecate = "%deprecate"
+    show (Deprecate Nothing) = "%deprecate"
+    show (Deprecate (Just m)) = "%deprecate \{show m}"
     show TCInline = "%tcinline"
     show (Hint t) = "%hint " ++ show t
     show (GlobalHint t) = "%globalhint " ++ show t
@@ -290,7 +291,7 @@ mutual
   Eq FnOpt where
     Inline == Inline = True
     NoInline == NoInline = True
-    Deprecate == Deprecate = True
+    (Deprecate x) == (Deprecate y) = x == y
     TCInline == TCInline = True
     (Hint x) == (Hint y) = x == y
     (GlobalHint x) == (GlobalHint y) = x == y

@@ -1,1 +1,8 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Indent (Indent.idr)
+Warning: Main.b was declared but never defined.
+
+Indent:2:1--2:8
+ 1 | record Rec (a : Type)
+ 2 | b : Int
+     ^^^^^^^
+

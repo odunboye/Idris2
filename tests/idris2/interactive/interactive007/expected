@@ -1,1 +1,14 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.idr)
+Warning: Main.transposeHelper was declared but never defined.
+
+IEdit:7:1--7:88
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | %name Vect xs, ys, zs
+ 6 |
+ 7 | transposeHelper : Vect m a -> (1 xs_trans : Vect m (Vect k a)) -> Vect m (Vect (S k) a)
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> transposeHelper [] [] = []
+transposeHelper (x :: xs) (y :: ys) = (x :: y) :: transposeHelper xs ys
+Main> Bye for now!

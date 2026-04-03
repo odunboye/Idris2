@@ -1,1 +1,21 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Error (Error.idr)
+Warning: Main.wrong was declared but never defined.
+
+Error:5:1--5:42
+ 1 | data Vect : Nat -> Type -> Type where
+ 2 |      Nil : Vect Z a
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | wrong : a -> Vect (S n) a -> Vect (S n) a
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of wrong. Undefined name ys. 
+
+Error:6:17--6:19
+ 2 |      Nil : Vect Z a
+ 3 |      (::) : a -> Vect k a -> Vect (S k) a
+ 4 |
+ 5 | wrong : a -> Vect (S n) a -> Vect (S n) a
+ 6 | wrong xs = x :: ys
+                     ^^
+

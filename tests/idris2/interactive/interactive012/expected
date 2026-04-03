@@ -1,1 +1,17 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building WithLift (WithLift.idr)
+Warning: Main.recNotEq was declared but never defined.
+
+WithLift:11:1--11:52
+ 07 |
+ 08 | zeroNotSucc : Z = (S k) -> Void
+ 09 | zeroNotSucc Refl impossible
+ 10 |
+ 11 | recNotEq : (k = j -> Void) -> (S k) = (S j) -> Void
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> succNotZero : S k = 0 -> Void
+succNotZero
+Main> recNotEqLift : (k = j -> Void) -> S k = S j -> Void
+(recNotEqLift contra)
+Main> recNotEq f Refl = f Refl
+Main> Bye for now!

@@ -1,1 +1,28 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/2: Building Broken (Broken.idr)
+Warning: Broken.Uninhabited implementation at Broken:1 was declared but never defined.
+
+Broken:18:1--19:26
+ 18 | export
+ 19 | Uninhabited VoidContainer
+
+2/2: Building Main (Main.idr)
+Warning: Main.broken was declared but never defined.
+
+Main:7:1--7:23
+ 3 | import Broken
+ 4 |
+ 5 | %default total
+ 6 |
+ 7 | broken : VoidContainer
+     ^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of broken. Can't find an implementation for VoidContainer.
+
+Main:8:10--8:17
+ 4 |
+ 5 | %default total
+ 6 |
+ 7 | broken : VoidContainer
+ 8 | broken = %search
+              ^^^^^^^
+

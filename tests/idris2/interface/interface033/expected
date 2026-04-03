@@ -1,1 +1,19 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building PairErroneouslyFound (PairErroneouslyFound.idr)
+Warning: Main.useX was declared but never defined.
+
+PairErroneouslyFound:3:1--3:16
+ 1 | data X = MkX
+ 2 |
+ 3 | useX : X => Nat
+     ^^^^^^^^^^^^^^^
+
+Warning: Main.v was declared but never defined.
+
+PairErroneouslyFound:5:1--5:16
+ 1 | data X = MkX
+ 2 |
+ 3 | useX : X => Nat
+ 4 |
+ 5 | v : (X, String)
+     ^^^^^^^^^^^^^^^
+

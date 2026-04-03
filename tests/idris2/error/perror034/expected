@@ -1,1 +1,41 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building Error (Error.idr)
+Warning: Main.named was declared but never defined.
+
+Error:4:1--4:11
+ 1 | unnamed : ()
+ 2 | unnamed = (Nat) -> Nat
+ 3 |
+ 4 | named : ()
+     ^^^^^^^^^^
+
+Warning: Main.unnamed was declared but never defined.
+
+Error:1:1--1:13
+ 1 | unnamed : ()
+     ^^^^^^^^^^^^
+
+Error: While processing right hand side of unnamed. When unifying:
+    Type
+and:
+    ()
+Mismatch between: Type and ().
+
+Error:2:11--2:23
+ 1 | unnamed : ()
+ 2 | unnamed = (Nat) -> Nat
+               ^^^^^^^^^^^^
+
+Error: While processing right hand side of named. When unifying:
+    Type
+and:
+    ()
+Mismatch between: Type and ().
+
+Error:5:9--5:27
+ 1 | unnamed : ()
+ 2 | unnamed = (Nat) -> Nat
+ 3 |
+ 4 | named : ()
+ 5 | named = (arg : Nat) -> Nat
+             ^^^^^^^^^^^^^^^^^^
+

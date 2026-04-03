@@ -1,2 +1,28 @@
-../../../testutils.sh: line 21: --no-banner: command not found
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building IEdit (IEdit.lidr)
+Warning: Main.1:zipHere was declared but never defined.
+
+IEdit:10:5--10:63
+ 06 |
+ 07 | > dupAll : Vect n a -> Vect n (a, a)
+ 08 | > dupAll xs = zipHere xs xs
+ 09 | >   where
+ 10 | >     zipHere : forall n . Vect n a -> Vect n b -> Vect n (a, b)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> >     zipHere [] [] = []
+>     zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
+Main> Bye for now!
+1/1: Building IEditOrg (IEditOrg.org)
+Warning: Main.1:zipHere was declared but never defined.
+
+IEditOrg:12:5--12:63
+ 08 |
+ 09 | #+IDRIS: dupAll : Vect n a -> Vect n (a, a)
+ 10 | #+IDRIS: dupAll xs = zipHere xs xs
+ 11 | #+IDRIS:   where
+ 12 | #+IDRIS:     zipHere : forall n . Vect n a -> Vect n b -> Vect n (a, b)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Main> #+IDRIS:     zipHere [] [] = []
+#+IDRIS:     zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
+Main> Bye for now!

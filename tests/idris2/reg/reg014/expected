@@ -1,1 +1,11 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building casecase (casecase.idr)
+Warning: Main.1:calculate was declared but never defined.
+
+casecase:10:5--10:37
+ 06 |            (y :: ys) => case n of
+ 07 |                              Z => Z
+ 08 |                              (S k) => calculate xs k
+ 09 |   where
+ 10 |     calculate : List a -> Nat -> Nat
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

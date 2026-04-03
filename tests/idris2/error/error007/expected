@@ -1,1 +1,18 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building CongErr (CongErr.idr)
+Warning: Main.fsprf was declared but never defined.
+
+CongErr:3:1--3:35
+ 1 | import Data.Fin
+ 2 |
+ 3 | fsprf : x === y -> Fin.FS x = FS y
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of fsprf. Can't solve constraint between: ?_ x and FS x.
+
+CongErr:4:11--4:19
+ 1 | import Data.Fin
+ 2 |
+ 3 | fsprf : x === y -> Fin.FS x = FS y
+ 4 | fsprf p = cong _ p
+               ^^^^^^^^
+

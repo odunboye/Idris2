@@ -1,1 +1,61 @@
-../../../testutils.sh: line 21: --no-banner: command not found
+1/1: Building WithMatch (WithMatch.idr)
+Warning: Main.f was declared but never defined.
+
+WithMatch:10:1--10:62
+ 06 |
+ 07 | -- Verify correct FC for "With clause does not match parent"
+ 08 |
+ 09 | -- From issue 3317
+ 10 | f :  Eq a => (xs : List a) -> { auto p : NonEmpty xs } -> Nat
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.test was declared but never defined.
+
+WithMatch:19:1--19:24
+ 15 |        then f (x::zs) | r _ reflexive
+ 16 |        else S (f (x::zs)) | r _ reflexive
+ 17 |
+ 18 | -- IAlternative case
+ 19 | test : () -> Nat -> Nat
+      ^^^^^^^^^^^^^^^^^^^^^^^
+
+Warning: Main.test2 was declared but never defined.
+
+WithMatch:25:1--25:41
+ 21 |   test () x | Z = Z
+ 22 |   test () x | S k = test (Z = Z) x | k
+ 23 |
+ 24 | -- IPrimVal case
+ 25 | test2 : (x : Int) -> x = 1 -> Nat -> Nat
+      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Error: With clause does not match parent
+
+WithMatch:16:16--16:17
+ 12 |   f [_] | _ = 1
+ 13 |   f (x::y::zs) | Access r =
+ 14 |     if x /= y
+ 15 |        then f (x::zs) | r _ reflexive
+ 16 |        else S (f (x::zs)) | r _ reflexive
+                     ^
+
+Error: With clause does not match parent
+
+WithMatch:22:27--22:32
+ 18 | -- IAlternative case
+ 19 | test : () -> Nat -> Nat
+ 20 | test () x with (x)
+ 21 |   test () x | Z = Z
+ 22 |   test () x | S k = test (Z = Z) x | k
+                                ^^^^^
+
+Error: With clause does not match parent
+
+WithMatch:28:32--28:33
+ 24 | -- IPrimVal case
+ 25 | test2 : (x : Int) -> x = 1 -> Nat -> Nat
+ 26 | test2 1 Refl y with (y)
+ 27 |   test2 1 Refl y | 0 = 42
+ 28 |   test2 1 Refl y | S k = test2 2 Refl y | k
+                                     ^
+
