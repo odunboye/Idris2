@@ -4,6 +4,7 @@ import Core.Env
 import Core.Metadata
 import Core.Options
 import Core.Unify
+import Core.UnivSolver
 import Core.Value
 
 import Idris.REPL.Opts
@@ -15,6 +16,7 @@ import TTImp.TTImp
 
 import Data.List
 import Data.Maybe
+import Data.SortedMap
 
 import Libraries.Data.List.Extra
 import Libraries.Data.NatSet
@@ -38,10 +40,27 @@ onLHS : ElabMode -> Bool
 onLHS (InLHS _) = True
 onLHS _ = False
 
+-- Replace every UVar name in a closed term with a fresh per-call-site UVar.
+-- This gives each call site independent universe metavariables, enabling
+-- universe polymorphism: e.g. `myId` can be instantiated at different levels
+-- at different call sites without the solver forcing them to agree.
+-- The same old UVar name maps to the same new UVar within one instantiation,
+-- preserving internal consistency of the type.
+freshenUVars : {auto c : Ref Ctxt Defs} ->
+               {auto u : Ref UST UState} ->
+               FC -> Term [] -> Core (Term [])
+freshenUVars fc tm =
+    case nub (collectUVarNamesInTerm tm) of
+      []    => pure tm   -- no UVars: nothing to do
+      names => do
+        pairs <- traverse (\n => map (n,) (uniVar fc)) names
+        pure (substUnivVarsInTerm (fromList pairs) tm)
+
 -- Get the type of a variable, assuming we haven't found it in the nested
 -- names. Look in the Env first, then the global context.
 getNameType : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
+              {auto u : Ref UST UState} ->
               {auto m : Ref MD Metadata} ->
               {auto e : Ref EST (EState vars)} ->
               ElabMode ->
@@ -93,7 +112,8 @@ getNameType elabMode rigc env fc x
                        $ "getNameType is adding " ++ show decor ++ ": " ++ show def.fullname
                      addSemanticDecorations [(nfc, decor, Just def.fullname)]
 
-                 pure (Ref fc nt (Resolved i), gnf env (embed (type def)))
+                 freshTy <- freshenUVars fc (type def)
+                 pure (Ref fc nt (Resolved i), gnf env (embed freshTy))
   where
     rigSafe : RigCount -> RigCount -> Core ()
     rigSafe lhs rhs = when (lhs < rhs)
@@ -129,6 +149,7 @@ getNameType elabMode rigc env fc x
 -- Get the type of a variable, looking it up in the nested names first.
 getVarType : {vars : _} ->
              {auto c : Ref Ctxt Defs} ->
+             {auto u : Ref UST UState} ->
              {auto m : Ref MD Metadata} ->
              {auto e : Ref EST (EState vars)} ->
              ElabMode ->

@@ -238,7 +238,8 @@ checkTerm rig elabinfo nest env (IType fc (Just k)) exp
                        throw (GenericMsg fc
                          ("Universe level error: Type " ++ show k ++
                           " has type Type " ++ show (k + 1) ++
-                          ", which is not compatible with the expected type"))
+                          ", which is not compatible with the expected type Type " ++
+                          show (concreteLevel ul)))
                      _ => pure ()
                _ => pure ()
            Nothing => pure ()

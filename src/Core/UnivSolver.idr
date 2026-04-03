@@ -45,6 +45,37 @@ collectVars (UVar n)     = [n]
 collectVars (USucc u)    = collectVars u
 collectVars (UMax l r)   = collectVars l ++ collectVars r
 
+-- Collect all UVar names occurring in TType nodes of a Term.
+mutual
+  export covering
+  collectUVarNamesInTerm : Term vars -> List Name
+  collectUVarNamesInTerm (Local _ _ _ _)    = []
+  collectUVarNamesInTerm (Ref _ _ _)        = []
+  collectUVarNamesInTerm (Meta _ _ _ args)  = concatMap collectUVarNamesInTerm args
+  collectUVarNamesInTerm (Bind _ _ b sc)    = collectUVarNamesInBinder b ++ collectUVarNamesInTerm sc
+  collectUVarNamesInTerm (App _ fn arg)     = collectUVarNamesInTerm fn ++ collectUVarNamesInTerm arg
+  collectUVarNamesInTerm (As _ _ as pat)    = collectUVarNamesInTerm as ++ collectUVarNamesInTerm pat
+  collectUVarNamesInTerm (TDelayed _ _ ty)  = collectUVarNamesInTerm ty
+  collectUVarNamesInTerm (TDelay _ _ ty v)  = collectUVarNamesInTerm ty ++ collectUVarNamesInTerm v
+  collectUVarNamesInTerm (TForce _ _ tm)    = collectUVarNamesInTerm tm
+  collectUVarNamesInTerm (PrimVal _ _)      = []
+  collectUVarNamesInTerm (Erased _ why)     = foldMap collectUVarNamesInTerm why
+  collectUVarNamesInTerm (TType _ u)        = collectVars u
+  collectUVarNamesInTerm (TFix _ c b)       = collectUVarNamesInTerm c ++ collectUVarNamesInTerm b
+  collectUVarNamesInTerm (TLater _ c t)     = collectUVarNamesInTerm c ++ collectUVarNamesInTerm t
+  collectUVarNamesInTerm (TNext _ c v)      = collectUVarNamesInTerm c ++ collectUVarNamesInTerm v
+  collectUVarNamesInTerm (TTickAbs _ v b)   = collectUVarNamesInTerm v ++ collectUVarNamesInTerm b
+  collectUVarNamesInTerm (TTickApp _ fn a)  = collectUVarNamesInTerm fn ++ collectUVarNamesInTerm a
+
+  covering
+  collectUVarNamesInBinder : Binder (Term vars) -> List Name
+  collectUVarNamesInBinder (Lam _ _ _ ty)      = collectUVarNamesInTerm ty
+  collectUVarNamesInBinder (Let _ _ val ty)    = collectUVarNamesInTerm val ++ collectUVarNamesInTerm ty
+  collectUVarNamesInBinder (Pi _ _ _ ty)       = collectUVarNamesInTerm ty
+  collectUVarNamesInBinder (PVar _ _ _ ty)     = collectUVarNamesInTerm ty
+  collectUVarNamesInBinder (PLet _ _ val ty)   = collectUVarNamesInTerm val ++ collectUVarNamesInTerm ty
+  collectUVarNamesInBinder (PVTy _ _ ty)       = collectUVarNamesInTerm ty
+
 -- Bump every UVar in a level so that `eval assign level >= target`.
 -- For `UMax`, we bump both branches (safe over-approximation).
 bumpLevel : UnivAssignment -> UnivLevel -> Nat -> UnivAssignment
@@ -122,6 +153,15 @@ isConcrete UZero        = True
 isConcrete (USucc u)    = isConcrete u
 isConcrete (UMax l r)   = isConcrete l && isConcrete r
 isConcrete (UVar _)     = False
+
+-- Convert a fully concrete UnivLevel to Nat.
+-- Only meaningful when isConcrete returns True; UVar defaults to 0.
+export
+concreteLevel : UnivLevel -> Nat
+concreteLevel UZero      = 0
+concreteLevel (USucc u)  = S (concreteLevel u)
+concreteLevel (UMax l r) = max (concreteLevel l) (concreteLevel r)
+concreteLevel (UVar _)   = 0
 
 -- Structural less-than-or-equal comparison on UnivLevel.
 -- Returns Just True  if provably ul ≤ ur from structure alone.
@@ -223,3 +263,65 @@ mutual
       = PLet fc c (applyAssignToTerm assign val) (applyAssignToTerm assign ty)
   applyAssignToBinder assign (PVTy fc c ty)
       = PVTy fc c (applyAssignToTerm assign ty)
+
+-- Substitute a Name → UnivLevel map into a UnivLevel expression.
+-- Used to freshen UVar names at call sites (universe polymorphism).
+export
+substUnivLevel : SortedMap Name UnivLevel -> UnivLevel -> UnivLevel
+substUnivLevel subst UZero      = UZero
+substUnivLevel subst (USucc u)  = USucc (substUnivLevel subst u)
+substUnivLevel subst (UMax l r) = UMax (substUnivLevel subst l) (substUnivLevel subst r)
+substUnivLevel subst (UVar n)   = fromMaybe (UVar n) (lookup n subst)
+
+-- Apply a Name → UnivLevel substitution to every TType node in a Term.
+-- Mirrors applyAssignToTerm but maps to fresh UVars rather than concrete Nats.
+mutual
+  export
+  covering
+  substUnivVarsInTerm : SortedMap Name UnivLevel -> Term vars -> Term vars
+  substUnivVarsInTerm s (Local fc isLet idx p)   = Local fc isLet idx p
+  substUnivVarsInTerm s (Ref fc nt n)            = Ref fc nt n
+  substUnivVarsInTerm s (Meta fc n i args)
+      = Meta fc n i (map (substUnivVarsInTerm s) args)
+  substUnivVarsInTerm s (Bind fc x b scope)
+      = Bind fc x (substUnivVarsInBinder s b) (substUnivVarsInTerm s scope)
+  substUnivVarsInTerm s (App fc fn arg)
+      = App fc (substUnivVarsInTerm s fn) (substUnivVarsInTerm s arg)
+  substUnivVarsInTerm s (As fc side as pat)
+      = As fc side (substUnivVarsInTerm s as) (substUnivVarsInTerm s pat)
+  substUnivVarsInTerm s (TDelayed fc r ty)
+      = TDelayed fc r (substUnivVarsInTerm s ty)
+  substUnivVarsInTerm s (TDelay fc r ty val)
+      = TDelay fc r (substUnivVarsInTerm s ty) (substUnivVarsInTerm s val)
+  substUnivVarsInTerm s (TForce fc r tm)
+      = TForce fc r (substUnivVarsInTerm s tm)
+  substUnivVarsInTerm s (PrimVal fc c) = PrimVal fc c
+  substUnivVarsInTerm s (Erased fc why)
+      = Erased fc (map (substUnivVarsInTerm s) why)
+  substUnivVarsInTerm s (TType fc u)
+      = TType fc (substUnivLevel s u)
+  substUnivVarsInTerm s (TFix fc c b)
+      = TFix fc (substUnivVarsInTerm s c) (substUnivVarsInTerm s b)
+  substUnivVarsInTerm s (TLater fc c t)
+      = TLater fc (substUnivVarsInTerm s c) (substUnivVarsInTerm s t)
+  substUnivVarsInTerm s (TNext fc c v)
+      = TNext fc (substUnivVarsInTerm s c) (substUnivVarsInTerm s v)
+  substUnivVarsInTerm s (TTickAbs fc v b)
+      = TTickAbs fc (substUnivVarsInTerm s v) (substUnivVarsInTerm s b)
+  substUnivVarsInTerm s (TTickApp fc fn a)
+      = TTickApp fc (substUnivVarsInTerm s fn) (substUnivVarsInTerm s a)
+
+  covering
+  substUnivVarsInBinder : SortedMap Name UnivLevel -> Binder (Term vars) -> Binder (Term vars)
+  substUnivVarsInBinder s (Lam fc c p ty)
+      = Lam fc c (map (substUnivVarsInTerm s) p) (substUnivVarsInTerm s ty)
+  substUnivVarsInBinder s (Let fc c val ty)
+      = Let fc c (substUnivVarsInTerm s val) (substUnivVarsInTerm s ty)
+  substUnivVarsInBinder s (Pi fc c p ty)
+      = Pi fc c (map (substUnivVarsInTerm s) p) (substUnivVarsInTerm s ty)
+  substUnivVarsInBinder s (PVar fc c p ty)
+      = PVar fc c (map (substUnivVarsInTerm s) p) (substUnivVarsInTerm s ty)
+  substUnivVarsInBinder s (PLet fc c val ty)
+      = PLet fc c (substUnivVarsInTerm s val) (substUnivVarsInTerm s ty)
+  substUnivVarsInBinder s (PVTy fc c ty)
+      = PVTy fc c (substUnivVarsInTerm s ty)
