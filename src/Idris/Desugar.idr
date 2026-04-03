@@ -399,6 +399,9 @@ mutual
   -- Type 0, Type 1, ... : explicit universe level in surface syntax
   desugarB side ps (PApp fc (PType _) (PPrimVal _ (BI n)))
       = pure $ IType fc (Just (integerToNat n))
+  -- Type <level-expr> : universe level given as a Level expression
+  desugarB side ps (PApp fc (PType _) expr)
+      = pure $ ITypeLevel fc !(desugarB side ps expr)
   desugarB side ps (PApp fc x y)
       = pure $ IApp fc !(desugarB side ps x) !(desugarB side ps y)
   desugarB side ps (PAutoApp fc x y)

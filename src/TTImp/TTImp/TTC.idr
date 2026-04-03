@@ -82,6 +82,8 @@ mutual
         = do tag 26; toBuf fc; toBuf y
     toBuf (IType fc lvl)
         = do tag 27; toBuf fc; toBuf lvl
+    toBuf (ITypeLevel fc expr)
+        = do tag 32; toBuf fc; toBuf expr
     toBuf (IHole fc y)
         = do tag 28; toBuf fc; toBuf y
     toBuf (IUnifyLog fc lvl x) = toBuf x
@@ -185,6 +187,8 @@ mutual
                31 => do fc <- fromBuf; fn <- fromBuf
                         arg <- fromBuf
                         pure (IAutoApp fc fn arg)
+               32 => do fc <- fromBuf; expr <- fromBuf
+                        pure (ITypeLevel fc expr)
                _ => corrupt "RawImp"
 
   export

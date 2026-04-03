@@ -227,6 +227,10 @@ mutual
                (UN (Basic "IType"), [fc])
                     => do fc' <- reify defs !(evalClosure defs fc)
                           pure (IType fc' Nothing)
+               (UN (Basic "ITypeLevel"), [fc, expr])
+                    => do fc' <- reify defs !(evalClosure defs fc)
+                          expr' <- reify defs !(evalClosure defs expr)
+                          pure (ITypeLevel fc' expr')
                (UN (Basic "IHole"), [fc, n])
                     => do fc' <- reify defs !(evalClosure defs fc)
                           n' <- reify defs !(evalClosure defs n)
@@ -632,6 +636,10 @@ mutual
     reflect fc defs lhs env (IType tfc _)
         = do fc' <- reflect fc defs lhs env tfc
              appCon fc defs (reflectionttimp "IType") [fc']
+    reflect fc defs lhs env (ITypeLevel tfc expr)
+        = do fc' <- reflect fc defs lhs env tfc
+             expr' <- reflect fc defs lhs env expr
+             appCon fc defs (reflectionttimp "ITypeLevel") [fc', expr']
     reflect fc defs lhs env (IHole tfc t)
         = do fc' <- reflect fc defs lhs env tfc
              t' <- reflect fc defs lhs env t

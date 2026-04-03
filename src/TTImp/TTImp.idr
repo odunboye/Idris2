@@ -119,6 +119,8 @@ mutual
 
        IPrimVal : FC -> (c : Constant) -> RawImp' nm
        IType : FC -> (level : Maybe Nat) -> RawImp' nm
+       ||| Type <level-expr> where the level is a runtime Level expression
+       ITypeLevel : FC -> (levelExpr : RawImp' nm) -> RawImp' nm
        IHole : FC -> String -> RawImp' nm
 
        IUnifyLog : FC -> LogLevel -> RawImp' nm -> RawImp' nm
@@ -209,6 +211,7 @@ mutual
       show (IUnifyLog _ lvl x) = "(%logging " ++ show lvl ++ " " ++ show x ++ ")"
       show (IType fc Nothing)  = "%type"
       show (IType fc (Just k)) = "%type " ++ show k
+      show (ITypeLevel fc expr) = "%type " ++ show expr
       show (Implicit fc True) = "_"
       show (Implicit fc False) = "?"
       show (IWithUnambigNames fc ns rhs) = "(%with " ++ show ns ++ " " ++ show rhs ++ ")"
@@ -898,6 +901,7 @@ getFC (IPrimVal x _) = x
 getFC (IHole x _) = x
 getFC (IUnifyLog x _ _) = x
 getFC (IType x _) = x
+getFC (ITypeLevel x _) = x
 getFC (IBindVar x _) = x
 getFC (IBindHere x _ _) = x
 getFC (IMustUnify x _ _) = x

@@ -69,6 +69,8 @@ mutual
       = IPrimVal fc c
     map f (IType fc lvl)
       = IType fc lvl
+    map f (ITypeLevel fc expr)
+      = ITypeLevel fc (map f expr)
     map f (IHole fc str)
       = IHole fc str
     map f (IUnifyLog fc lvl t)

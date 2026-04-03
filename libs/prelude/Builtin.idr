@@ -39,6 +39,37 @@ public export
 assert_smaller : (0 x : a) -> (1 y : b) -> b
 assert_smaller x y = y
 
+-- Universe levels
+
+||| A first-class universe level, used to quantify over universe levels
+||| in universe-polymorphic definitions.
+|||
+||| @ LZero is level 0
+||| @ LSuc  increments a level by 1
+public export
+data Level : Type where
+  ||| The zero universe level
+  LZero : Level
+  ||| The successor of a universe level
+  LSuc  : Level -> Level
+
+||| The zero universe level (alias for LZero)
+public export %inline
+lzero : Level
+lzero = LZero
+
+||| Increment a universe level by 1 (alias for LSuc)
+public export %inline
+lsuc : Level -> Level
+lsuc = LSuc
+
+||| The maximum of two universe levels
+public export
+lmax : Level -> Level -> Level
+lmax LZero     r         = r
+lmax l         LZero     = l
+lmax (LSuc l') (LSuc r') = LSuc (lmax l' r')
+
 -- Unit type and pairs
 
 ||| The canonical single-element type, also known as the trivially true

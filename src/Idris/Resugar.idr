@@ -383,6 +383,7 @@ mutual
   toPTerm p (IHole fc str) = pure (PHole fc False str)
   toPTerm p (IType fc Nothing)  = pure (PType fc)
   toPTerm p (IType fc (Just k)) = pure $ PApp fc (PType fc) (PPrimVal fc (BI (natToInteger k)))
+  toPTerm p (ITypeLevel fc expr) = pure $ PApp fc (PType fc) !(toPTerm argPrec expr)
   toPTerm p (IBindVar fc nm)
     = pure (PRef fc (MkKindedName (Just Bound) nm nm))
   toPTerm p (IBindHere fc _ tm) = toPTerm p tm

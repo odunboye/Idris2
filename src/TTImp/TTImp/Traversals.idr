@@ -125,6 +125,7 @@ parameters (f : RawImp' nm -> RawImp' nm)
   mapTTImp (IRunElab fc re t) = f $ IRunElab fc re (mapTTImp t)
   mapTTImp (IPrimVal fc c) = f $ IPrimVal fc c
   mapTTImp (IType fc lvl) = f $ IType fc lvl
+  mapTTImp (ITypeLevel fc expr) = f $ ITypeLevel fc (mapTTImp expr)
   mapTTImp (IHole fc str) = f $ IHole fc str
   mapTTImp (IUnifyLog fc x t) = f $ IUnifyLog fc x (mapTTImp t)
   mapTTImp (Implicit fc bindIfUnsolved) = f $ Implicit fc bindIfUnsolved

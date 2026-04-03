@@ -121,6 +121,24 @@ insertImpLam {vars} env tm (Just ty) = bindLam tm ty
              pure tm'
 insertImpLam env tm _ = pure tm
 
+-- Convert a surface-syntax level expression into a UnivLevel.
+-- Handles: lzero, lsuc e, lmax a b, numeric literals, and name variables.
+rawImpToUnivLevel : RawImp -> Maybe UnivLevel
+rawImpToUnivLevel (IVar _ n)
+    = case nameRoot n of
+        "lzero" => Just UZero
+        _       => Just (UVar n)
+rawImpToUnivLevel (IApp _ (IVar _ fn) arg)
+    = case nameRoot fn of
+        "lsuc" => USucc <$> rawImpToUnivLevel arg
+        _      => Nothing
+rawImpToUnivLevel (IApp _ (IApp _ (IVar _ fn) a) b)
+    = case nameRoot fn of
+        "lmax" => [| UMax (rawImpToUnivLevel a) (rawImpToUnivLevel b) |]
+        _      => Nothing
+rawImpToUnivLevel (IPrimVal _ (BI n)) = Just (natToLevel (integerToNat n))
+rawImpToUnivLevel _ = Nothing
+
 -- Main driver for checking terms, after implicits have been added.
 -- Implements 'checkImp' in TTImp.Elab.Check
 checkTerm : {vars : _} ->
@@ -244,6 +262,11 @@ checkTerm rig elabinfo nest env (IType fc (Just k)) exp
                _ => pure ()
            Nothing => pure ()
          checkExp rig elabinfo env fc (TType fc u) (gType fc (USucc u)) exp
+checkTerm rig elabinfo nest env (ITypeLevel fc expr) exp
+    = case rawImpToUnivLevel expr of
+        Just ul => checkExp rig elabinfo env fc (TType fc ul) (gType fc (USucc ul)) exp
+        Nothing => throw (GenericMsg fc
+            "Universe level must be built from lzero, lsuc, lmax, or a level variable")
 checkTerm rig elabinfo nest env (IHole fc str) exp
     = checkHole rig elabinfo nest env fc (Basic str) exp
 checkTerm rig elabinfo nest env (IUnifyLog fc lvl tm) exp
