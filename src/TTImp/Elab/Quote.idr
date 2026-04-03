@@ -105,9 +105,10 @@ mutual
                      {auto u : Ref UST UState} ->
                      ImpRecordData Name ->
                      Core (ImpRecordData Name)
-  getUnquoteRecord (MkImpRecord header body)
+  getUnquoteRecord (MkImpRecord header retTy body)
         -- unlike before, we are also unquoting the default value, maybe this is important?
       = pure $ MkImpRecord !(traverse (traverse (traverse (traverse getUnquote))) header)
+                           !(traverseOpt getUnquote retTy)
                            !(traverse (traverse (traverse (traverse getUnquote))) body)
 
   getUnquoteData : {auto c : Ref Ctxt Defs} ->

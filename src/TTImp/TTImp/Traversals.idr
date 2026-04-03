@@ -53,8 +53,9 @@ parameters (f : RawImp' nm -> RawImp' nm)
 
   export
   mapImpRecord : ImpRecordData nm -> ImpRecordData nm
-  mapImpRecord (MkImpRecord header body)
+  mapImpRecord (MkImpRecord header retTy body)
     = MkImpRecord (map (map (map (map mapTTImp))) header)
+                  (map mapTTImp retTy)
                   (map (map (map (map mapTTImp))) body)
 
   export

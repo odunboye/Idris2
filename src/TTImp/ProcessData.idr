@@ -5,7 +5,9 @@ import Core.Context.Data
 import Core.Env
 import Core.Hash
 import Core.Metadata
+import Core.TT.Term
 import Core.UnifyState
+import Core.UnivSolver
 import Core.Value
 
 import Idris.REPL.Opts
@@ -18,6 +20,7 @@ import TTImp.Elab
 import TTImp.TTImp
 
 import Data.DPair
+import Data.List
 import Libraries.Data.NameMap
 import Libraries.Data.NatSet
 import Libraries.Data.WithDefault
@@ -67,6 +70,65 @@ checkFamily loc cn tn env nf
                     else throw $ BadDataConType loc cn tn
            _ => throw $ BadDataConType loc cn tn
 
+-- Extract the universe level from the return type of a type constructor.
+-- The tycon type looks like (x1 : A1) -> ... -> Type u, so we peel off
+-- Pi binders and return the `u` from the final `NType _ u`.
+getRetUnivLevel : {auto c : Ref Ctxt Defs} ->
+                  Env Term vars -> NF vars -> Core (Maybe UnivLevel)
+getRetUnivLevel env (NBind fc x (Pi _ _ _ ty) sc)
+    = do defs <- get Ctxt
+         getRetUnivLevel env !(sc defs (toClosure defaultOpts env (Erased fc Placeholder)))
+getRetUnivLevel env (NType _ u) = pure (Just u)
+getRetUnivLevel env _ = pure Nothing
+
+-- Walk the Pi-arguments of a constructor type and ensure that each
+-- non-erased argument's type fits within the data type's universe level.
+-- Specifically, if the constructor has an argument `(a : T)` where `T : Type j`,
+-- we add the constraint `j ≤ tyconLevel`.
+--
+-- We skip Rig0 (erased) arguments since they don't contribute to the
+-- runtime representation and shouldn't inflate the universe.
+checkConArgUniverses : {vars : _} ->
+                       {auto c : Ref Ctxt Defs} ->
+                       {auto u : Ref UST UState} ->
+                       FC -> Name -> UnivLevel ->
+                       Env Term vars -> NF vars -> Core ()
+checkConArgUniverses fc cn tyconU env (NBind bfc x (Pi _ rig _ val) sc)
+    = do defs <- get Ctxt
+         -- For non-erased arguments, infer the type-of-type and add constraint
+         when (not (isErased rig)) $ do
+           valNF <- evalClosure defs val
+           argUniv <- getArgUniv defs env valNF
+           case argUniv of
+             Just argU => do
+               let argU' = normaliseLevel argU
+               let tyconU' = normaliseLevel tyconU
+               case leqUnivLevel argU' tyconU' of
+                 Just True  => pure ()  -- already known to be fine
+                 Just False => throw (UniverseInconsistency fc argU' tyconU'
+                   ("in constructor " ++ show cn
+                    ++ ": argument type lives in a universe larger than the data type's universe"))
+                 Nothing    => addUnivConstraint argU' tyconU'  -- defer to solver
+             Nothing => pure ()  -- couldn't determine universe (e.g. not a Type), skip
+         -- Continue to next argument
+         checkConArgUniverses fc cn tyconU env
+           !(sc defs (toClosure defaultOpts env (Erased bfc Placeholder)))
+  where
+    -- Try to determine what universe an argument type lives in.
+    -- If the argument is itself `Type u`, its type is `Type (u+1)`, so the
+    -- relevant level is `u+1`.  For other types we look at what the type
+    -- normalises to and try to read the NType level.
+    getArgUniv : Defs -> Env Term vars -> NF vars -> Core (Maybe UnivLevel)
+    getArgUniv defs env (NType _ u) = pure (Just (USucc u))  -- Type u : Type (u+1)
+    getArgUniv defs env (NTCon tfc tn _ args)
+        = do -- Look up the type constructor to find its return universe
+             Just gdef <- lookupCtxtExact tn (gamma defs)
+               | Nothing => pure Nothing
+             tynf <- nf defs Env.empty (type gdef)
+             getRetUnivLevel Env.empty tynf
+    getArgUniv defs env _ = pure Nothing  -- can't determine, skip
+checkConArgUniverses fc cn tyconU env _ = pure ()  -- not a Pi, done
+
 updateNS : Name -> Name -> RawImp -> RawImp
 updateNS orig ns (IPi fc c p n ty sc) = IPi fc c p n ty (updateNS orig ns sc)
 updateNS orig ns tm = updateNSApp tm
@@ -89,8 +151,9 @@ checkCon : {vars : _} ->
            {auto o : Ref ROpts REPLOpts} ->
            List ElabOpt -> NestedNames vars ->
            Env Term vars -> Visibility -> (orig : Name) -> (resolved : Name) ->
+           (tyconUniv : Maybe UnivLevel) ->
            ImpTy -> Core Constructor
-checkCon {vars} opts nest env vis tn_in tn ty_raw
+checkCon {vars} opts nest env vis tn_in tn tyconUniv ty_raw
     = do let cn_in = ty_raw.tyName
          let fc = ty_raw.fc
          cn <- inCurrentNS cn_in.val
@@ -111,6 +174,13 @@ checkCon {vars} opts nest env vis tn_in tn ty_raw
 
          -- Check 'ty' returns something in the right family
          checkFamily fc cn tn env !(nf defs env ty)
+
+         -- Universe check: each non-erased constructor argument must live
+         -- in a universe ≤ the data type's universe.
+         case tyconUniv of
+           Just tcu => checkConArgUniverses fc cn tcu env !(nf defs env ty)
+           Nothing  => pure ()
+
          let fullty = abstractEnvType fc env ty
          logTermNF "declare.data.constructor" 5 ("Constructor " ++ show cn) Env.empty fullty
 
@@ -515,8 +585,10 @@ processData {vars} eopts nest env fc def_vis mbtot (MkImpData dfc n_in mty_raw o
 
          -- Add the type constructor as a placeholder while checking
          -- data constructors
-         tidx <- addDef n (newDef fc n linear vars fullty (specified vis)
-                          (TCon arity NatSet.empty NatSet.empty defaultFlags [] Nothing Nothing))
+         let uparams = nub (collectUVarNamesInTerm fullty)
+         tidx <- addDef n ({ univParams := uparams }
+                          (newDef fc n linear vars fullty (specified vis)
+                          (TCon arity NatSet.empty NatSet.empty defaultFlags [] Nothing Nothing)))
          case vis of
               Private => pure ()
               _ => do addHashWithNames n
@@ -526,7 +598,12 @@ processData {vars} eopts nest env fc def_vis mbtot (MkImpData dfc n_in mty_raw o
          -- Constructors are private if the data type as a whole is
          -- export
          let cvis = if vis == Export then Private else vis
-         cons <- traverse (checkCon eopts nest env cvis n_in (Resolved tidx)) cons_raw
+
+         -- Extract the tycon's universe level from its return type
+         tyconUniv <- do defs' <- get Ctxt
+                         tynf <- nf defs' Env.empty fullty
+                         getRetUnivLevel Env.empty tynf
+         cons <- traverse (checkCon eopts nest env cvis n_in (Resolved tidx) tyconUniv) cons_raw
 
          let ddef = MkData (Mk [dfc, NoFC n, arity] fullty) cons
          ignore $ addData vars vis tidx ddef

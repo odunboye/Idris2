@@ -4,6 +4,7 @@ import Core.Case.CaseTree
 import Core.Context.Log
 import Core.Env
 import Core.Normalise
+import Core.UnivSolver
 import Core.Value
 
 import TTImp.TTImp
@@ -308,7 +309,12 @@ mutual
   unelabTy' umode nest env (Erased fc (Dotted t))
     = unelabTy' umode nest env t
   unelabTy' umode nest env (Erased fc _) = pure (Implicit fc True, gErased fc)
-  unelabTy' umode nest env (TType fc _) = pure (IType fc Nothing, gType fc (UVar (MN "top" 0)))
+  unelabTy' umode nest env (TType fc u) =
+    let levelDisp = case u of
+                      UZero    => Nothing  -- Type 0 displays as just Type
+                      UVar _   => Nothing  -- polymorphic level: display as Type
+                      _        => Just (concreteLevel u)  -- concrete > 0: show it
+    in pure (IType fc levelDisp, gType fc (UVar (MN "top" 0)))
   unelabTy' umode nest env (TFix fc _ _) = pure (Implicit fc True, gErased fc)
   unelabTy' umode nest env (TLater fc _ _) = pure (Implicit fc True, gErased fc)
   unelabTy' umode nest env (TNext fc _ _) = pure (Implicit fc True, gErased fc)

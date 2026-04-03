@@ -381,12 +381,14 @@ mutual
   data PRecordDecl' : Type -> Type where
        MkPRecord : (tyname : Name) ->
                    (params : List (PBinder' nm)) ->
+                   (retTy : Maybe (PTerm' nm)) ->
                    (opts : List DataOpt) ->
                    (conName : Maybe (WithDoc $ AddFC Name)) ->
                    (decls : List (PField' nm)) ->
                    PRecordDecl' nm
        MkPRecordLater : (tyname : Name) ->
                         (params : List (PBinder' nm)) ->
+                        (retTy : Maybe (PTerm' nm)) ->
                         PRecordDecl' nm
 
   export

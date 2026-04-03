@@ -14,6 +14,18 @@ import TTImp.TTImp
 
 %default covering
 
+-- Check if a normalised type is the built-in Level type.
+-- Level is a data type named "Level" whose constructors are LZero and LSuc.
+isLevelType : {vars : _} -> {auto c : Ref Ctxt Defs} ->
+              Env Term vars -> Term vars -> Core Bool
+isLevelType env ty
+    = do defs <- get Ctxt
+         tynf <- nf defs env ty
+         case tynf of
+           NTCon _ n _ _ => do fn <- toFullNames n
+                               pure (nameRoot fn == "Level")
+           _ => pure False
+
 -- Drop the name from the nested function declarations. We do this when
 -- going into a new scope, so that we're resolving to the most recently
 -- bound name.
@@ -66,7 +78,15 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
          (tyv, tyt) <- check pirig elabinfo nest env argTy
                              (Just (gType fc tyu))
          info' <- checkPiInfo rigf elabinfo nest env info (Just (gnf env tyv))
-         let env' : Env Term (n :: _) = Pi fc rigf info' tyv :: env
+         -- Universe-level binders: if the argument type is Level and the
+         -- binder is implicit, force the multiplicity to erased (Rig0) so
+         -- the binder doesn't produce unsolved-hole errors.  The UVar
+         -- mechanism handles the actual level propagation through Type l
+         -- expressions.  Explicit Level arguments (e.g. lmax : Level -> ...)
+         -- are left as-is.
+         isLvl <- isLevelType env tyv
+         let rigf' = if isLvl && isImplicit info' then erased else rigf
+         let env' : Env Term (n :: _) = Pi fc rigf' info' tyv :: env
          let nest' = weaken (dropName n nest)
          scu <- uniVar fc
          (scopev, scopet) <-
@@ -76,7 +96,7 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
          let piu = UMax tyu scu
          addUnivConstraint tyu piu
          addUnivConstraint scu piu
-         checkExp rig elabinfo env fc (Bind fc n (Pi (getFC argTy) rigf info' tyv) scopev) (gType fc piu) expTy
+         checkExp rig elabinfo env fc (Bind fc n (Pi (getFC argTy) rigf' info' tyv) scopev) (gType fc piu) expTy
   where
     -- Might want to match on the LHS, so use the context rig, otherwise
     -- it's always erased

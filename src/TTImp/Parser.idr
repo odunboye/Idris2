@@ -683,7 +683,7 @@ recordDecl fname indents
          end <- location
          pure (let fc = MkFC fname start end
                 in IRecord fc Nothing vis mbtot
-                           (Mk [fc] $ MkImpRecord (Mk [n] params) (Mk [dc, opts] (concat flds))))
+                           (Mk [fc] $ MkImpRecord (Mk [n] params) Nothing (Mk [dc, opts] (concat flds))))
 
 namespaceDecl : Rule Namespace
 namespaceDecl

@@ -1905,15 +1905,18 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
                List PBinder ->
                EmptyRule PDeclNoFC
   recordBody doc vis mbtot col n params
-      = do atEndIndent indents
-           pure (PRecord doc vis mbtot (MkPRecordLater n params))
-    <|> do mustWork $ decoratedKeyword fname "where"
-           opts <- dataOpts fname
-           dcflds <- blockWithOptHeaderAfter col
-                       (\ idt => recordConstructor fname <* atEnd idt)
-                       fieldDecl
-           pure (PRecord doc vis mbtot
-                  (MkPRecord n params opts (fst dcflds) (snd dcflds)))
+      = do -- Optional return type annotation: record Foo params : Type k where ...
+           retTy <- optional (decoratedSymbol fname ":" *> typeExpr pdef fname indents)
+           (do atEndIndent indents
+               pure (PRecord doc vis mbtot (MkPRecordLater n params retTy))
+            <|>
+            do mustWork $ decoratedKeyword fname "where"
+               opts <- dataOpts fname
+               dcflds <- blockWithOptHeaderAfter col
+                           (\ idt => recordConstructor fname <* atEnd idt)
+                           fieldDecl
+               pure (PRecord doc vis mbtot
+                      (MkPRecord n params retTy opts (fst dcflds) (snd dcflds))))
 
   recordDecl : Rule PDeclNoFC
   recordDecl

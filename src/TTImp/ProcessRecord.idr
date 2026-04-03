@@ -45,11 +45,12 @@ elabRecord : {vars : _} ->
              Maybe TotalReq ->
              (tyName : Name) ->
              (params : List ImpParameter) ->
+             (retTy : Maybe RawImp) ->
              (opts : List DataOpt) ->
              (conName : Name) ->
              List IField ->
              Core ()
-elabRecord {vars} eopts fc env nest newns def_vis mbtot tn_in params0 opts conName_in fields
+elabRecord {vars} eopts fc env nest newns def_vis mbtot tn_in params0 retTy opts conName_in fields
     = do tn <- inCurrentNS tn_in
          conName <- inCurrentNS conName_in
          params <- preElabAsData tn
@@ -120,7 +121,7 @@ elabRecord {vars} eopts fc env nest newns def_vis mbtot tn_in params0 opts conNa
     paramNames params = map (.name.val) params
 
     mkDataTy : FC -> List ImpParameter -> RawImp
-    mkDataTy fc [] = IType fc Nothing
+    mkDataTy fc [] = fromMaybe (IType fc Nothing) retTy
     mkDataTy fc (binder :: ps) = IPi fc binder.rig binder.val.info (Just binder.name.val) binder.val.boundType (mkDataTy fc ps)
 
     nestDrop : Core (List (Name, Nat))
@@ -349,5 +350,5 @@ processRecord : {vars : _} ->
                 Env Term vars -> Maybe String ->
                 WithDefault Visibility Private -> Maybe TotalReq ->
                 ImpRecord -> Core ()
-processRecord eopts nest env newns def_vis mbtot rec@(MkWithData _ $ MkImpRecord header body)
-    = elabRecord eopts rec.fc env nest newns def_vis mbtot header.name.val header.val body.opts body.name.val body.val
+processRecord eopts nest env newns def_vis mbtot rec@(MkWithData _ $ MkImpRecord header retTy body)
+    = elabRecord eopts rec.fc env nest newns def_vis mbtot header.name.val header.val retTy body.opts body.name.val body.val

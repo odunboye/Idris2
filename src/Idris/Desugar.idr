@@ -1267,16 +1267,16 @@ mutual
       isNamed Nothing = False
       isNamed (Just _) = True
 
-  desugarDecl ps rec@(MkWithData fc $ PRecord doc vis mbtot (MkPRecordLater tn params))
+  desugarDecl ps rec@(MkWithData fc $ PRecord doc vis mbtot (MkPRecordLater tn params retTy))
       = desugarDecl ps (MkWithData fc $ PData doc vis mbtot (MkPLater rec.fc tn (mkRecType params)))
     where
       mkRecType : List PBinder -> PTerm
-      mkRecType [] = PType rec.fc
+      mkRecType [] = fromMaybe (PType rec.fc) retTy
       mkRecType (MkPBinder p (MkBasicMultiBinder c (n ::: []) t) :: ts)
         = PPi rec.fc c p (Just n.val) t (mkRecType ts)
       mkRecType (MkPBinder p (MkBasicMultiBinder c (n ::: x :: xs) t) :: ts)
         = PPi rec.fc c p (Just n.val) t (mkRecType (MkPBinder p (MkBasicMultiBinder c (x ::: xs) t) :: ts))
-  desugarDecl ps rec@(MkWithData _ $ PRecord doc vis mbtot (MkPRecord tn params opts conname_in fields))
+  desugarDecl ps rec@(MkWithData _ $ PRecord doc vis mbtot (MkPRecord tn params retTy opts conname_in fields))
       = do addDocString tn doc
            params' : List ImpParameter <-
               map concat $ for params $ \ (MkPBinder info (MkBasicMultiBinder rig names tm)) =>
@@ -1296,12 +1296,14 @@ mutual
 
            let paramsb : List ImpParameter = map (map $ mapType $ doBind bnames) params'
            let recName = nameRoot tn
+           -- Desugar optional return type annotation
+           retTy' <- traverseOpt (desugar AnyExpr ps) retTy
            fields' : List (List IField) <- for fields (desugarField (ps ++ fnames ++ paramNames)
                                                                     (mkNamespace recName))
            let conname : Name = maybe (mkConName tn) val conname_in
            whenJust (get "doc" <$> conname_in) (addDocString conname)
            pure [IRecord rec.fc (Just recName)
-                         vis mbtot (Mk [rec.fc] $ MkImpRecord (Mk [NoFC tn] paramsb) (Mk [NoFC conname, opts] (concat fields')))]
+                         vis mbtot (Mk [rec.fc] $ MkImpRecord (Mk [NoFC tn] paramsb) retTy' (Mk [NoFC conname, opts] (concat fields')))]
     where
       getfname : PField -> List Name
       getfname x = map val x.names

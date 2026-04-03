@@ -349,6 +349,7 @@ newDef fc n rig vars ty vis def
         , namedcompexpr = Nothing
         , sizeChange = []
         , schemeExpr = Nothing
+        , univParams = []
         }
 
 -- Rewrite rules, applied after type checking, for runtime code only
@@ -837,6 +838,7 @@ HasNames Error where
   full gam (BadImplicit fc x) = pure (BadImplicit fc x)
   full gam (BadRunElab fc rho s desc) = BadRunElab fc <$> full gam rho <*> full gam s <*> pure desc
   full gam (RunElabFail e) = RunElabFail <$> full gam e
+  full gam (UniverseInconsistency fc l r d) = pure (UniverseInconsistency fc l r d)
   full gam (GenericMsg fc x) = pure (GenericMsg fc x)
   full gam (GenericMsgSol fc x y z) = pure (GenericMsgSol fc x y z)
   full gam (TTCError x) = pure (TTCError x)
@@ -939,6 +941,7 @@ HasNames Error where
   resolved gam (BadImplicit fc x) = pure (BadImplicit fc x)
   resolved gam (BadRunElab fc rho s desc) = BadRunElab fc <$> resolved gam rho <*> resolved gam s <*> pure desc
   resolved gam (RunElabFail e) = RunElabFail <$> resolved gam e
+  resolved gam (UniverseInconsistency fc l r d) = pure (UniverseInconsistency fc l r d)
   resolved gam (GenericMsg fc x) = pure (GenericMsg fc x)
   resolved gam (GenericMsgSol fc x y z) = pure (GenericMsgSol fc x y z)
   resolved gam (TTCError x) = pure (TTCError x)
@@ -1415,6 +1418,7 @@ addBuiltin n ty tot op
          , namedcompexpr = Nothing
          , sizeChange = []
          , schemeExpr = Nothing
+         , univParams = []
          }
 
 export

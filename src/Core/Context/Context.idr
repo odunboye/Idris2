@@ -340,6 +340,8 @@ record GlobalDef where
   namedcompexpr : Maybe NamedDef
   sizeChange : List SCCall
   schemeExpr : Maybe (SchemeMode, SchemeObj Write)
+  univParams : List Name -- universe level parameters (UVar names) for
+                         -- universe-polymorphic definitions
 
 export
 getDefNameType : GlobalDef -> NameType

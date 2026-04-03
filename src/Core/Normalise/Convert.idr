@@ -493,6 +493,10 @@ mutual
           -- Normalise both sides first so UMax UZero (USucc UZero) = USucc UZero etc.
           -- When UVars are involved we return True optimistically; the Unify NF
           -- instance records the constraint for the post-hoc solver.
+          -- NOTE: this is sound because every site that matters for
+          -- universe consistency also goes through unification, which
+          -- adds the proper constraint.  Conversion is only used as a
+          -- fast-path shortcut.
           case leqUnivLevel (normaliseLevel ul) (normaliseLevel ur) of
             Just b  => pure b
             Nothing => pure True

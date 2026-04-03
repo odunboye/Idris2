@@ -307,12 +307,12 @@ mutual
 
   export
   TTC (ImpRecordData Name) where
-    toBuf (MkImpRecord header body)
-        = do toBuf header; toBuf body;
+    toBuf (MkImpRecord header retTy body)
+        = do toBuf header; toBuf retTy; toBuf body;
 
     fromBuf
-        = do header <- fromBuf; body <- fromBuf;
-             pure (MkImpRecord header body)
+        = do header <- fromBuf; retTy <- fromBuf; body <- fromBuf;
+             pure (MkImpRecord header retTy body)
 
   export
   TTC FnOpt where

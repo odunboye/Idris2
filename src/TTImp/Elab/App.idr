@@ -46,13 +46,19 @@ onLHS _ = False
 -- at different call sites without the solver forcing them to agree.
 -- The same old UVar name maps to the same new UVar within one instantiation,
 -- preserving internal consistency of the type.
+-- Freshen universe variables in a type for a new call site.
+-- If the definition has stored univParams, use those; otherwise fall back
+-- to scanning the term for UVar names.
 freshenUVars : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               FC -> Term [] -> Core (Term [])
-freshenUVars fc tm =
-    case nub (collectUVarNamesInTerm tm) of
+               FC -> (storedUParams : List Name) -> Term [] -> Core (Term [])
+freshenUVars fc storedUParams tm =
+    let names = case storedUParams of
+                  [] => nub (collectUVarNamesInTerm tm)
+                  ps => ps
+    in case names of
       []    => pure tm   -- no UVars: nothing to do
-      names => do
+      _     => do
         pairs <- traverse (\n => map (n,) (uniVar fc)) names
         pure (substUnivVarsInTerm (fromList pairs) tm)
 
@@ -112,7 +118,7 @@ getNameType elabMode rigc env fc x
                        $ "getNameType is adding " ++ show decor ++ ": " ++ show def.fullname
                      addSemanticDecorations [(nfc, decor, Just def.fullname)]
 
-                 freshTy <- freshenUVars fc (type def)
+                 freshTy <- freshenUVars fc (univParams def) (type def)
                  pure (Ref fc nt (Resolved i), gnf env (embed freshTy))
   where
     rigSafe : RigCount -> RigCount -> Core ()
@@ -203,6 +209,35 @@ isHole : NF vars -> Bool
 isHole (NApp _ (NMeta {}) _) = True
 isHole _ = False
 
+-- Check if a closure evaluates to the Level type.
+-- We resolve the name to its full name to handle resolved/unresolved forms.
+isLevelClosureFull : {vars : _} -> {auto c : Ref Ctxt Defs} ->
+                     Defs -> Closure vars -> Core Bool
+isLevelClosureFull defs cl
+    = do nf <- evalClosure defs cl
+         case nf of
+           NTCon _ n _ _ => do
+             fn <- toFullNames n
+             pure (nameRoot fn == "Level")
+           _ => pure False
+
+-- Convert a Nat (universe level) to a Level term: 0 -> LZero, n+1 -> LSuc (n)
+natToLevelTerm : {vars : _} -> {auto c : Ref Ctxt Defs} ->
+                 FC -> Env Term vars -> Nat -> Core (Term vars)
+natToLevelTerm fc env Z
+    = do defs <- get Ctxt
+         ns <- lookupCtxtName (UN (Basic "LZero")) (gamma defs)
+         case ns of
+           ((n, _, _) :: _) => pure (Ref fc (DataCon 0 0) n)
+           _ => pure (Erased fc Placeholder)
+natToLevelTerm fc env (S k)
+    = do defs <- get Ctxt
+         ns <- lookupCtxtName (UN (Basic "LSuc")) (gamma defs)
+         inner <- natToLevelTerm fc env k
+         case ns of
+           ((n, _, _) :: _) => pure (App fc (Ref fc (DataCon 1 1) n) inner)
+           _ => pure (Erased fc Placeholder)
+
 mutual
   makeImplicit : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
@@ -224,13 +259,22 @@ mutual
                  Core (Term vars, Glued vars)
   makeImplicit rig argRig elabinfo nest env fc tm x aty sc (n, argpos) expargs autoargs namedargs kr expty
       = do defs <- get Ctxt
+           isLvl <- isLevelClosureFull defs aty
            nm <- genMVName x
            empty <- clearDefs defs
            metaty <- quote empty env aty
-           metaval <- metaVar fc argRig env nm metaty
+           metaval <- if isLvl
+                        then do -- Level-typed implicit: fill with a concrete Level
+                                -- term.  The binder is Rig0 so this won't appear
+                                -- at runtime.  The UVar mechanism in Type l handles
+                                -- actual level propagation.  We use LZero as the
+                                -- default; the universe solver resolves the real
+                                -- level through constraints on the UVar.
+                                natToLevelTerm fc env 0
+                        else metaVar fc argRig env nm metaty
            let fntm = App fc tm metaval
            fnty <- sc defs (toClosure defaultOpts env metaval)
-           when (bindingVars elabinfo) $ update EST $
+           when (not isLvl && bindingVars elabinfo) $ update EST $
              addBindIfUnsolved nm (getLoc (getFn tm)) argRig
                (if inIrrelevantPi elabinfo then Irrelevant else Implicit) env metaval metaty
            checkAppWith rig elabinfo nest env fc
