@@ -1,0 +1,3 @@
+. ../../../testutils.sh
+
+idris2 --check LevelAutoBind.idr 2>&1

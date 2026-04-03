@@ -1,6 +1,9 @@
 module TestLevel
 
--- lzero, lsuc, lmax are first-class Level values
+-- Tests for Level : Type as a first-class type.
+-- Level, lzero, lsuc, lmax are provided by the Prelude.
+
+-- Basic Level values
 test1 : Level
 test1 = lzero
 
@@ -8,24 +11,20 @@ test2 : Level
 test2 = lsuc lzero
 
 test3 : Level
-test3 = lmax (lsuc lzero) lzero
+test3 = lmax (lsuc lzero) lzero   -- normalises to lsuc lzero
 
--- Type (lsuc lzero) works for Type 1 values
-test4 : Type (lsuc lzero)
-test4 = String
+-- Type lzero is the same universe as Type 0
+test4 : Type lzero
+test4 = Nat
 
--- Level-polymorphic identity
-LevelId : (l : Level) -> Type l -> Type l
-LevelId _ a = a
+-- Type (lsuc lzero) = Type 1; a Type (e.g. Nat) lives there
+test5 : Type (lsuc lzero)
+test5 = Nat
 
--- Type 0 and Type (lzero) should be the same
--- (both elaborate to TType fc UZero)
-test5 : Type lzero
-test5 = Bool
+-- lsuc l for a bound variable l
+typeAtSucc : (l : Level) -> Type (lsuc l)
+typeAtSucc l = Type l
 
--- lsuc l for variable l
-test6 : (l : Level) -> Type (lsuc l)
-test6 l = Type l
-
-main : IO ()
-main = putStrLn "Level : Type works!"
+-- lmax of two level variables (explicit annotation avoids inference gap)
+typeAtMax : (l1, l2 : Level) -> Type (lmax l1 l2) -> Type (lmax l1 l2)
+typeAtMax l1 l2 a = a
