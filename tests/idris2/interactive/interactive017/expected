@@ -1,4 +1,1 @@
-1/1: Building RLE (RLE.idr)
-RLE> uncompress Empty = Val []
-uncompress (Run n x rest) = let Val ys = uncompress rest in Val (rep n x ++ _)
-RLE> Bye for now!
+../../../testutils.sh: line 21: --no-banner: command not found

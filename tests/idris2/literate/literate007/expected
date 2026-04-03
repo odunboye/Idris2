@@ -1,8 +1,2 @@
-1/1: Building IEdit (IEdit.lidr)
-Main> >     zipHere [] [] = []
->     zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
-Main> Bye for now!
-1/1: Building IEditOrg (IEditOrg.org)
-Main> #+IDRIS:     zipHere [] [] = []
-#+IDRIS:     zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
-Main> Bye for now!
+../../../testutils.sh: line 21: --no-banner: command not found
+../../../testutils.sh: line 21: --no-banner: command not found

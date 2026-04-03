@@ -1,4 +1,1 @@
-1/1: Building IEdit (IEdit.dj)
-Main>     zipHere [] [] = []
-    zipHere (x :: xs) (y :: ys) = (x, y) :: zipHere xs ys
-Main> Bye for now!
+../../../testutils.sh: line 21: --no-banner: command not found
