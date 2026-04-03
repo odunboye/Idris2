@@ -163,6 +163,25 @@ concreteLevel (USucc u)  = S (concreteLevel u)
 concreteLevel (UMax l r) = max (concreteLevel l) (concreteLevel r)
 concreteLevel (UVar _)   = 0
 
+-- Reduce a UnivLevel to a canonical form:
+--   UMax UZero r             → r
+--   UMax l UZero             → l
+--   UMax (USucc l) (USucc r) → USucc (UMax l r)   (peeled one layer)
+-- Applied recursively so e.g. UMax UZero (USucc UZero) → USucc UZero.
+export
+normaliseLevel : UnivLevel -> UnivLevel
+normaliseLevel UZero        = UZero
+normaliseLevel (UVar n)     = UVar n
+normaliseLevel (USucc u)    = USucc (normaliseLevel u)
+normaliseLevel (UMax l r)   =
+  case (normaliseLevel l, normaliseLevel r) of
+    (UZero,    r')        => r'
+    (l',       UZero)     => l'
+    -- Both sides are (USucc _): peel one layer and recurse.
+    -- Terminates: the combined USucc-depth decreases by 2 each step.
+    (USucc l', USucc r')  => USucc (assert_total (normaliseLevel (UMax l' r')))
+    (l', r')              => UMax l' r'
+
 -- Structural less-than-or-equal comparison on UnivLevel.
 -- Returns Just True  if provably ul ≤ ur from structure alone.
 -- Returns Just False if provably ul > ur.

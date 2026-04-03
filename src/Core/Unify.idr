@@ -1262,6 +1262,19 @@ mutual
 
   export
   Unify NF where
+    -- Universe level unification: Type ul ≡ Type ur
+    -- Normalise both levels first (reduces UMax), then:
+    --   • known comparable  → accept or reject immediately
+    --   • UVars involved    → record constraint for the post-hoc solver
+    unifyD _ _ mode loc env (NType _ ul) (NType _ ur)
+        = let ul' = normaliseLevel ul
+              ur' = normaliseLevel ur
+          in case leqUnivLevel ul' ur' of
+               Just True  => pure success
+               Just False => convertError loc env (NType EmptyFC ul') (NType EmptyFC ur')
+               Nothing    => do addUnivConstraint ul' ur'
+                                pure success
+
     unifyD _ _ mode loc env (NBind xfc x bx scx) (NBind yfc y by scy)
         = unifyBothBinders mode loc env xfc x bx scx yfc y by scy
     unifyD _ _ mode loc env tmx@(NBind xfc x (Lam fcx cx ix tx) scx) tmy

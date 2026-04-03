@@ -490,10 +490,10 @@ mutual
     convGen q i defs env _ (NErased {}) = pure True
     convGen q i defs env (NType _ ul) (NType _ ur)
         = -- Cumulativity: Type ul is a subtype of Type ur when ul ≤ ur.
-          -- leqUnivLevel returns Nothing for unresolved UVars; we fall back
-          -- to True (optimistic) so elaboration can proceed and the solver
-          -- enforces the constraint post-hoc.
-          case leqUnivLevel ul ur of
+          -- Normalise both sides first so UMax UZero (USucc UZero) = USucc UZero etc.
+          -- When UVars are involved we return True optimistically; the Unify NF
+          -- instance records the constraint for the post-hoc solver.
+          case leqUnivLevel (normaliseLevel ul) (normaliseLevel ur) of
             Just b  => pure b
             Nothing => pure True
     convGen q i defs env x y = pure False
