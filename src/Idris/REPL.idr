@@ -946,7 +946,7 @@ process (Load f)
          -- Clear the context and load again
          loadMainFile f
 process (ImportMod m)
-    = do catch (do addImport (MkImport emptyFC False m (miAsNamespace m))
+    = do catch (do addImport (MkImport emptyFC False m (miAsNamespace m) Unrestricted)
                    pure $ ModuleLoaded (show m))
                (\err => pure $ ErrorLoadingModule (show m) err)
 process (CD dir)
@@ -1083,7 +1083,7 @@ process (ImportPackage package) = do
     let sp = forget $ split (== dirSeparator) entry'
     let ns = concat $ intersperse "." sp
     let ns' = mkNamespace ns
-    catch (do addImport (MkImport emptyFC False (nsAsModuleIdent ns') ns'); pure Nothing)
+    catch (do addImport (MkImport emptyFC False (nsAsModuleIdent ns') ns' Unrestricted); pure Nothing)
           (\err => pure (Just err))
   let errs' = catMaybes errs
   res <- case errs' of

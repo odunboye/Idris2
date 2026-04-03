@@ -119,7 +119,7 @@ mutual
        PRunElab : FC -> PTerm' nm -> PTerm' nm
        PHole : FC -> (bracket : Bool) -> (holename : String) -> PTerm' nm
        PType : FC -> PTerm' nm
-       PAs : FC -> (nameFC : FC) -> Name -> (pattern : PTerm' nm) -> PTerm' nm
+       PAs : FC -> (nameFC : FC) -> Name -> (pat : PTerm' nm) -> PTerm' nm
        PDotted : FC -> PTerm' nm -> PTerm' nm
        PImplicit : FC -> PTerm' nm
        PInfer : FC -> PTerm' nm
@@ -768,21 +768,43 @@ data REPLCmd : Type where
      ImportPackage : String -> REPLCmd
 
 public export
+-- Represents an import specification: explicit list, hiding, or unrestricted
+data ImportSpec : Type where
+  -- Import only these names (with optional renames)
+  Explicit : List (Name, Maybe Name) -> ImportSpec
+  -- Import everything except these names
+  Hiding : List Name -> ImportSpec
+  -- Import everything (default)
+  Unrestricted : ImportSpec
+
+export
+Show ImportSpec where
+  show Unrestricted = ""
+  show (Hiding ns) = "hiding (" ++ showSep ", " (map show ns) ++ ")"
+  show (Explicit ns) = "(" ++ showSep ", " (map showName ns) ++ ")"
+    where
+      showName : (Name, Maybe Name) -> String
+      showName (n, Nothing) = show n
+      showName (n, Just n') = show n ++ " as " ++ show n'
+
+public export
 record Import where
   constructor MkImport
   loc : FC
   reexport : Bool
   path : ModuleIdent
   nameAs : Namespace
+  spec : ImportSpec  -- selective import specification
 
 export
 Show Import where
-  show (MkImport loc reexport path nameAs)
+  show (MkImport loc reexport path nameAs spec)
     = unwords $ catMaybes
       [ Just "import"
       , "public" <$ guard reexport
       , Just (show path)
       , ("as " ++ show nameAs) <$ guard (miAsNamespace path /= nameAs)
+      , let s = show spec in if s == "" then Nothing else Just s
       ]
 
 public export

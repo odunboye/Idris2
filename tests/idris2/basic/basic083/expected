@@ -4,6 +4,11 @@ False
 1/1: Building NeverDefined (NeverDefined.idr)
 Warning: NeverDefined.ghost was declared but never defined.
 
-NeverDefined:5:1--5:18
+NeverDefined:5:1--5:19
+ 1 | module NeverDefined
+ 2 |
+ 3 | -- This type signature is never followed by a definition.
+ 4 | -- The compiler should warn: "ghost was declared but never defined."
  5 | ghost : Nat -> Nat
+     ^^^^^^^^^^^^^^^^^^
 
