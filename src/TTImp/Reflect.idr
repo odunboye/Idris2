@@ -302,6 +302,8 @@ mutual
                (UN (Basic "SpecArgs"), [(_, x)])
                     => do x' <- reify defs !(evalClosure defs x)
                           pure (SpecArgs x')
+               (UN (Basic "Terminating"), _) => pure Terminating
+               (UN (Basic "NoCoverage"), _) => pure NoCoverage
                _ => cantReify val "FnOpt"
     reify defs val = cantReify val "FnOpt"
 
@@ -328,6 +330,7 @@ mutual
                (UN (Basic "UniqueSearch"), _) => pure UniqueSearch
                (UN (Basic "External"), _) => pure External
                (UN (Basic "NoNewtype"), _) => pure NoNewtype
+               (UN (Basic "NoPositivity"), _) => pure NoPositivity
                _ => cantReify val "DataOpt"
     reify defs val = cantReify val "DataOpt"
 
@@ -690,6 +693,8 @@ mutual
     reflect fc defs lhs env (SpecArgs r)
         = do r' <- reflect fc defs lhs env r
              appCon fc defs (reflectionttimp "SpecArgs") [r']
+    reflect fc defs lhs env Terminating = getCon fc defs (reflectionttimp "Terminating")
+    reflect fc defs lhs env NoCoverage = getCon fc defs (reflectionttimp "NoCoverage")
 
   export
   Reflect ImpTy where
@@ -708,6 +713,7 @@ mutual
     reflect fc defs lhs env UniqueSearch = getCon fc defs (reflectionttimp "UniqueSearch")
     reflect fc defs lhs env External = getCon fc defs (reflectionttimp "External")
     reflect fc defs lhs env NoNewtype = getCon fc defs (reflectionttimp "NoNewtype")
+    reflect fc defs lhs env NoPositivity = getCon fc defs (reflectionttimp "NoPositivity")
 
   export
   Reflect ImpData where

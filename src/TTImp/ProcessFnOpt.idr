@@ -179,3 +179,10 @@ processFnOpt fc _ ndef (SpecArgs ns)
              ns' <- getNamePos (1 + i) !(sc defs (toClosure defaultOpts Env.empty (Erased tfc Placeholder)))
              pure ((x, i) :: ns')
     getNamePos _ _ = pure []
+
+processFnOpt fc _ ndef Terminating
+    = do setIsEscapeHatch fc ndef
+         setTotality fc ndef (MkTotality IsTerminating IsCovering)
+processFnOpt fc _ ndef NoCoverage
+    = do setFlag fc ndef NoCoverage
+         setCovering fc ndef IsCovering

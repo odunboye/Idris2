@@ -246,6 +246,8 @@ mutual
        Totality : TotalReq -> FnOpt' nm
        Macro : FnOpt' nm
        SpecArgs : List Name -> FnOpt' nm
+       Terminating : FnOpt' nm  -- skip termination checking
+       NoCoverage : FnOpt' nm   -- skip coverage checking
   %name FnOpt' fopt
 
   public export
@@ -281,6 +283,8 @@ mutual
     show (Totality PartialOK) = "partial"
     show Macro = "%macro"
     show (SpecArgs ns) = "%spec " ++ showSep " " (map show ns)
+    show Terminating = "%terminating"
+    show NoCoverage = "%nocoverage"
 
   export
   Eq FnOpt where
@@ -297,6 +301,8 @@ mutual
     (Totality tot_lhs) == (Totality tot_rhs) = tot_lhs == tot_rhs
     Macro == Macro = True
     (SpecArgs ns) == (SpecArgs ns') = ns == ns'
+    Terminating == Terminating = True
+    NoCoverage == NoCoverage = True
     _ == _ = False
 
   public export

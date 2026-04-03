@@ -102,6 +102,7 @@ data DataOpt : Type where
      UniqueSearch : DataOpt -- auto implicit search must check result is unique
      External : DataOpt -- implemented externally
      NoNewtype : DataOpt -- don't apply newtype optimisation
+     NoPositivity : DataOpt -- don't check positivity of data type
 %name DataOpt dopt
 
 export
@@ -111,6 +112,7 @@ Eq DataOpt where
   (==) UniqueSearch UniqueSearch = True
   (==) External External = True
   (==) NoNewtype NoNewtype = True
+  (==) NoPositivity NoPositivity = True
   (==) _ _ = False
 
 public export

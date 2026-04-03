@@ -1195,6 +1195,10 @@ mutual
            pure $ IFnOpt ExternFn
     <|> do decoratedPragma fname "macro"
            pure $ IFnOpt Macro
+    <|> do decoratedPragma fname "terminating"
+           pure $ IFnOpt Terminating
+    <|> do decoratedPragma fname "nocoverage"
+           pure $ IFnOpt NoCoverage
     <|> do decoratedPragma fname "spec"
            ns <- sepBy (decoratedSymbol fname ",") name
            pure $ IFnOpt (SpecArgs ns)
@@ -1416,6 +1420,7 @@ dataOpt fname
           pure $ SearchBy det)
   <|> (decorate fname Keyword (exactIdent "external") $> External)
   <|> (decorate fname Keyword (exactIdent "noNewtype") $> NoNewtype)
+  <|> (decorate fname Keyword (exactIdent "noPositivity") $> NoPositivity)
 
 dataOpts : OriginDesc -> EmptyRule (List DataOpt)
 dataOpts fname = option [] $ do

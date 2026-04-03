@@ -1718,6 +1718,18 @@ setTerminating loc n tot
          ignore $ addDef n ({ totality->isTerminating := tot } def)
 
 export
+setNoPositivity : {auto c : Ref Ctxt Defs} ->
+                  FC -> Name -> Bool -> Core ()
+setNoPositivity fc tyn u
+    = do defs <- get Ctxt
+         Just g <- lookupCtxtExact tyn (gamma defs)
+              | _ => undefinedName fc tyn
+         let TCon a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setNoPositivity]"))
+         let fl' = { noPositivity := u } fl
+         updateDef tyn (const (Just (TCon a ps ds fl' cons ms det)))
+
+export
 getTotality : {auto c : Ref Ctxt Defs} ->
               FC -> Name -> Core Totality
 getTotality loc n
