@@ -578,6 +578,18 @@ mutual
        PRunElabDecl : PTerm' nm -> PDeclNoFC' nm
        PDirective : Directive -> PDeclNoFC' nm
        PBuiltin : BuiltinType -> Name -> PDeclNoFC' nm
+       PPatSyn : (doc : String) ->
+                 WithDefault Visibility Private ->
+                 Name -> -- pattern name
+                 List (Name, RigCount, PiInfo (PTerm' nm), PTerm' nm) -> -- pattern parameters
+                 PTerm' nm -> -- pattern body
+                 Bool -> -- bidirectional?
+                 PDeclNoFC' nm
+       PPatSynSig : (doc : String) ->
+                    WithDefault Visibility Private ->
+                    Name -> -- pattern name
+                    PTerm' nm -> -- type signature
+                    PDeclNoFC' nm
 
   public export
   PDeclNoFC : Type
@@ -1015,6 +1027,16 @@ record IFaceInfo where
      -- ^ name, whether a data method, and desugared type (without constraint)
   defaults : List (Name, List ImpClause)
 
+public export
+record PatSynInfo where
+  constructor MkPatSynInfo
+  fc : FC
+  vis : Visibility
+  sig : Maybe RawImp -- optional declared type signature
+  params : List (Name, RigCount, PiInfo RawImp, RawImp) -- pattern parameters
+  body : RawImp -- pattern body
+  bidirectional : Bool -- can be used in expression position?
+
 -- If you update this, update 'extendSyn' in Desugar to keep it up to date
 -- when reading imports
 public export
@@ -1040,6 +1062,10 @@ record SyntaxInfo where
   usingImpl : List (Maybe Name, RawImp)
   startExpr : RawImp
   holeNames : List String -- hole names in the file
+  patSyns : ANameMap PatSynInfo -- pattern synonyms
+  -- Pending type sigs for pattern synonyms declared before their definition.
+  -- Ephemeral: not serialized; folded into PatSynInfo.sig when the body is desugared.
+  patSynSigs : NameMap RawImp
 
 export
 prefixes : SyntaxInfo -> ANameMap (FC, Nat)
@@ -1108,6 +1134,8 @@ initSyntax
                []
                (IVar EmptyFC (UN $ Basic "main"))
                []
+               empty -- patSyns
+               empty -- patSynSigs
 
   where
 
@@ -1212,4 +1240,6 @@ Show PDeclNoFC where
   show (PRunElabDecl {}) = "PRunElabDecl"
   show (PDirective {}) = "PDirective"
   show (PBuiltin {}) = "PBuiltin"
+  show (PPatSyn {}) = "PPatSyn"
+  show (PPatSynSig {}) = "PPatSynSig"
 

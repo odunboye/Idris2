@@ -211,7 +211,7 @@ helpTopics = show $ vcat $ map helpTopic knownTopics
   helpTopic : (String, Maybe String) -> Doc Void
   helpTopic (str, mblurb)
     = let title = "+" <++> pretty str
-          blurb = maybe [] ((::[]) . indent 2 . reflow) mblurb
+          blurb = maybe (the (List (Doc Void)) []) (\d => [indent 2 (reflow d)]) mblurb
       in vcat (title :: blurb)
 
 public export

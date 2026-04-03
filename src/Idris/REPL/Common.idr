@@ -253,9 +253,9 @@ docsOrSignature fc n
   where
     typeSummary : Defs -> Core (Doc IdrisDocAnn)
     typeSummary defs = do Just def <- lookupCtxtExact n (gamma defs)
-                            | Nothing => pure ""
+                            | Nothing => pure (the (Doc IdrisDocAnn) "")
                           ty <- resugar Env.empty !(normaliseHoles defs Env.empty (type def))
-                          pure $ pretty0 n <++> ":" <++> prettyBy Syntax ty
+                          pure $ pretty0 n <++> ":" <++> reAnnotate (the (IdrisSyntax -> IdrisDocAnn) Syntax) (prettyBy id ty)
 
 export
 equivTypes : {auto c : Ref Ctxt Defs} ->

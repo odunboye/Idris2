@@ -115,6 +115,23 @@ totality = vcat $
       function from a total one by using the `assert_total` escape hatch.
     """]
 
+patternsyn : Doc IdrisDocAnn
+patternsyn = vcat $
+    header "Pattern synonyms" :: ""
+    :: map (indent 2) [
+    """
+    Pattern synonyms allow you to give names to patterns.
+    They can be used to make code more readable by abstracting over common patterns.
+    """, "",
+    """
+    ```idris
+    pattern Pair x y = MkPair x y
+
+    swap : (a, b) -> (b, a)
+    swap (Pair x y) = Pair y x
+    ```
+    """]
+
 visibility : Doc IdrisDocAnn
 visibility = vcat $
     header "Visibility" :: ""
@@ -631,11 +648,18 @@ keywordsDoc =
   :: "covering" ::= totality
   :: []
 
+-- Contextual keywords not in Source.keywords but still documented
+contextualKeywordsDoc : List (String, Doc IdrisDocAnn)
+contextualKeywordsDoc = [("pattern", patternsyn)]
+
 export
 getDocsForKeyword : String -> Doc IdrisDocAnn
 getDocsForKeyword k
-  = maybe (annotate (Syntax Keyword) $ pretty0 k) doc
-  $ lookup k keywordsDoc
+  = case map doc (lookup k keywordsDoc) of
+      Just d  => d
+      Nothing => case lookup k contextualKeywordsDoc of
+                   Just d  => d
+                   Nothing => annotate (Syntax Keyword) $ pretty0 k
 
 
 unusedSymbol : Doc IdrisDocAnn

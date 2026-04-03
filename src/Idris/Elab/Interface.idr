@@ -92,7 +92,7 @@ mkIfaceData : {vars : _} ->
               Name -> Name -> List (Name, (RigCount, RawImp)) ->
               Maybe (List1 Name) -> List (Name, RigCount, RawImp) -> Core ImpDecl
 mkIfaceData {vars} ifc def_vis env constraints n conName ps dets meths
-    = let opts = [NoHints, UniqueSearch] ++
+    = let opts : List DataOpt = [NoHints, UniqueSearch] ++
                  maybe [] (singleton . SearchBy) dets
           pNames = map fst ps
           retty = apply (IVar vfc n) (map (IVar EmptyFC) pNames)

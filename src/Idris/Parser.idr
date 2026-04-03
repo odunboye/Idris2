@@ -1916,6 +1916,31 @@ parameters {auto fname : OriginDesc} {auto indents : IndentInfo}
            paramss <- many (continue indents >> recordParam)
            recordBody doc vis mbtot col n paramss
 
+  ||| Pattern synonym declarations and type signatures.
+  ||| BNF:
+  ||| patSynDecl := 'pattern' name ':' type          (type signature)
+  |||             | 'pattern' name params* '=' term   (definition)
+  patSynDecl : Rule PDeclNoFC
+  patSynDecl
+      = do doc <- optDocumentation fname
+           vis <- visibility fname
+           decorate fname Keyword (exactIdent "pattern")
+           n   <- mustWork (decoratedDataTypeName fname)
+           -- Disambiguate: ':' means type signature, otherwise definition
+           ((do decoratedSymbol fname ":"
+                ty <- mustWork (typeExpr pdef fname indents)
+                pure (PPatSynSig doc vis n ty))
+            <|>
+            (do params <- many patSynParam
+                decoratedSymbol fname "="
+                body  <- mustWork (opExpr pdef fname indents)
+                pure (PPatSyn doc vis n params body False)))
+    where
+      patSynParam : Rule (Name, RigCount, PiInfo PTerm, PTerm)
+      patSynParam
+          = do n <- decoratedSimpleBinderUName fname
+               pure (n, top, Explicit, PInfer EmptyFC)
+
   ||| Parameter blocks
   ||| BNF:
   ||| paramDecls := 'parameters' (oldParamDecls | newParamDecls) indentBlockDefs
@@ -1976,9 +2001,11 @@ cgDirectiveDecl
 -- Declared at the top
 -- topDecl : OriginDesc -> IndentInfo -> Rule (List PDecl)
 topDecl fname indents
+      -- Pattern synonyms must be checked before anyReservedIdent since 'pattern' is a contextual keyword
+    = fcBounds patSynDecl
       -- Specifically check if the user has attempted to use a reserved identifier to begin their declaration to give improved error messages.
       -- i.e. the claim "String : Type" is a parse error, but the underlying reason may not be clear to new users.
-    = do id <- anyReservedIdent
+  <|> do id <- anyReservedIdent
          the (Rule PDecl) $ fatalLoc id.bounds "Cannot begin a declaration with a reserved identifier"
   <|> fcBounds dataDecl
   <|> fcBounds (PClaim <$> localClaim)
