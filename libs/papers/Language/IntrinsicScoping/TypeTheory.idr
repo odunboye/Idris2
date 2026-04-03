@@ -72,7 +72,7 @@ data Infer : Scoped where
   ||| A bound variable
   Bnd : Index nm g -> Infer f g
   ||| A free variable
-  Var : Level nm f -> Infer f g
+  Var : DBLevel nm f -> Infer f g
   ||| The application of a function to its argument
   App : Infer f g -> Check f g -> Infer f g
 
@@ -206,7 +206,7 @@ data Value : LContext -> Type where
 
 data Stuck : LContext -> Type where
   ||| A variable is a stuck computation
-  NVar : Level nm f -> Stuck f
+  NVar : DBLevel nm f -> Stuck f
   ||| An application whose function is stuck is also stuck
   NApp : Stuck f -> Value f -> Stuck f
   ||| An induction principle applied to a stuck natural numnber is stuck
@@ -226,7 +226,7 @@ namespace Value
 
 ||| We can easily turn a level into a value
 ||| by building a stuck computation first
-vfree : Level nm f -> Value f
+vfree : DBLevel nm f -> Value f
 vfree x = VEmb (NVar x)
 
 export infixl 5 `vapp`
@@ -345,7 +345,7 @@ Context f = All (const (Ty f)) f
 
 parameters {0 m : Type -> Type} {auto _ : MonadError String m}
 
-  levelI : {f : _} -> All (const p) f -> Level nm f -> p
+  levelI : {f : _} -> All (const p) f -> DBLevel nm f -> p
   levelI vs lvl with (view lvl)
     levelI (v :: vs) _ | Z = v
     levelI (v :: vs) _ | S lvl' = levelI vs lvl'

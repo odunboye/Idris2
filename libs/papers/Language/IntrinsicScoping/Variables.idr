@@ -141,28 +141,28 @@ levelIsFin : LTE (length ctx) i -> Not (AtLevel i nm ctx)
 levelIsFin lte (H Refl) = void (succNotLTEpred lte)
 levelIsFin lte (T p) = levelIsFin (lteSuccLeft lte) p
 
-||| A level is the pairing of its encoding as a natural number
+||| A de Bruijn level is the pairing of its encoding as a natural number
 ||| and the proof it is valid
 public export
-record Level (nm : Name) (ctx : LContext) where
-  constructor MkLevel
+record DBLevel (nm : Name) (ctx : LContext) where
+  constructor MkDBLevel
   getLevel : Nat
   0 validIndex : AtLevel getLevel nm ctx
 
-namespace Level
+namespace DBLevel
 
   export
-  weaken : Level nm ctx -> Level nm (_ :: ctx)
-  weaken (MkLevel n prf) = MkLevel n (T prf)
+  weaken : DBLevel nm ctx -> DBLevel nm (_ :: ctx)
+  weaken (MkDBLevel n prf) = MkDBLevel n (T prf)
 
   export
-  fresh : {ctx : _} -> Level nm (nm :: ctx)
-  fresh = MkLevel (length ctx) (H Refl)
+  fresh : {ctx : _} -> DBLevel nm (nm :: ctx)
+  fresh = MkDBLevel (length ctx) (H Refl)
 
   public export
-  data View : Level nm ctx -> Type where
-    Z : View (Level.fresh {nm, ctx})
-    S : (p : Level nm ctx) -> View (weaken p)
+  data View : DBLevel nm ctx -> Type where
+    Z : View (DBLevel.fresh {nm, ctx})
+    S : (p : DBLevel nm ctx) -> View (weaken p)
 
   invertH : (prf : AtLevel (length ctx) nm (nm' :: ctx)) ->
             (nm === nm', prf ~=~ H {nm, ctx} Refl)
@@ -178,18 +178,18 @@ namespace Level
   viewAux :
     {l : Nat} -> (0 p : AtLevel l nm (nm' :: ctx)) ->
     (0 p' : AtLevel l nm ctx) -> (0 _ : p === T p') ->
-    View (MkLevel l p)
-  viewAux .(T p') p' Refl = S (MkLevel l p')
+    View (MkDBLevel l p)
+  viewAux .(T p') p' Refl = S (MkDBLevel l p')
 
   public export
-  view : {ctx : _} -> (p : Level nm ctx) -> View p
-  view  {ctx = nm :: ctx} (MkLevel l p) with (decEq l (length ctx))
-    view {ctx = nm :: ctx} (MkLevel .(length ctx) p)
+  view : {ctx : _} -> (p : DBLevel nm ctx) -> View p
+  view  {ctx = nm :: ctx} (MkDBLevel l p) with (decEq l (length ctx))
+    view {ctx = nm :: ctx} (MkDBLevel .(length ctx) p)
       | Yes Refl with 0 (snd (invertH p))
-      view {ctx = nm :: ctx} (MkLevel .(length ctx) .(H Refl))
+      view {ctx = nm :: ctx} (MkDBLevel .(length ctx) .(H Refl))
         | Yes Refl | Refl = Z
-    view (MkLevel l p) | No neq = viewAux p _ (snd (invertT p neq))
-  view {ctx = []} (MkLevel _ _) impossible
+    view (MkDBLevel l p) | No neq = viewAux p _ (snd (invertT p neq))
+  view {ctx = []} (MkDBLevel _ _) impossible
 
   export
   irrelevantAtLevel :
@@ -203,13 +203,13 @@ namespace Level
     irrelevantAtLevel (T p) (T p) | (Refl, Refl) = (Refl, Refl)
 
   export
-  hetEqDec : (v : Level nm g) -> (w : Level nm' g) ->
+  hetEqDec : (v : DBLevel nm g) -> (w : DBLevel nm' g) ->
              Dec (nm === nm', v ~=~ w)
-  hetEqDec (MkLevel m p) (MkLevel n q) with (decEq m n)
+  hetEqDec (MkDBLevel m p) (MkDBLevel n q) with (decEq m n)
     _ | No neq = No (\ (Refl, Refl) => neq Refl)
-    hetEqDec (MkLevel m p) (MkLevel m q) | Yes Refl
+    hetEqDec (MkDBLevel m p) (MkDBLevel m q) | Yes Refl
       with 0 (snd (irrelevantAtLevel p q))
-      hetEqDec (MkLevel m p) (MkLevel m p) | Yes Refl | Refl = Yes (Refl, Refl)
+      hetEqDec (MkDBLevel m p) (MkDBLevel m p) | Yes Refl | Refl = Yes (Refl, Refl)
 
 ------------------------------------------------------------------------------
 -- Conversion
@@ -265,5 +265,5 @@ namespace Invariant
 
 
 export
-asIndex : {ls : _} -> Level nm ls -> Index nm (rev ls)
-asIndex (MkLevel n prf) = MkIndex (length ls `minus` S n) (asIndex prf)
+asIndex : {ls : _} -> DBLevel nm ls -> Index nm (rev ls)
+asIndex (MkDBLevel n prf) = MkIndex (length ls `minus` S n) (asIndex prf)
