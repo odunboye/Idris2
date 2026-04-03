@@ -387,6 +387,7 @@ mutual
                           conName <- reify defs !(evalClosure defs z)
                           fields <- reify defs !(evalClosure defs a)
                           pure (Mk [fc] $ MkImpRecord (Mk [NoFC tyName] (map fromOldParams params))
+                                                      Nothing
                                                       (Mk [NoFC conName, opts] fields))
                _ => cantReify val "Record"
     reify defs val = cantReify val "Record"
@@ -755,7 +756,7 @@ mutual
              appCon fc defs (reflectionttimp "MkIField") [v', w', x', y', z']
   export
   Reflect ImpRecord where
-    reflect fc defs lhs env r@(MkWithData _ $ MkImpRecord header body)
+    reflect fc defs lhs env r@(MkWithData _ $ MkImpRecord header _ body)
         = do v' <- reflect fc defs lhs env r.fc
              w' <- reflect fc defs lhs env header.name.val
              x' <- reflect fc defs lhs env (map toOldParams header.val)

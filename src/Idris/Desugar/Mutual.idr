@@ -24,11 +24,11 @@ getDecl AsType d@(MkWithData _ $ PClaim _) = Just d
 getDecl AsType (MkWithData fc $ PData doc vis mbtot (MkPData dfc tyn (Just tyc) _ _))
     = Just (MkWithData fc $ PData doc vis mbtot (MkPLater dfc tyn tyc))
 getDecl AsType d@(MkWithData _ $ PInterface {}) = Just d
-getDecl AsType d@(MkWithData fc $ PRecord doc vis mbtot (MkPRecord n ps _ _ _))
+getDecl AsType d@(MkWithData fc $ PRecord doc vis mbtot (MkPRecord n ps retTy _ _ _))
     = Just (MkWithData fc $ PData doc vis mbtot (MkPLater d.fc n (mkRecType ps)))
   where
     mkRecType : List PBinder -> PTerm
-    mkRecType [] = PType d.fc
+    mkRecType [] = fromMaybe (PType d.fc) retTy
     mkRecType (MkPBinder p (MkBasicMultiBinder c (n ::: []) t) :: ts)
       = PPi d.fc c p (Just n.val) t (mkRecType ts)
     mkRecType (MkPBinder p (MkBasicMultiBinder c (n ::: x :: xs) t) :: ts)

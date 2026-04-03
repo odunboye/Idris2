@@ -399,6 +399,7 @@ mutual
   record ImpRecordData (nm : Type) where
     constructor MkImpRecord
     header : DataHeader nm
+    retTy : Maybe (RawImp' nm)  -- optional return type annotation
     body : RecordBody nm
 
   export
@@ -410,8 +411,9 @@ mutual
   export
   covering
   Show nm => Show (ImpRecordData nm) where
-    show (MkImpRecord header body)
+    show (MkImpRecord header retTy body)
         = "record " ++ show header.name.val ++ " " ++ show header.val ++
+          maybe "" (\rt => " : " ++ show rt) retTy ++
           " " ++ show body.name.val ++ "\n\t" ++
           showSep "\n\t" (map show body.val) ++ "\n"
 

@@ -290,13 +290,15 @@ mapPTermM f = goPTerm where
                                <*> pure mn
                                <*> pure ns
                                <*> goMPDecls mps
-    goPDecl (PRecord doc v tot (MkPRecord n nts opts mn fs)) =
-      pure $ PRecord doc v tot !(MkPRecord n <$> traverse goPBinder nts
-                                             <*> pure opts
-                                             <*> pure mn
-                                             <*> goPFields fs)
-    goPDecl (PRecord doc v tot (MkPRecordLater n nts)) =
-      pure $ PRecord doc v tot (MkPRecordLater n !(traverse goPBinder nts))
+    goPDecl (PRecord doc v tot (MkPRecord n nts retTy opts mn fs)) =
+      do nts' <- traverse goPBinder nts
+         retTy' <- traverseOpt goPTerm retTy
+         fs' <- goPFields fs
+         pure $ PRecord doc v tot (MkPRecord n nts' retTy' opts mn fs')
+    goPDecl (PRecord doc v tot (MkPRecordLater n nts retTy)) =
+      do nts' <- traverse goPBinder nts
+         retTy' <- traverseOpt goPTerm retTy
+         pure $ PRecord doc v tot (MkPRecordLater n nts' retTy')
     goPDecl (PFail msg ps) = PFail msg <$> goPDecls ps
     goPDecl (PMutual ps) = PMutual <$> goPDecls ps
     goPDecl (PFixity p) = pure (PFixity p)
@@ -570,11 +572,11 @@ mapPTerm f = goPTerm where
     goPDecl (PImplementation v opts p is cs n ts mn ns mps)
       = PImplementation v opts p (map (map (map goPTerm)) is) (goPairedPTerms cs)
            n (goPTerm <$> ts) mn ns (map (map goPDecl <$>) mps)
-    goPDecl (PRecord doc v tot (MkPRecord n nts opts mn fs))
+    goPDecl (PRecord doc v tot (MkPRecord n nts retTy opts mn fs))
       = PRecord doc v tot
-          (MkPRecord n (map goPBinder nts) opts mn (map (map (map goPTerm)) fs))
-    goPDecl (PRecord doc v tot (MkPRecordLater n nts))
-      = PRecord doc v tot (MkPRecordLater n (goPBinder <$> nts ))
+          (MkPRecord n (map goPBinder nts) (goPTerm <$> retTy) opts mn (map (map (map goPTerm)) fs))
+    goPDecl (PRecord doc v tot (MkPRecordLater n nts retTy))
+      = PRecord doc v tot (MkPRecordLater n (goPBinder <$> nts) (goPTerm <$> retTy))
     goPDecl (PFail msg ps) = PFail msg $ map goPDecl <$> ps
     goPDecl (PMutual ps) = PMutual $ map (map goPDecl) ps
     goPDecl (PFixity p) = PFixity p

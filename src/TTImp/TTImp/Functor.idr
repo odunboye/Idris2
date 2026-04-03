@@ -152,8 +152,9 @@ mutual
 
   export
   Functor ImpRecordData where
-    map f (MkImpRecord header body)
+    map f (MkImpRecord header retTy body)
       = MkImpRecord (map (map (map (map (map f)))) header)
+                    (map (map f) retTy)
                     (map (map (map (map (map f)))) body)
 
   export

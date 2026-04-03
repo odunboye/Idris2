@@ -108,11 +108,11 @@ localHelper {vars} nest env nestdecls_in func
         = update "name" (map (mapNestedName nest)) field
 
     updateRecordName : NestedNames vars -> ImpRecordData Name -> ImpRecordData Name
-    updateRecordName nest (MkImpRecord header body)
+    updateRecordName nest (MkImpRecord header retTy body)
         = let updatedTyName = (update "name" (map (mapNestedName nest)) header)
               updatedConName = (update "name" (map (mapNestedName nest)) body)
               updatedParameters = (map (map (updateFieldName nest)) updatedConName)
-          in MkImpRecord updatedTyName updatedParameters
+          in MkImpRecord updatedTyName retTy updatedParameters
 
     updateRecordNS : NestedNames vars -> Maybe String -> Maybe String
     updateRecordNS _    Nothing   = Nothing
