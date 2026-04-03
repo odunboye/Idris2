@@ -117,12 +117,19 @@ doBind ns (IUpdate fc updates tm)
     = IUpdate fc (map (mapFieldUpdateTerm $ doBind ns) updates) (doBind ns tm)
 doBind ns tm = tm
 
+-- Global lowercase names that must never be auto-bound as implicit type
+-- variables. These are first-class level constructors: presenting them
+-- in a type position (e.g. `Wrap lzero Bool`) would otherwise cause
+-- the auto-binder to shadow the global definition with a fresh binder.
+noAutoBindNames : List Name
+noAutoBindNames = map (UN . Basic) ["lzero", "lsuc", "lmax"]
+
 export
 bindNames : {auto c : Ref Ctxt Defs} ->
             (arg : Bool) -> RawImp -> Core (List Name, RawImp)
 bindNames arg tm
     = if !isUnboundImplicits
-         then do let ns = nub (findBindableNames arg [] [] tm)
+         then do let ns = nub (findBindableNames arg noAutoBindNames [] tm)
                  log "elab.bindnames" 10 $ "Found names :" ++ show ns
                  pure (map snd ns, doBind ns tm)
          else pure ([], tm)
@@ -170,7 +177,7 @@ bindTypeNames : {auto c : Ref Ctxt Defs} ->
                 List Name -> RawImp-> Core RawImp
 bindTypeNames fc uimpls env tm
     = if !isUnboundImplicits
-             then do ns <- findUniqueBindableNames fc True env [] tm
+             then do ns <- findUniqueBindableNames fc True (noAutoBindNames ++ env) [] tm
                      let btm = doBind ns tm
                      pure (addUsing uimpls btm)
              else pure tm
@@ -180,7 +187,7 @@ bindTypeNamesUsed : {auto c : Ref Ctxt Defs} ->
                     FC -> List String -> List Name -> RawImp -> Core RawImp
 bindTypeNamesUsed fc used env tm
     = if !isUnboundImplicits
-         then do ns <- findUniqueBindableNames fc True env used tm
+         then do ns <- findUniqueBindableNames fc True (noAutoBindNames ++ env) used tm
                  pure (doBind ns tm)
          else pure tm
 
@@ -188,7 +195,7 @@ export
 piBindNames : {auto c : Ref Ctxt Defs} ->
               FC -> List Name -> RawImp -> Core RawImp
 piBindNames loc env tm
-    = do ns <- findUniqueBindableNames loc True env [] tm
+    = do ns <- findUniqueBindableNames loc True (noAutoBindNames ++ env) [] tm
          pure $ piBind (map fst ns) tm
   where
     piBind : List Name -> RawImp -> RawImp
