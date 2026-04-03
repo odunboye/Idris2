@@ -115,6 +115,14 @@ solveUniverse cs =
         []      => Right a
         _       => Left "Universe inconsistency: unsatisfiable level constraints"
 
+-- True if the UnivLevel contains no UVar nodes (i.e. fully concrete).
+export
+isConcrete : UnivLevel -> Bool
+isConcrete UZero        = True
+isConcrete (USucc u)    = isConcrete u
+isConcrete (UMax l r)   = isConcrete l && isConcrete r
+isConcrete (UVar _)     = False
+
 -- Structural less-than-or-equal comparison on UnivLevel.
 -- Returns Just True  if provably ul ≤ ur from structure alone.
 -- Returns Just False if provably ul > ur.

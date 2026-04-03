@@ -9,11 +9,7 @@ UnivLevelMismatch:12:1--12:18
  12 | failing1 : Type 0
       ^^^^^^^^^^^^^^^^^
 
-Error: While processing right hand side of failing1. When unifying:
-    Type
-and:
-    Type
-Mismatch between: Type and Type.
+Error: While processing right hand side of failing1. Universe level error: Type 1 has type Type 2, which is not compatible with the expected type
 
 UnivLevelMismatch:13:12--13:18
  09 | ok2 = Type 1
