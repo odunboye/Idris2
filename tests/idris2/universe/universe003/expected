@@ -1,0 +1,25 @@
+1/1: Building UnivLevelMismatch (UnivLevelMismatch.idr)
+Warning: UnivLevelMismatch.failing1 was declared but never defined.
+
+UnivLevelMismatch:12:1--12:18
+ 08 | ok2 : Type 2
+ 09 | ok2 = Type 1
+ 10 |
+ 11 | -- This should fail: Type 1 has type Type 2, not Type 0
+ 12 | failing1 : Type 0
+      ^^^^^^^^^^^^^^^^^
+
+Error: While processing right hand side of failing1. When unifying:
+    Type
+and:
+    Type
+Mismatch between: Type and Type.
+
+UnivLevelMismatch:13:12--13:18
+ 09 | ok2 = Type 1
+ 10 |
+ 11 | -- This should fail: Type 1 has type Type 2, not Type 0
+ 12 | failing1 : Type 0
+ 13 | failing1 = Type 1
+                 ^^^^^^
+
