@@ -105,6 +105,8 @@ Eq Error where
   BadImplicit fc1 x1 == BadImplicit fc2 x2 = fc1 == fc2 && x1 == x2
   BadRunElab fc1 rho1 s1 d1 == BadRunElab fc2 rho2 s2 d2 = fc1 == fc2 && d1 == d2
   RunElabFail e1 == RunElabFail e2 = e1 == e2
+  UniverseInconsistency fc1 l1 r1 d1 == UniverseInconsistency fc2 l2 r2 d2
+      = fc1 == fc2 && l1 == l2 && r1 == r2 && d1 == d2
   GenericMsg fc1 x1 == GenericMsg fc2 x2 = fc1 == fc2 && x1 == x2
   GenericMsgSol fc1 x1 y1 z1 == GenericMsgSol fc2 x2 y2 z2 = fc1 == fc2 && x1 == x2 && y1 == y2 && z1 == z2
   TTCError x1 == TTCError x2 = x1 == x2
@@ -616,6 +618,12 @@ perrorRaw (BadRunElab fc env script desc)
             else pure emptyDoc)
 perrorRaw (RunElabFail e)
     = pure $ reflow "Error during reflection" <+> colon <++> !(perrorRaw e)
+perrorRaw (UniverseInconsistency fc l r details)
+    = pure $ reflow "Universe level error:" <++> pretty0 (show l)
+        <++> reflow "is not <=" <++> pretty0 (show r)
+        <+> (if details == "" then emptyDoc
+             else line <+> indent 2 (pretty0 details))
+        <+> line <+> !(ploc fc)
 perrorRaw (GenericMsg fc str) = pure $ pretty0 str <+> line <+> !(ploc fc)
 perrorRaw (GenericMsgSol fc header solutionHeader solutions)
     = pure $ pretty0 header <+> line <+> !(ploc fc)

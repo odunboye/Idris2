@@ -175,6 +175,9 @@ data Error : Type where
      BadRunElab : {vars : _} ->
                   FC -> Env Term vars -> Term vars -> (description : String) -> Error
      RunElabFail : Error -> Error
+     ||| Universe level inconsistency: the left level must be ≤ the right,
+     ||| but no satisfying assignment exists.
+     UniverseInconsistency : FC -> UnivLevel -> UnivLevel -> (details : String) -> Error
      GenericMsg : FC -> String -> Error
      GenericMsgSol : FC -> (message : String) ->
                            (solutionHeader : String) -> (solutions : List String) -> Error
@@ -380,6 +383,10 @@ Show Error where
   show (BadImplicit fc str) = show fc ++ ":" ++ str ++ " can't be bound here"
   show (BadRunElab fc env script desc) = show fc ++ ":Bad elaborator script " ++ show script ++ " (" ++ desc ++ ")"
   show (RunElabFail e) = "Error during reflection: " ++ show e
+  show (UniverseInconsistency fc l r details)
+      = show fc ++ ":Universe level error: "
+        ++ show l ++ " is not \<= " ++ show r
+        ++ (if details == "" then "" else " (" ++ details ++ ")")
   show (GenericMsg fc str) = show fc ++ ":" ++ str
   show (GenericMsgSol fc msg solutionHeader sols) = show fc ++ ":" ++ msg ++ " \{solutionHeader}: " ++ show sols
   show (TTCError msg) = "Error in TTC file: " ++ show msg
@@ -505,6 +512,7 @@ getErrorLoc (BadDotPattern loc _ _ _ _) = Just loc
 getErrorLoc (BadImplicit loc _) = Just loc
 getErrorLoc (BadRunElab loc _ _ _) = Just loc
 getErrorLoc (RunElabFail e) = getErrorLoc e
+getErrorLoc (UniverseInconsistency loc _ _ _) = Just loc
 getErrorLoc (GenericMsg loc _) = Just loc
 getErrorLoc (GenericMsgSol loc _ _ _) = Just loc
 getErrorLoc (TTCError _) = Nothing
@@ -600,6 +608,7 @@ killErrorLoc (BadDotPattern fc x y z w) = BadDotPattern emptyFC x y z w
 killErrorLoc (BadImplicit fc x) = BadImplicit emptyFC x
 killErrorLoc (BadRunElab fc x y description) = BadRunElab emptyFC x y description
 killErrorLoc (RunElabFail e) = RunElabFail $ killErrorLoc e
+killErrorLoc (UniverseInconsistency fc l r d) = UniverseInconsistency emptyFC l r d
 killErrorLoc (GenericMsg fc x) = GenericMsg emptyFC x
 killErrorLoc (GenericMsgSol fc x y z) = GenericMsgSol emptyFC x y z
 killErrorLoc (TTCError x) = TTCError x

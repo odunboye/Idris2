@@ -1576,7 +1576,7 @@ solveConstraintsAfter start umode smode
 
 -- Solve accumulated universe level constraints.
 -- Returns the solved assignment so callers can back-substitute into terms.
--- Clears univConstraints on success; throws GenericMsg on inconsistency.
+-- Clears univConstraints on success; throws UniverseInconsistency on failure.
 export
 solveUnivConstraints : {auto c : Ref Ctxt Defs} ->
                        {auto u : Ref UST UState} ->
@@ -1589,7 +1589,12 @@ solveUnivConstraints fc
            else
              let result = solveUniverse cs in
              case result of
-               Left err   => throw (GenericMsg fc ("Universe error: " ++ err))
+               Left (CyclicUniverse _) =>
+                 throw (UniverseInconsistency fc UZero UZero
+                          "cyclic universe level constraints")
+               Left (UnsatisfiedUniverse (l, r) _) =>
+                 throw (UniverseInconsistency fc l r
+                          "unsatisfiable constraint")
                Right asgn =>
                  do update UST { univConstraints := [] }
                     pure asgn

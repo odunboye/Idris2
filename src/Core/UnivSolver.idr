@@ -130,21 +130,36 @@ initAssign cs =
   let vars = cs >>= \(l, r) => collectVars l ++ collectVars r
   in foldl (\a, n => if isJust (lookup n a) then a else insert n 0 a) empty vars
 
--- Main entry point.
--- Returns Left error-message or Right assignment.
+public export
+data UnivSolveError : Type where
+  ||| Cyclic constraints: no fixpoint found within the iteration limit
+  CyclicUniverse : (constraints : List (UnivLevel, UnivLevel)) -> UnivSolveError
+  ||| Post-solve verification failed: some constraints still unsatisfied
+  UnsatisfiedUniverse : (first : (UnivLevel, UnivLevel))
+                      -> (all : List (UnivLevel, UnivLevel)) -> UnivSolveError
+
 export
-solveUniverse : List (UnivLevel, UnivLevel) -> Either String UnivAssignment
+showUnivSolveError : UnivSolveError -> String
+showUnivSolveError (CyclicUniverse _)
+    = "Universe inconsistency: cyclic universe level constraints"
+showUnivSolveError (UnsatisfiedUniverse (l, r) _)
+    = "Universe inconsistency: cannot satisfy " ++ show l ++ " <= " ++ show r
+
+-- Main entry point.
+-- Returns Left error or Right assignment.
+export
+solveUniverse : List (UnivLevel, UnivLevel) -> Either UnivSolveError UnivAssignment
 solveUniverse [] = Right empty
 solveUniverse cs =
   let assign0 = initAssign cs in
   case solve iterationLimit assign0 cs of
-    Nothing => Left "Universe inconsistency: cyclic universe level constraints"
+    Nothing => Left (CyclicUniverse cs)
     Just a  =>
       -- Final check: verify all constraints are satisfied.
       let unsatisfied = filter (\(l, r) => evalLevel a l > evalLevel a r) cs in
       case unsatisfied of
-        []      => Right a
-        _       => Left "Universe inconsistency: unsatisfiable level constraints"
+        []           => Right a
+        (bad :: rest) => Left (UnsatisfiedUniverse bad unsatisfied)
 
 -- True if the UnivLevel contains no UVar nodes (i.e. fully concrete).
 export

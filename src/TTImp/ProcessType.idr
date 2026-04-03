@@ -4,7 +4,10 @@ import Core.Env
 import Core.Hash
 import Core.Metadata
 import Core.UnifyState
+import Core.UnivSolver
 import Core.Value
+
+import Data.List
 
 import Idris.REPL.Opts
 import Idris.Syntax
@@ -174,10 +177,13 @@ processType {vars} eopts nest env fc rig vis opts ty_raw
          empty <- clearDefs defs
          infargs <- findInferrable empty !(nf defs Env.empty fullty)
 
+         -- Collect universe-level parameters: UVar names remaining in the type
+         let uparams = nub (collectUVarNamesInTerm fullty)
          ignore $ addDef (Resolved idx)
                 ({ eraseArgs := erased,
                    safeErase := dterased,
-                   inferrable := infargs }
+                   inferrable := infargs,
+                   univParams := uparams }
                  (newDef fc n rig vars fullty (specified vis) def))
          -- Flag it as checked, because we're going to check the clauses
          -- from the top level.

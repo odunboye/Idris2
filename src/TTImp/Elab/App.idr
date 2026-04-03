@@ -46,13 +46,19 @@ onLHS _ = False
 -- at different call sites without the solver forcing them to agree.
 -- The same old UVar name maps to the same new UVar within one instantiation,
 -- preserving internal consistency of the type.
+-- Freshen universe variables in a type for a new call site.
+-- If the definition has stored univParams, use those; otherwise fall back
+-- to scanning the term for UVar names.
 freshenUVars : {auto c : Ref Ctxt Defs} ->
                {auto u : Ref UST UState} ->
-               FC -> Term [] -> Core (Term [])
-freshenUVars fc tm =
-    case nub (collectUVarNamesInTerm tm) of
+               FC -> (storedUParams : List Name) -> Term [] -> Core (Term [])
+freshenUVars fc storedUParams tm =
+    let names = case storedUParams of
+                  [] => nub (collectUVarNamesInTerm tm)
+                  ps => ps
+    in case names of
       []    => pure tm   -- no UVars: nothing to do
-      names => do
+      _     => do
         pairs <- traverse (\n => map (n,) (uniVar fc)) names
         pure (substUnivVarsInTerm (fromList pairs) tm)
 
@@ -112,7 +118,7 @@ getNameType elabMode rigc env fc x
                        $ "getNameType is adding " ++ show decor ++ ": " ++ show def.fullname
                      addSemanticDecorations [(nfc, decor, Just def.fullname)]
 
-                 freshTy <- freshenUVars fc (type def)
+                 freshTy <- freshenUVars fc (univParams def) (type def)
                  pure (Ref fc nt (Resolved i), gnf env (embed freshTy))
   where
     rigSafe : RigCount -> RigCount -> Core ()

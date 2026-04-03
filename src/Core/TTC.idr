@@ -1200,6 +1200,7 @@ TTC GlobalDef where
                  toBuf (invertible gdef)
                  toBuf (noCycles gdef)
                  toBuf (sizeChange gdef)
+                 toBuf (univParams gdef)
 
   fromBuf
       = do cdef <- fromBuf
@@ -1222,12 +1223,13 @@ TTC GlobalDef where
                       inv <- fromBuf
                       c <- fromBuf
                       sc <- fromBuf
+                      uparams <- fromBuf
                       pure (MkGlobalDef loc name ty eargs seargs specargs iargs
                                         mul vars vis
-                                        tot hatch fl refs refsR inv c True def cdef Nothing sc Nothing)
+                                        tot hatch fl refs refsR inv c True def cdef Nothing sc Nothing uparams)
               else pure (MkGlobalDef loc name (Erased loc Placeholder) NatSet.empty NatSet.empty NatSet.empty NatSet.empty
                                      mul Scope.empty (specified Public) unchecked False [] refs refsR
-                                     False False True def cdef Nothing [] Nothing)
+                                     False False True def cdef Nothing [] Nothing [])
 
 export
 TTC Transform where
