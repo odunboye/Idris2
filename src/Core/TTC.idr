@@ -1128,6 +1128,7 @@ TTC DefFlag where
   toBuf (Identity x) = do tag 12; toBuf x
   toBuf Terminating = tag 18
   toBuf NoCoverage = tag 19
+  toBuf ForwardDecl = tag 20
 
   fromBuf
       = case !getTag of
@@ -1147,6 +1148,7 @@ TTC DefFlag where
              16 => do msg <- fromBuf; pure (Deprecate (Just msg))
              18 => pure Terminating
              19 => pure NoCoverage
+             20 => pure ForwardDecl
              _ => corrupt "DefFlag"
 
 export

@@ -732,6 +732,7 @@ mkRunTime fc n
                    | Nothing => throw (InternalError "WAT")
            ignore $ addDef n $
                        { definition := PMDef r rargs tree_ct tree_rt pats
+                       , flags := filter (/= ForwardDecl) gdef.flags
                        } gdef
            -- If it's a case block, and not already set as inlinable or forced
            -- to not be inlinable, check if it's safe to inline
@@ -894,6 +895,11 @@ processDef opts nest env fc n_in cs_in
            | Nothing => noDeclaration fc n
          let None = definition gdef
               | _ => throw (AlreadyDefined fc n)
+         -- Clause processing is now being attempted: clear the ForwardDecl marker
+         -- so that a failed clause is distinguishable from a pure forward declaration.
+         -- Note: we must also remove it from the addDef call below (where gdef is
+         -- reused) since that would otherwise restore the old flags.
+         unsetFlag fc n ForwardDecl
          let ty = type gdef
          -- a module's interface hash (what determines when the module has changed)
          -- should include the definition (RHS) of anything that is public (available
@@ -935,6 +941,7 @@ processDef opts nest env fc n_in cs_in
          -- blocks etc are resolved
          ignore $ addDef (Resolved nidx)
                   ({ definition := PMDef pi cargs tree_ct tree_ct pats
+                   , flags := filter (/= ForwardDecl) gdef.flags
                    } gdef)
 
          when (collapseDefault (visibility gdef) == Public) $

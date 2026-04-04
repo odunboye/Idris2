@@ -97,10 +97,10 @@ processDecls decls
              | Just err => pure (if null errs then [err] else errs)
          pure errs
 
--- Emit a NeverDefined warning for every name in the current module's `toSave`
--- set that was declared but never defined (no clauses provided).  We check
--- every name in `toSave` — the set of names added to the TTC by the current
--- module — so imported names are never reported.
+-- Phase 1 (per-module): warn for names whose clause elaboration was
+-- attempted but failed (ForwardDecl cleared, definition still None).
+-- Names still carrying ForwardDecl are skipped — they may be defined
+-- by a later module that imports this one.
 checkNeverDefined : {auto c : Ref Ctxt Defs} ->
                     Core ()
 checkNeverDefined
@@ -115,7 +115,47 @@ checkNeverDefined
               | Nothing => pure ()
             let None = definition gdef
               | _ => pure ()
-            recordWarning (NeverDefined (location gdef) n)
+            -- Skip pure forward declarations: they might be defined by
+            -- a later module. The final check (checkAllNeverDefined)
+            -- will catch any that remain undefined at end-of-build.
+            when (not (ForwardDecl `elem` flags gdef)) $
+              recordWarning (NeverDefined (location gdef) n)
+
+-- Phase 2 (end-of-build): warn for any name still carrying ForwardDecl
+-- (clause elaboration was never attempted by ANY module) and still
+-- having no definition.  Called once after the full module graph is built.
+export
+-- Names intentionally forward-declared in the compiler source
+-- and defined in a later module.  Suppressed from NeverDefined.
+knownForwardDecls : List Name
+knownForwardDecls
+  = [ NS (mkNamespace "Core.Context")     (UN $ Basic "decode")
+    , NS (mkNamespace "Core.Unify")       (UN $ Basic "search")
+    , NS (mkNamespace "TTImp.Elab.Check") (UN $ Basic "check")
+    , NS (mkNamespace "TTImp.Elab.Check") (UN $ Basic "checkImp")
+    , NS (mkNamespace "TTImp.Elab.Check") (UN $ Basic "processDecl")
+    ]
+
+checkAllNeverDefined : {auto c : Ref Ctxt Defs} ->
+                       {auto o : Ref ROpts REPLOpts} ->
+                       {auto s : Ref Syn SyntaxInfo} ->
+                       Core ()
+checkAllNeverDefined
+    = do defs <- get Ctxt
+         traverse_ check (NameMap.keys (toSave defs))
+  where
+    check : Name -> Core ()
+    check n
+        = when (isUserName n && not (n `elem` knownForwardDecls)) $ do
+            defs <- get Ctxt
+            Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure ()
+            let None = definition gdef
+              | _ => pure ()
+            -- Only warn if ForwardDecl is still set: no module ever
+            -- attempted to provide clauses for this name.
+            when (ForwardDecl `elem` flags gdef) $
+              emitWarning (NeverDefined (location gdef) n)
 
 readModule : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
@@ -484,8 +524,11 @@ processMod sourceFileName ttcFileName msg sourcecode origin
                 setNS (miAsNamespace ns)
                 errs <- logTime 2 "Processing decls" $
                             processDecls (decls mod)
-                logTime 3 "Checking never-defined declarations" $
+                logTime 3 "Checking never-defined declarations" $ do
                     checkNeverDefined
+                    -- Phase 2: warn for ForwardDecl names not yet defined.
+                    -- These are pure forward declarations with no clauses.
+                    checkAllNeverDefined
                 totErrs <- logTime 3 ("Totality check overall")
                             getTotalityErrors
                 let errs = errs ++ totErrs

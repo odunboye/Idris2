@@ -211,6 +211,9 @@ processType {vars} eopts nest env fc rig vis opts ty_raw
 
          traverse_ addToSave (keys (getMetas ty))
          addToSave n
+         -- Mark as forward declaration: clauses not yet processed.
+         -- Cleared by ProcessDef when clause elaboration begins.
+         setFlag fc n ForwardDecl
          log "declare.type" 10 $ "Saving from " ++ show n ++ ": " ++ show (keys (getMetas ty))
 
          when (vis /= Private) $

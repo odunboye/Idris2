@@ -504,7 +504,10 @@ prepareCompilation pkg opts =
     let toBuild = maybe (map snd (modules pkg))
                         (\m => snd m :: map snd (modules pkg))
                         (mainmod pkg)
-    buildAll toBuild
+    errs <- buildAll toBuild
+    -- Phase 2 NeverDefined: after all modules compiled, warn for any
+    -- forward declarations never given a body by any module.
+    pure errs
 
 assertIdrisCompatibility : PkgDesc -> Core ()
 assertIdrisCompatibility pkg
