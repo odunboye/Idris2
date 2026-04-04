@@ -467,13 +467,11 @@ containsResolvedRefInDef idx (PMDef _ _ _ _ clauses)
     = any (\(_ ** (_, _, rhs)) => containsResolvedRef idx rhs) clauses
 containsResolvedRefInDef _ _ = False
 
-||| Check if a name is in the same namespace as another.
-||| Used to determine if a callee could potentially form a cycle.
-sameRoot : Name -> Name -> Bool
-sameRoot (NS ns1 _) (NS ns2 _) = ns1 == ns2
-sameRoot (NS _ _) _            = False
-sameRoot _ (NS _ _)            = False
-sameRoot _ _                   = True  -- both unqualified: same module
+||| Check if two names share the same top-level namespace.
+||| Names in the same namespace could form call cycles.
+sameNS : Name -> Name -> Bool
+sameNS (NS ns1 _) (NS ns2 _) = ns1 == ns2
+sameNS _ _                   = True  -- unqualified: treat as same module
 
 export
 calculateSizeChange : {auto c : Ref Ctxt Defs} ->
@@ -483,21 +481,24 @@ calculateSizeChange loc n
          defs <- get Ctxt
          Just (idx, def) <- lookupCtxtExactI n (gamma defs)
               | Nothing => undefinedName loc n
-         -- Quick check: skip expensive analysis if the function cannot
-         -- possibly be recursive. We require ALL of:
-         --   1. refersToM is computed (calcRefs has run)
-         --   2. n does not directly appear in its own term
-         --   3. None of its direct callees are defined in the same
-         --      top-level namespace (no same-module cycles possible)
+         -- Optimisation: if the function has no same-namespace callees
+         -- and doesn't directly reference itself, it cannot be part of
+         -- a call cycle in this module. Skip the expensive normalisation
+         -- and size-comparison analysis.
+         -- We use refersToM (populated by calcRefs before us).
+         -- When we skip, we still record all callees as SC calls with
+         -- Unknown size change so that `:di` display works correctly.
          canSkip <- do fullN <- toFullNames n
                        case refersToM def of
                          Nothing   => pure False  -- not yet computed, be safe
                          Just refs => do
-                           let direct = not (containsResolvedRefInDef idx (definition def))
-                           let noSameNS = not (any (sameRoot fullN) (keys refs))
-                           pure (direct && noSameNS)
+                           let noDirect = not (containsResolvedRefInDef idx (definition def))
+                           let noSameNS = not (any (sameNS fullN) (keys refs))
+                           pure (noDirect && noSameNS)
          if canSkip
             then do logC "totality.termination.sizechange" 7 $
                       pure $ "Skipping non-recursive: " ++ show !(toFullNames n)
-                    pure []
+                    -- Still record callees with Unknown change for :di display
+                    let callees = maybe [] keys (refersToM def)
+                    pure $ map (\c => MkSCCall c (fromListList []) emptyFC) callees
             else getSC defs (definition def)

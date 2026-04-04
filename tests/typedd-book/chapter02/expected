@@ -1,6 +1,26 @@
 1/9: Building Double (Double.idr)
 2/9: Building Generic (Generic.idr)
 3/9: Building HOF (HOF.idr)
+Warning: Main.Shape was declared but never defined.
+
+HOF:7:1--7:13
+ 3 |
+ 4 | twice : (a -> a) -> a -> a
+ 5 | twice f x = f (f x)
+ 6 |
+ 7 | Shape : Type
+     ^^^^^^^^^^^^
+
+Warning: Main.rotate was declared but never defined.
+
+HOF:8:1--8:24
+ 4 | twice : (a -> a) -> a -> a
+ 5 | twice f x = f (f x)
+ 6 |
+ 7 | Shape : Type
+ 8 | rotate : Shape -> Shape
+     ^^^^^^^^^^^^^^^^^^^^^^^
+
 4/9: Building Partial (Partial.idr)
 5/9: Building Reverse (Reverse.idr)
 6/9: Building Average (Average.idr)

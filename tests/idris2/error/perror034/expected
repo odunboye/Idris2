@@ -15,10 +15,10 @@ Error:1:1--1:13
      ^^^^^^^^^^^^
 
 Error: While processing right hand side of unnamed. When unifying:
-    Type
+    Type 0
 and:
     ()
-Mismatch between: Type and ().
+Mismatch between: Type 0 and ().
 
 Error:2:11--2:23
  1 | unnamed : ()
@@ -26,10 +26,10 @@ Error:2:11--2:23
                ^^^^^^^^^^^^
 
 Error: While processing right hand side of named. When unifying:
-    Type
+    Type 0
 and:
     ()
-Mismatch between: Type and ().
+Mismatch between: Type 0 and ().
 
 Error:5:9--5:27
  1 | unnamed : ()

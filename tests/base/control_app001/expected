@@ -1,1 +1,11 @@
 1/1: Building TestException (TestException.idr)
+Warning: TestException.throwBoth was declared but never defined.
+
+TestException:5:1--5:66
+ 1 | module TestException
+ 2 |
+ 3 | import Control.App
+ 4 |
+ 5 | throwBoth : Has [Exception String, Exception Int] es => App es ()
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+

@@ -1,5 +1,17 @@
 000018(:protocol-version 2 1)
 000036(:write-string "1/1: Building Unsafe (Unsafe.idr)" 1)
+00015a(:warning ("Unsafe.idr" (12 0) (13 62) "Unsafe.ext was declared but never defined.
+
+Unsafe:13:1--14:63
+ 13 | %unsafe
+ 14 | ext : {0 f, g : a -> b} -> ((x : a) -> f x === g x) -> f === g
+" ((0 10 ((:decor :bound))) (0 42 ((:text-formatting :bold) (:decor :postulate))) (44 18 ((:decor :type))) (64 4 ((:decor :type))) (78 4 ((:decor :type))))) 1)
+00016c(:warning ("Unsafe.idr" (9 0) (10 80) "Unsafe.lpo was declared but never defined.
+
+Unsafe:10:1--11:81
+ 10 | %unsafe
+ 11 | lpo : (p : Nat -> Type) -> Either ((n : Nat) -> p n) (Exists $ \\ n => Not (p n))
+" ((0 10 ((:decor :bound))) (0 42 ((:text-formatting :bold) (:decor :postulate))) (44 18 ((:decor :type))) (64 4 ((:decor :type))) (78 4 ((:decor :type))))) 1)
 000071(:output (:ok (:highlight-source ((((:filename "Unsafe.idr") (:start 0 0) (:end 0 6)) ((:decor :keyword)))))) 1)
 000071(:output (:ok (:highlight-source ((((:filename "Unsafe.idr") (:start 0 7) (:end 0 13)) ((:decor :module)))))) 1)
 000071(:output (:ok (:highlight-source ((((:filename "Unsafe.idr") (:start 2 0) (:end 2 8)) ((:decor :keyword)))))) 1)

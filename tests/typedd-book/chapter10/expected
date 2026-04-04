@@ -1,4 +1,10 @@
 1/1: Building DLFail (DLFail.idr)
+Warning: Main.describe_list_end was declared but never defined.
+
+DLFail:1:1--1:39
+ 1 | describe_list_end : List Int -> String
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 Error: While processing left hand side of describe_list_end. Can't match on ?xs ++ [?x] (Not a constructor application or primitive).
 
 DLFail:3:23--3:25
