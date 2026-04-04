@@ -117,7 +117,16 @@ clean_names() {
 }
 
 clean_version() {
-    sed -e "s/$NAME_VERSION/idris2-x.y.z/g"
+    # NAME_VERSION (e.g. "idris2-0.8.0") is exported by the top-level Makefile.
+    # When tests are run directly (not via `make test`) it may be unset; BSD sed
+    # (macOS) rejects an empty regex pattern with "first RE may not be empty".
+    # Fall back to a portable extended-regex replacement so that version strings
+    # of the form "idris2-X.Y.Z" are still normalised in both cases.
+    if [ -n "$NAME_VERSION" ]; then
+        sed -e "s/$NAME_VERSION/idris2-x.y.z/g"
+    else
+        sed -E 's/idris2-[0-9]+\.[0-9]+\.[0-9]+/idris2-x.y.z/g'
+    fi
 }
 
 append_package_path() {
