@@ -429,12 +429,56 @@ getSCFrom defs g0 (PMDef _ args _ _ pats)
         pure $ nub (concat sc)
 getSCFrom defs _ _ = pure []
 
+||| Quick check: does the term contain any reference to the given resolved ID?
+||| This is a fast traversal without normalization.
+containsResolvedRef : Int -> Term vars -> Bool
+containsResolvedRef idx (Local _ _ _ _) = False
+containsResolvedRef idx (Ref _ _ (Resolved idx')) = idx == idx'
+containsResolvedRef idx (Ref _ _ _) = False  -- unresolved ref, can't match
+containsResolvedRef idx (Meta _ _ _ args) = any (containsResolvedRef idx) args
+containsResolvedRef idx (Bind _ _ b sc) = containsResolvedRefBinder idx b || containsResolvedRef idx sc
+  where
+    containsResolvedRefBinder : Int -> Binder (Term vars) -> Bool
+    containsResolvedRefBinder idx (Lam _ _ _ ty) = containsResolvedRef idx ty
+    containsResolvedRefBinder idx (Let _ _ val ty) = containsResolvedRef idx val || containsResolvedRef idx ty
+    containsResolvedRefBinder idx (Pi _ _ _ ty) = containsResolvedRef idx ty
+    containsResolvedRefBinder idx (PVar _ _ _ ty) = containsResolvedRef idx ty
+    containsResolvedRefBinder idx (PLet _ _ val ty) = containsResolvedRef idx val || containsResolvedRef idx ty
+    containsResolvedRefBinder idx (PVTy _ _ ty) = containsResolvedRef idx ty
+containsResolvedRef idx (App _ f a) = containsResolvedRef idx f || containsResolvedRef idx a
+containsResolvedRef idx (As _ _ a p) = containsResolvedRef idx a || containsResolvedRef idx p
+containsResolvedRef idx (TDelayed _ _ t) = containsResolvedRef idx t
+containsResolvedRef idx (TDelay _ _ ty t) = containsResolvedRef idx ty || containsResolvedRef idx t
+containsResolvedRef idx (TForce _ _ t) = containsResolvedRef idx t
+containsResolvedRef idx (PrimVal _ _) = False
+containsResolvedRef idx (Erased _ _) = False
+containsResolvedRef idx (TType _ _) = False
+containsResolvedRef idx (TFix _ c b) = containsResolvedRef idx c || containsResolvedRef idx b
+containsResolvedRef idx (TLater _ c t) = containsResolvedRef idx c || containsResolvedRef idx t
+containsResolvedRef idx (TNext _ c v) = containsResolvedRef idx c || containsResolvedRef idx v
+containsResolvedRef idx (TTickAbs _ v b) = containsResolvedRef idx v || containsResolvedRef idx b
+containsResolvedRef idx (TTickApp _ f a) = containsResolvedRef idx f || containsResolvedRef idx a
+
+||| Check if any clause's RHS contains a reference to the given resolved ID.
+||| This is a quick check to determine if the function might be recursive.
+containsResolvedRefInDef : Int -> Def -> Bool
+containsResolvedRefInDef idx (PMDef _ _ _ _ clauses)
+    = any (\(_ ** (_, _, rhs)) => containsResolvedRef idx rhs) clauses
+containsResolvedRefInDef _ _ = False
+
 export
 calculateSizeChange : {auto c : Ref Ctxt Defs} ->
                       FC -> Name -> Core (List SCCall)
 calculateSizeChange loc n
     = do logC "totality.termination.sizechange" 5 $ do pure $ "Calculating Size Change: " ++ show !(toFullNames n)
          defs <- get Ctxt
-         Just def <- lookupCtxtExact n (gamma defs)
+         Just (idx, def) <- lookupCtxtExactI n (gamma defs)
               | Nothing => undefinedName loc n
-         getSC defs (definition def)
+         -- Quick check: if the function doesn't reference itself at all,
+         -- it can't be recursive, so skip the expensive analysis.
+         -- We use the resolved index since terms use Resolved names.
+         if not (containsResolvedRefInDef idx (definition def))
+            then do logC "totality.termination.sizechange" 7 $
+                      pure $ "Skipping non-recursive: " ++ show !(toFullNames n)
+                    pure []
+            else getSC defs (definition def)
