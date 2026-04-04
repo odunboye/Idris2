@@ -238,6 +238,10 @@ data DefFlag
          -- Skip termination checking for this definition (like assert_total)
     | NoCoverage
          -- Skip coverage checking for this definition
+    | ForwardDecl
+         -- Type signature processed, but no clauses yet attempted.
+         -- Set by ProcessType, cleared by ProcessDef when clauses begin.
+         -- Used for the two-phase NeverDefined check.
 %name DefFlag dflag
 
 export
@@ -257,6 +261,7 @@ Eq DefFlag where
     (==) (Identity x) (Identity y) = x == y
     (==) Terminating Terminating = True
     (==) NoCoverage NoCoverage = True
+    (==) ForwardDecl ForwardDecl = True
     (==) _ _ = False
 
 export
@@ -277,6 +282,7 @@ Show DefFlag where
   show (Identity x) = "identity " ++ show x
   show Terminating = "terminating"
   show NoCoverage = "nocoverage"
+  show ForwardDecl = "forwarddecl"
 
 public export
 record SCCall where

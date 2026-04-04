@@ -304,7 +304,7 @@ buildDeps fname
          log "import" 20 $ "Needs to rebuild: " ++ show mods
          ok <- buildMods EmptyFC 1 (length mods) mods
          case ok of
-              [] => do -- On success, reload the main ttc in a clean context
+              [] => do -- Reload the main ttc in a clean context
                        clearCtxt; addPrimitives
                        modIdent <- ctxtPathToNS fname
                        put MD (initMetadata (PhysicalIdrSrc modIdent))
