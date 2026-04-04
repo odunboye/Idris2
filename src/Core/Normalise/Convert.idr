@@ -24,7 +24,7 @@ export
 allExplicitErased : {vars : _} -> Term vars -> Bool
 allExplicitErased tm = go False tm
   where
-    go : Bool -> Term any -> Bool
+    go : Bool -> Term vars' -> Bool
     go found (Bind _ _ (Pi _ _ Implicit _) sc)        = go found sc
     go found (Bind _ _ (Pi _ _ AutoImplicit _) sc)    = go found sc
     go found (Bind _ _ (Pi _ _ (DefImplicit _) _) sc) = go found sc

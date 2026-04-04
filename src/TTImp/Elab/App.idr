@@ -813,7 +813,7 @@ mutual
   checkAppWith' rig elabinfo nest env fc tm (NBind tfc x (Pi _ rigb Irrelevant aty) sc)
                argdata (arg :: expargs') autoargs namedargs kr expty
      = do let argRig = rig |*| rigb
-              elabinfo' = record { inIrrelevantPi = True } elabinfo
+              elabinfo' = { inIrrelevantPi := True } elabinfo
           checkRestApp rig argRig elabinfo' nest env fc
                        tm x aty sc argdata arg expargs' autoargs namedargs kr expty
   -- Irrelevant Pi with no explicit args: auto-insert erased metavar
