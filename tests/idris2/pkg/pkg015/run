@@ -7,7 +7,7 @@ for folder in ./depends/*; do
   mkdir -p "${folder}/${TTC_VERSION}"
 done
 
-TEST_FOLDER_PREFIX="$(cd ../../../.. && pwd | windows_path_tweaks | sed "s#/d#D:#g")"
+TEST_FOLDER_PREFIX="$(cd ../../../.. && pwd | windows_path_tweaks | sed "s#^/d#D:#")"
 
 fix_path() {
   windows_path_tweaks | sed "s#$TEST_FOLDER_PREFIX#[...]#g"
