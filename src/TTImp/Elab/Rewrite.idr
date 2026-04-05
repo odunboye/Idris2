@@ -18,16 +18,31 @@ import Libraries.Data.List.SizeOf
 
 %default covering
 
--- Check whether a raw Term contains any Meta nodes (unsolved holes).
--- If the goal has unresolved metas the case blocks in the goal can't reduce,
--- so the forward rewrite LHS might be hidden behind an opaque case expression.
--- We refuse to fire auto-sym (strategy 2) in that situation so that the
--- delayed-elaboration mechanism can run more rounds until the metas resolve.
-goalHasMeta : Term vars -> Bool
-goalHasMeta (Meta _ _ _ _)  = True
-goalHasMeta (App _ f a)     = goalHasMeta f || goalHasMeta a
-goalHasMeta (Bind _ _ b sc) = goalHasMeta (binderType b) || goalHasMeta sc
-goalHasMeta _ = False
+-- Check whether a Term contains a Meta node that is a *Delayed* elaboration
+-- hole (as opposed to a regular unification meta / Hole).
+--
+-- Background: when a goal contains a `Delayed` hole, the case-blocks in the
+-- goal cannot be reduced yet. Firing auto-sym (strategy 2) in that situation
+-- would apply the rule in the *wrong direction* before the hole is resolved.
+-- We therefore block strategy 2 until the hole is gone.
+--
+-- Regular unification metas (`Hole`) are fine: they can be the *target* of
+-- auto-sym (e.g. goal `Vect (S ?n) a` where auto-sym finds `rt = S m`).
+goalHasDelayed : {auto c : Ref Ctxt Defs} ->
+                 {vars : _} ->
+                 Term vars -> Core Bool
+goalHasDelayed (Meta _ _ idx _)
+    = do defs <- get Ctxt
+         case !(lookupDefExact (Resolved idx) (gamma defs)) of
+              Just Delayed => pure True
+              _ => pure False
+goalHasDelayed (App _ f a)
+    = do r <- goalHasDelayed f
+         if r then pure True else goalHasDelayed a
+goalHasDelayed (Bind _ _ b sc)
+    = do r <- goalHasDelayed (binderType b)
+         if r then pure True else goalHasDelayed sc
+goalHasDelayed _ = pure False
 
 -- Return the homogeneous rewrite lemma name registered via %rewrite.
 findRewriteLemma : {auto c : Ref Ctxt Defs} ->
@@ -181,13 +196,14 @@ elabRewriteRetry loc env delayed hetEq lemn mhlemn rt rty expnf exptm rulety lt 
         then throw (RewriteNoChange loc env rulety exptm)
         else do
           -- Strategy 2: backward / auto-sym.  Skipped for het rules, and
-          -- also skipped when the goal term contains unresolved holes/metas.
-          -- The presence of holes means the case-blocks in the goal haven't
-          -- been fully reduced yet; the forward rewrite will succeed in a
-          -- later round once those holes are solved.  Firing auto-sym now
-          -- would apply the rule in the WRONG direction.
-          let goalMeta = goalHasMeta exptm
-          mBwd <- if not hetEq && not goalMeta
+          -- also skipped when the goal term contains *Delayed* elaboration
+          -- holes.  Such holes block case-block reduction; the forward rewrite
+          -- will succeed in a later round once they are resolved.  Firing
+          -- auto-sym now would apply the rule in the WRONG direction.
+          -- (Regular unification metas are fine: they may themselves be the
+          -- target of the rewrite.)
+          goalDelay <- goalHasDelayed exptm
+          mBwd <- if not hetEq && not goalDelay
                     then buildHomoLemma loc env lemn True rt rty expnf exptm
                     else pure Nothing
           case mBwd of
