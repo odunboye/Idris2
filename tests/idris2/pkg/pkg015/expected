@@ -5,9 +5,9 @@ Error: Failed to resolve the dependencies for test:
   Required baz < 0.1.0 but no matching version is installed. Resolved transitive dependencies: foo-0.1.0.
 
 Searched for packages in:
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg015/depends
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg015/prefix/idris2-x.y.z
-  /Users/odunadeboye/dev/idris2/src/idris2/build/env/idris2-x.y.z
+  [...]/tests/idris2/pkg/pkg015/depends
+  [...]/tests/idris2/pkg/pkg015/prefix/idris2-x.y.z
+  [...]/build/env/idris2-x.y.z
 
 For more details on what packages Idris2 can locate, run `idris2 --list-packages`
 

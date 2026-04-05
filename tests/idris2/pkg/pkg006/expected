@@ -2,9 +2,9 @@ Error: Failed to resolve the dependencies for test3:
   Required foo >= 0.4 && < 0.5 but no matching version is installed.
 
 Searched for packages in:
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg006/depends
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg006/prefix/idris2-x.y.z
-  /Users/odunadeboye/dev/idris2/src/idris2/build/env/idris2-x.y.z
+  [...]/tests/idris2/pkg/pkg006/depends
+  [...]/tests/idris2/pkg/pkg006/prefix/idris2-x.y.z
+  [...]/build/env/idris2-x.y.z
 
 For more details on what packages Idris2 can locate, run `idris2 --list-packages`
 
@@ -12,9 +12,9 @@ Error: Failed to resolve the dependencies for test4:
   Required baz any but no matching version is installed.
 
 Searched for packages in:
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg006/depends
-  /Users/odunadeboye/dev/idris2/src/idris2/tests/idris2/pkg/pkg006/prefix/idris2-x.y.z
-  /Users/odunadeboye/dev/idris2/src/idris2/build/env/idris2-x.y.z
+  [...]/tests/idris2/pkg/pkg006/depends
+  [...]/tests/idris2/pkg/pkg006/prefix/idris2-x.y.z
+  [...]/build/env/idris2-x.y.z
 
 For more details on what packages Idris2 can locate, run `idris2 --list-packages`
 
