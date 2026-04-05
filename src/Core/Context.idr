@@ -2406,6 +2406,20 @@ setRewrite fc eq rw
          eq' <- checkUnambig fc eq
          update Ctxt { options $= setRewrite eq' rw' }
 
+export
+setHRewrite : {auto c : Ref Ctxt Defs} ->
+              FC -> (eq : Name) -> (hrwlemma : Name) -> Core ()
+setHRewrite fc eq hrw
+    = do hrw' <- checkUnambig fc hrw
+         eq'  <- checkUnambig fc eq
+         update Ctxt { options $= setHRewrite eq' hrw' }
+
+export
+getHRewrite : {auto c : Ref Ctxt Defs} -> Core (Maybe Name)
+getHRewrite
+    = do defs <- get Ctxt
+         pure $ maybe Nothing hrewriteName (rewritenames (options defs))
+
 -- Don't check for ambiguity here; they're all meant to be overloadable
 export
 setFromInteger : {auto c : Ref Ctxt Defs} ->

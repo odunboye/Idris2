@@ -436,7 +436,8 @@ mutual
        AmbigDepth : Nat -> Directive
        TotalityDepth: Nat -> Directive
        PairNames : Name -> Name -> Name -> Directive
-       RewriteName : Name -> Name -> Directive
+       RewriteName  : Name -> Name -> Directive
+       HRewriteName : Name -> Name -> Directive
        PrimInteger : Name -> Directive
        PrimString : Name -> Directive
        PrimChar : Name -> Directive

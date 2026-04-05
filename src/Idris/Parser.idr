@@ -1568,6 +1568,11 @@ directive
          rw <- name
          atEnd indents
          pure (RewriteName eq rw)
+  <|> do decoratedPragma fname "hrewrite"
+         eq  <- name
+         hrw <- name
+         atEnd indents
+         pure (HRewriteName eq hrw)
   <|> do decoratedPragma fname "integerLit"
          n <- name
          atEnd indents

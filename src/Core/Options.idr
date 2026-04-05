@@ -98,8 +98,11 @@ record PairNames where
 public export
 record RewriteNames where
   constructor MkRewriteNs
-  equalType : Name
-  rewriteName : Name
+  equalType    : Name
+  rewriteName  : Name
+  -- Heterogeneous rewrite lemma for use when LHS and RHS have different types.
+  -- Registered separately via %hrewrite.
+  hrewriteName : Maybe Name
 
 public export
 record PrimNames where
@@ -298,7 +301,14 @@ setPair ty f s = { pairnames := Just (MkPairNs ty f s) }
 
 export
 setRewrite : (eq : Name) -> (rwlemma : Name) -> Options -> Options
-setRewrite eq rw = { rewritenames := Just (MkRewriteNs eq rw) }
+setRewrite eq rw = { rewritenames := Just (MkRewriteNs eq rw Nothing) }
+
+export
+setHRewrite : (eq : Name) -> (hrwlemma : Name) -> Options -> Options
+setHRewrite eq hrw opts
+    = case rewritenames opts of
+           Nothing  => opts  -- %hrewrite before %rewrite is a no-op
+           Just rns => { rewritenames := Just ({ hrewriteName := Just hrw } rns) } opts
 
 export
 setFromInteger : Name -> Options -> Options

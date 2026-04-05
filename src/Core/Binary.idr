@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_04_03_02  -- + isSafe field in TTCFile; Deprecate (Maybe String) in DefFlag
+ttcVersion = 2026_04_05_01  -- + hrewriteName field in RewriteNames for het rewrite support
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()
@@ -120,8 +120,9 @@ HasNames e => HasNames (TTCFile e) where
 
       fullRW : Context -> Maybe RewriteNames -> Core (Maybe RewriteNames)
       fullRW gam Nothing = pure Nothing
-      fullRW gam (Just (MkRewriteNs e r))
+      fullRW gam (Just (MkRewriteNs e r mh))
           = pure $ Just $ MkRewriteNs !(full gam e) !(full gam r)
+                                       !(case mh of { Nothing => pure Nothing; Just n => map Just (full gam n) })
 
       fullPrim : Context -> PrimNames -> Core PrimNames
       fullPrim gam (MkPrimNs mi ms mc md mt mn mdl)
@@ -168,8 +169,9 @@ HasNames e => HasNames (TTCFile e) where
 
       resolvedRW : Context -> Maybe RewriteNames -> Core (Maybe RewriteNames)
       resolvedRW gam Nothing = pure Nothing
-      resolvedRW gam (Just (MkRewriteNs e r))
+      resolvedRW gam (Just (MkRewriteNs e r mh))
           = pure $ Just $ MkRewriteNs !(resolved gam e) !(resolved gam r)
+                                       !(case mh of { Nothing => pure Nothing; Just n => map Just (resolved gam n) })
 
       resolvedPrim : Context -> PrimNames -> Core PrimNames
       resolvedPrim gam (MkPrimNs mi ms mc md mt mn mdl)

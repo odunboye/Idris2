@@ -3,6 +3,7 @@ module TTImp.Elab.Rewrite
 import Core.Env
 import Core.GetType
 import Core.Metadata
+import Core.Normalise
 import Core.Unify
 import Core.Value
 
@@ -17,31 +18,46 @@ import Libraries.Data.List.SizeOf
 
 %default covering
 
--- TODO: Later, we'll get the name of the lemma from the type, if it's one
--- that's generated for a dependent type. For now, always return the default
+-- Check whether a raw Term contains any Meta nodes (unsolved holes).
+-- If the goal has unresolved metas the case blocks in the goal can't reduce,
+-- so the forward rewrite LHS might be hidden behind an opaque case expression.
+-- We refuse to fire auto-sym (strategy 2) in that situation so that the
+-- delayed-elaboration mechanism can run more rounds until the metas resolve.
+goalHasMeta : Term vars -> Bool
+goalHasMeta (Meta _ _ _ _)  = True
+goalHasMeta (App _ f a)     = goalHasMeta f || goalHasMeta a
+goalHasMeta (Bind _ _ b sc) = goalHasMeta (binderType b) || goalHasMeta sc
+goalHasMeta _ = False
+
+-- Return the homogeneous rewrite lemma name registered via %rewrite.
 findRewriteLemma : {auto c : Ref Ctxt Defs} ->
-                   FC -> (rulety : Term vars) ->
-                   Core Name
-findRewriteLemma loc rulety
+                   FC -> Core Name
+findRewriteLemma loc
    = case !getRewrite of
           Nothing => throw (GenericMsg loc "No rewrite lemma defined")
-          Just n => pure n
+          Just n  => pure n
 
+-- Return the heterogeneous rewrite lemma name registered via %hrewrite, if any.
+findHRewriteLemma : {auto c : Ref Ctxt Defs} ->
+                    FC -> Core (Maybe Name)
+findHRewriteLemma loc = getHRewrite
+
+-- Extract (lhs, rhs, lhsty, rhsty) from a normalised equality type.
 getRewriteTerms : {vars : _} ->
                   {auto c : Ref Ctxt Defs} ->
                   FC -> Defs -> NF vars -> Error ->
-                  Core (NF vars, NF vars, NF vars)
+                  Core (NF vars, NF vars, NF vars, NF vars)
 getRewriteTerms loc defs (NTCon nfc eq a args) err
     = if !(isEqualTy eq)
          then case reverse $ map snd args of
                    (rhs :: lhs :: rhsty :: lhsty :: _) =>
                         pure (!(evalClosure defs lhs),
                               !(evalClosure defs rhs),
-                              !(evalClosure defs lhsty))
+                              !(evalClosure defs lhsty),
+                              !(evalClosure defs rhsty))
                    _ => throw err
          else throw err
-getRewriteTerms loc defs ty err
-    = throw err
+getRewriteTerms loc defs ty err = throw err
 
 rewriteErr : Error -> Bool
 rewriteErr (NotRewriteRule {}) = True
@@ -55,49 +71,185 @@ rewriteErr _ = False
 
 record Lemma vars where
   constructor MkLemma
-  ||| The name of the rewriting lemma
+  ||| The name of the rewriting lemma (rewrite__impl or hrewrite__impl)
   name : Name
-  ||| The predicate (\ v => lhs === rhs) to pass to it
+  ||| The predicate to pass to the lemma.
+  |||   Homo:   \v        => goal[lhs := v]
+  |||   Hetero: \T => \v  => goal[lhsty := T][lhs := v]
   pred : Term vars
-  ||| The type ((v : ?) -> Type) of the predicate
+  ||| The type of pred
   predTy : Term vars
+  ||| Whether the rule should be applied sym (backwards).
+  ||| When True, checkRewrite wraps the proof with sym.
+  symRule : Bool
+
+-- Pure check: does the term contain a reference to the named bound variable?
+-- Used to determine whether `replace` actually found and substituted the
+-- search term, without the side-effecting unification of `convert`.
+termContainsRef : Name -> Term vars -> Bool
+termContainsRef n (Ref _ _ n')         = n == n'
+termContainsRef n (App _ f a)           = termContainsRef n f || termContainsRef n a
+termContainsRef n (Bind _ _ b sc)       = termContainsRef n (binderType b) || termContainsRef n sc
+termContainsRef n (Meta _ _ _ args)     = any (termContainsRef n) args
+termContainsRef n (As _ _ a p)          = termContainsRef n a  || termContainsRef n p
+termContainsRef n (TDelayed _ _ t)      = termContainsRef n t
+termContainsRef n (TDelay _ _ ty tm)    = termContainsRef n ty || termContainsRef n tm
+termContainsRef n (TForce _ _ t)        = termContainsRef n t
+termContainsRef n (TFix _ c b)          = termContainsRef n c  || termContainsRef n b
+termContainsRef n (TLater _ c t)        = termContainsRef n c  || termContainsRef n t
+termContainsRef n (TNext _ c v)         = termContainsRef n c  || termContainsRef n v
+termContainsRef n (TTickAbs _ v b)      = termContainsRef n v  || termContainsRef n b
+termContainsRef n (TTickApp _ f a)      = termContainsRef n f  || termContainsRef n a
+termContainsRef _ _                     = False
+
+
+-- Build a lemma using the forward or backward (sym) direction.
+-- 'lhsNF' is the value to look for in the goal; 'ltyNF' is its type.
+-- Returns Nothing iff lhsNF does not appear in the goal (unchanged).
+-- Matches the original elabRewrite behaviour: use `convert` for the
+-- "no change" check, which is the same side-effectful call the original
+-- code used and is correct for this call-site.
+buildHomoLemma : {vars : _} ->
+                 {auto c : Ref Ctxt Defs} ->
+                 {auto u : Ref UST UState} ->
+                 FC -> Env Term vars ->
+                 (lemn : Name) ->
+                 (symRule : Bool) ->
+                 (lhsNF : NF vars) -> (ltyNF : NF vars) ->
+                 (expnf : NF vars) -> (exptm : Term vars) ->
+                 Core (Maybe (Lemma vars))
+buildHomoLemma loc env lemn sym lhsNF ltyNF expnf exptm
+    = do defs  <- get Ctxt
+         parg  <- genVarName "rwarg"
+         rwexp <- replace defs env lhsNF (Ref loc Bound parg) expnf
+         -- If the rewritten expression converts to the original, replace
+         -- found nothing (or found something trivially equal), so no-op.
+         noChange <- convert defs env rwexp exptm
+         if noChange
+           then pure Nothing
+           else do
+             empty  <- clearDefs defs
+             ltytm  <- quote empty env ltyNF
+             let pred = Bind loc parg
+                          (Lam loc top Explicit ltytm)
+                          (refsToLocals (Add parg parg None) rwexp)
+             gpredty <- getType env pred
+             predty  <- getTerm gpredty
+             pure (Just (MkLemma lemn pred predty sym))
+
+-- Build a heterogeneous lemma using replaceHet.
+-- The motive P : (T : Type) -> T -> Type abstracts over both the type and
+-- the value, so that hrewrite__impl can transport across a type boundary.
+-- Returns Nothing if neither lhsNF nor ltyNF appear in the goal.
+buildHetLemma : {vars : _} ->
+                {auto c : Ref Ctxt Defs} ->
+                {auto u : Ref UST UState} ->
+                FC -> Env Term vars ->
+                (hlemn : Name) ->
+                (lhsNF : NF vars) -> (ltyNF : NF vars) ->
+                (expnf : NF vars) ->
+                Core (Maybe (Lemma vars))
+buildHetLemma loc env hlemn lhsNF ltyNF expnf
+    = do defs  <- get Ctxt
+         varg  <- genVarName "rwval"
+         targ  <- genVarName "rwty"
+         pred  <- replaceHet loc defs env ltyNF lhsNF varg targ expnf
+         -- At least one of varg or targ must appear in pred for it to
+         -- have been a meaningful substitution.
+         if not (termContainsRef varg pred || termContainsRef targ pred)
+           then pure Nothing
+           else do gpredty <- getType env pred
+                   predty  <- getTerm gpredty
+                   pure (Just (MkLemma hlemn pred predty False))
+
+-- Called when strategy 1 (forward homogeneous) found nothing.
+-- On the first pass (delayed=False) we throw so delayOnFailure queues a retry.
+-- On the delayed pass we try strategy 2 (auto-sym) then strategy 3 (het).
+elabRewriteRetry : {vars : _} ->
+                   {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   FC -> Env Term vars ->
+                   (delayed : Bool) -> (hetEq : Bool) ->
+                   (lemn : Name) -> (mhlemn : Maybe Name) ->
+                   (rt : NF vars) -> (rty : NF vars) ->
+                   (expnf : NF vars) -> (exptm : Term vars) ->
+                   (rulety : Term vars) ->
+                   (lt : NF vars) -> (lty : NF vars) ->
+                   Core (Lemma vars)
+elabRewriteRetry loc env delayed hetEq lemn mhlemn rt rty expnf exptm rulety lt lty
+    = if not delayed
+        then throw (RewriteNoChange loc env rulety exptm)
+        else do
+          -- Strategy 2: backward / auto-sym.  Skipped for het rules, and
+          -- also skipped when the goal term contains unresolved holes/metas.
+          -- The presence of holes means the case-blocks in the goal haven't
+          -- been fully reduced yet; the forward rewrite will succeed in a
+          -- later round once those holes are solved.  Firing auto-sym now
+          -- would apply the rule in the WRONG direction.
+          let goalMeta = goalHasMeta exptm
+          mBwd <- if not hetEq && not goalMeta
+                    then buildHomoLemma loc env lemn True rt rty expnf exptm
+                    else pure Nothing
+          case mBwd of
+            Just lemma => pure lemma
+            Nothing    =>
+              -- Strategy 3: het motive via hrewrite__impl.
+              case mhlemn of
+                Nothing    => throw (RewriteNoChange loc env rulety exptm)
+                Just hlemn =>
+                  do mHet <- buildHetLemma loc env hlemn lt lty expnf
+                     case mHet of
+                       Just lemma => pure lemma
+                       Nothing    => throw (RewriteNoChange loc env rulety exptm)
 
 elabRewrite : {vars : _} ->
               {auto c : Ref Ctxt Defs} ->
               {auto u : Ref UST UState} ->
               FC -> Env Term vars ->
+              (delayed : Bool) ->
               (expected : Term vars) ->
-              (rulety : Term vars) ->
+              (rulety  : Term vars) ->
               Core (Lemma vars)
-elabRewrite loc env expected rulety
+elabRewrite loc env delayed expected rulety
     = do defs <- get Ctxt
-         parg <- genVarName "rwarg"
          tynf <- nf defs env rulety
-         (lt, rt, lty) <- getRewriteTerms loc defs tynf (NotRewriteRule loc env rulety)
-         lemn <- findRewriteLemma loc rulety
+         (lt, rt, lty, rty) <- getRewriteTerms loc defs tynf
+                                    (NotRewriteRule loc env rulety)
 
-         -- Need to normalise again, since we might have been delayed and
-         -- the metavariables might have been updated
          expnf <- nf defs env expected
+         exptm <- quote defs env expected    -- identity for Term; kept for compat
 
          logNF "elab.rewrite" 5 "Rewriting" env lt
          logNF "elab.rewrite" 5 "Rewriting in" env expnf
-         rwexp_sc <- replace defs env lt (Ref loc Bound parg) expnf
-         logTerm "elab.rewrite" 5 "Rewritten to" rwexp_sc
 
-         empty <- clearDefs defs
-         let pred = Bind loc parg (Lam loc top Explicit
-                          !(quote empty env lty))
-                          (refsToLocals (Add parg parg None) rwexp_sc)
-         gpredty <- getType env pred
-         predty <- getTerm gpredty
-         exptm <- quote defs env expected
+         lemn   <- findRewriteLemma loc
+         mhlemn <- findHRewriteLemma loc
 
-         -- if the rewritten expected type converts with the original,
-         -- then the rewrite did nothing, which is an error
-         when !(convert defs env rwexp_sc exptm) $
-             throw (RewriteNoChange loc env rulety exptm)
-         pure (MkLemma lemn pred predty)
+         -- Determine whether the equality is truly heterogeneous (LHS and RHS
+         -- inhabit different types).  If so, the homogeneous strategies (1 & 2)
+         -- would emit a confusing constraint error, so we skip to strategy 3.
+         --
+         -- We use SYNTACTIC (not definitional) equality here: quoting both
+         -- sides and comparing the resulting Terms structurally.  This is
+         -- cheap and side-effect-free (no new unification constraints), but
+         -- still correctly catches the JMEq case where lhsty and rhsty are
+         -- literally different terms (e.g. Vect m a vs Vect n a).
+         lhstm <- quote defs env lty
+         rhtm  <- quote defs env rty
+         let hetEq : Bool = lhstm /= rhtm
+
+         -- ---------------------------------------------------------------
+         -- Strategy 1: forward homogeneous — LHS in goal, same-type rule.
+         -- Skipped when the rule is truly heterogeneous (to avoid spurious
+         -- type constraints from the homogeneous rewrite__impl).
+         -- ---------------------------------------------------------------
+         mFwd <- if not hetEq
+                   then buildHomoLemma loc env lemn False lt lty expnf exptm
+                   else pure Nothing
+         case mFwd of
+           Just lemma => pure lemma
+           Nothing    =>
+             elabRewriteRetry loc env delayed hetEq lemn mhlemn rt rty expnf exptm rulety lt lty
 
 export
 checkRewrite : {vars : _} ->
@@ -124,21 +276,22 @@ checkRewrite {vars} rigc elabinfo nest env ifc rule tm (Just expected)
            rulet <- getTerm grulet
            expTy <- getTerm expected
            when delayed $ log "elab.rewrite" 5 "Retrying rewrite"
-           lemma <- elabRewrite vfc env expTy rulet
+           lemma <- elabRewrite vfc env delayed expTy rulet
 
            rname <- genVarName "_"
            pname <- genVarName "_"
 
            let pbind = Let vfc erased lemma.pred lemma.predTy
+           -- For the auto-sym case, wrap the proof in `sym` before binding it.
+           -- We use the raw IVar application so implicits resolve naturally.
+           let proofExpr : RawImp
+               proofExpr = if lemma.symRule
+                              then IApp vfc (IVar vfc (UN (Basic "sym"))) (IVar vfc rname)
+                              else IVar vfc rname
            let rbind = Let vfc erased (weaken rulev) (weaken rulet)
 
            let env' = rbind :: pbind :: env
 
-           -- Nothing we do in this last part will affect the EState,
-           -- we're only doing the application this way to make sure the
-           -- implicits for the rewriting lemma are in the right place. But,
-           -- we still need the right type for the EState, so weaken it once
-           -- for each of the let bindings above.
            (rwtm, grwty) <-
               inScope vfc (pbind :: env) $ \e' =>
                 inScope {e=e'} vfc env' $ \e'' =>
@@ -146,7 +299,7 @@ checkRewrite {vars} rigc elabinfo nest env ifc rule tm (Just expected)
                   check {e = e''} rigc elabinfo (weakenNs offset nest) env'
                     (apply (IVar vfc lemma.name)
                       [ IVar vfc pname
-                      , IVar vfc rname
+                      , proofExpr
                       , tm ])
                     (Just (gnf env' (weakenNs offset expTy)))
            rwty <- getTerm grwty
