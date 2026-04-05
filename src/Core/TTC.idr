@@ -977,10 +977,12 @@ TTC RewriteNames where
   toBuf l
       = do toBuf (equalType l)
            toBuf (rewriteName l)
+           toBuf (hrewriteName l)
   fromBuf
-      = do ty <- fromBuf
-           l <- fromBuf
-           pure (MkRewriteNs ty l)
+      = do ty  <- fromBuf
+           l   <- fromBuf
+           hl  <- fromBuf
+           pure (MkRewriteNs ty l hl)
 
 export
 TTC PrimNames where

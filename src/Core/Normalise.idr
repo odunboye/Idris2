@@ -311,6 +311,47 @@ replace : {auto c : Ref Ctxt Defs} ->
           Core (Term vars)
 replace = replace' 0
 
+-- Build a heterogeneous rewrite motive by abstracting over BOTH the type
+-- `targ` and the value `varg : targ` simultaneously.
+--
+-- The result is a closed term:
+--   \(targ : Type) => \(varg : targ) => tm_with_lhsty_and_lhs_replaced
+--
+-- Specifically:
+--   1. Replace `lhs` (the LHS value) with a fresh bound variable `varg`
+--      in `tm`.
+--   2. Replace `lhsty` (the type of the LHS) with a fresh bound type
+--      variable `targ` in the result of step 1.
+-- This gives a term whose free occurrences of `lhs` and `lhsty` are now
+-- captured by the two binders, suitable for use with `hrewrite__impl`.
+export
+replaceHet : {auto c : Ref Ctxt Defs} ->
+             {vars : _} ->
+             FC -> Defs -> Env Term vars ->
+             (lhsty : NF vars) -> (lhs : NF vars) ->
+             (varg : Name) -> (targ : Name) ->
+             (tm : NF vars) ->
+             Core (Term vars)
+replaceHet fc defs env lhsty lhs varg targ tm
+    = do -- Step 1: replace the LHS *value* with varg (a bound variable whose
+         --         type is `targ`, also bound).
+         step1 <- replace' 0 defs env lhs (Ref fc Bound varg) tm
+         -- Normalise step1 so that step 2 can see through any redexes
+         -- introduced by the substitution.
+         step1nf <- nf defs env step1
+         -- Step 2: replace the LHS *type* with targ in the result.
+         step2 <- replace' 0 defs env lhsty (Ref fc Bound targ) step1nf
+         -- Bind `varg : targ` (inner binder, depends on `targ`)
+         let vbind = Bind fc varg
+                       (Lam fc top Explicit (Ref fc Bound targ))
+                       (refsToLocals (Add varg varg None) step2)
+         -- Bind `targ : Type` (outer binder)
+         empty <- clearDefs defs
+         let tbind = Bind fc targ
+                       (Lam fc top Explicit (TType fc UZero))
+                       (refsToLocals (Add targ targ None) vbind)
+         pure tbind
+
 -- If the term is an application of a primitive conversion (fromInteger etc)
 -- and it's applied to a constant, fully normalise the term.
 export

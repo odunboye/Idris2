@@ -189,6 +189,23 @@ rewrite__impl p Refl prf = prf
 
 %rewrite Equal rewrite__impl
 
+||| Heterogeneous rewrite lemma used by the `rewrite` tactic when the equality
+||| proof relates values of DIFFERENT types (i.e. a truly heterogeneous `~=~`
+||| proof where the LHS and RHS inhabit distinct types).
+|||
+||| The motive `p` abstracts over both the TYPE `t` and the VALUE `v : t`, so
+||| that the tactic can substitute across type-index changes as well as value
+||| changes.  For a homogeneous equality use `rewrite__impl` instead.
+%inline
+public export
+hrewrite__impl : {0 a, b : Type} -> {0 x : a} -> {0 y : b} ->
+                 (0 p : (t : Type) -> t -> Type) ->
+                 (0 rule : x ~=~ y) -> (1 val : p b y) -> p a x
+hrewrite__impl p Refl val = val
+
+-- Register the heterogeneous rewrite lemma for use by the `rewrite` tactic.
+-- %hrewrite Equal hrewrite__impl
+
 ||| Perform substitution in a term according to some equality.
 %inline
 public export
