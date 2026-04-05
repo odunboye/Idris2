@@ -117,40 +117,115 @@ termContainsRef n (TTickAbs _ v b)      = termContainsRef n v  || termContainsRe
 termContainsRef n (TTickApp _ f a)      = termContainsRef n f  || termContainsRef n a
 termContainsRef _ _                     = False
 
+-- Like Core.Normalise.replace, but uses UNIFICATION (constraint-creating)
+-- instead of pure definitional conversion to match `lhs` against subterms.
+-- This is needed for strategy 2 (auto-sym) when the goal contains regular
+-- unification metas (e.g. `Vect (S ?k) a`) that are the *target* of the
+-- rewrite rather than opaque blockers.
+--
+-- Must NOT be called when `goalHasDelayed` is True (those cases are guarded
+-- in elabRewriteRetry).
+replaceWithUnify : {vars : _} ->
+                   {auto c : Ref Ctxt Defs} ->
+                   {auto u : Ref UST UState} ->
+                   Int -> FC -> Defs -> Env Term vars ->
+                   (lhs : NF vars) -> (parg : Term vars) -> (tm : NF vars) ->
+                   Core (Term vars)
+replaceWithUnify tmpi fc defs env lhs parg tm
+    = do -- Try to unify lhs with tm; if successful, substitute parg.
+         -- If unification throws (incompatible terms), fall through.
+         unified <- catch (map Just (unify inTerm fc env lhs tm))
+                           (const (pure Nothing))
+         case unified of
+           Just _ => pure parg
+           Nothing => repSub tm
+  where
+    repArg : Closure vars -> Core (Term vars)
+    repArg cl = do tmnf <- evalClosure defs cl
+                   replaceWithUnify tmpi fc defs env lhs parg tmnf
+
+    repSub : NF vars -> Core (Term vars)
+    repSub (NBind bfc x b scfn)
+        = do b' <- traverse (\cl => repSub !(evalClosure defs cl)) b
+             let x' = MN "tmp" tmpi
+             sc' <- replaceWithUnify (tmpi + 1) fc defs env lhs parg
+                        !(scfn defs (toClosure defaultOpts env (Ref bfc Bound x')))
+             pure (Bind bfc x b' (refsToLocals (Add x x' None) sc'))
+    repSub (NApp _ hd []) = do empty <- clearDefs defs; quote empty env (NApp fc hd [])
+    repSub (NApp _ hd args)
+        = do args' <- traverse (traversePair repArg) args
+             pure $ applyStackWithFC
+                        !(replaceWithUnify tmpi fc defs env lhs parg (NApp fc hd []))
+                        args'
+    repSub (NDCon dfc n t a args)
+        = do args' <- traverse (traversePair repArg) args
+             empty <- clearDefs defs
+             pure $ applyStackWithFC !(quote empty env (NDCon dfc n t a [])) args'
+    repSub (NTCon tfc n a args)
+        = do args' <- traverse (traversePair repArg) args
+             empty <- clearDefs defs
+             pure $ applyStackWithFC !(quote empty env (NTCon tfc n a [])) args'
+    repSub (NDelayed dfc r t) = do t' <- repSub t; pure (TDelayed dfc r t')
+    repSub (NDelay  dfc r ty tm)
+        = do ty' <- replaceWithUnify tmpi fc defs env lhs parg !(evalClosure defs ty)
+             tm' <- replaceWithUnify tmpi fc defs env lhs parg !(evalClosure defs tm)
+             pure (TDelay dfc r ty' tm')
+    repSub (NForce ffc r t args)
+        = do args' <- traverse (traversePair repArg) args
+             t' <- repSub t
+             pure $ applyStackWithFC (TForce ffc r t') args'
+    repSub (NAs asfc s a p) = do a' <- repSub a; p' <- repSub p; pure (As asfc s a' p')
+    repSub (NErased efc (Dotted t)) = do t' <- repSub t; pure (Erased efc (Dotted t'))
+    repSub other = do empty <- clearDefs defs; quote empty env other
+
 
 -- Build a lemma using the forward or backward (sym) direction.
 -- 'lhsNF' is the value to look for in the goal; 'ltyNF' is its type.
--- Returns Nothing iff lhsNF does not appear in the goal (unchanged).
--- Matches the original elabRewrite behaviour: use `convert` for the
--- "no change" check, which is the same side-effectful call the original
--- code used and is correct for this call-site.
+-- 'allowUnify': when True, fall back to replaceWithUnify if the pure
+-- convert-based replace finds nothing.  This is used for strategy 2
+-- (auto-sym) on the delayed retry pass to handle goals that contain
+-- regular unification metas (e.g. `Vect (S ?k) a`).
 buildHomoLemma : {vars : _} ->
                  {auto c : Ref Ctxt Defs} ->
                  {auto u : Ref UST UState} ->
                  FC -> Env Term vars ->
                  (lemn : Name) ->
                  (symRule : Bool) ->
+                 (allowUnify : Bool) ->
                  (lhsNF : NF vars) -> (ltyNF : NF vars) ->
                  (expnf : NF vars) -> (exptm : Term vars) ->
                  Core (Maybe (Lemma vars))
-buildHomoLemma loc env lemn sym lhsNF ltyNF expnf exptm
+buildHomoLemma loc env lemn sym allowUnify lhsNF ltyNF expnf exptm
     = do defs  <- get Ctxt
          parg  <- genVarName "rwarg"
          rwexp <- replace defs env lhsNF (Ref loc Bound parg) expnf
-         -- If the rewritten expression converts to the original, replace
-         -- found nothing (or found something trivially equal), so no-op.
          noChange <- convert defs env rwexp exptm
          if noChange
-           then pure Nothing
-           else do
-             empty  <- clearDefs defs
-             ltytm  <- quote empty env ltyNF
-             let pred = Bind loc parg
-                          (Lam loc top Explicit ltytm)
-                          (refsToLocals (Add parg parg None) rwexp)
-             gpredty <- getType env pred
+           then if allowUnify
+                  -- Fallback: try unification-based replace for goals that
+                  -- contain unsolved regular metas (e.g. Vect (S ?k) a).
+                  then do rwexpU <- replaceWithUnify 0 loc defs env lhsNF
+                                        (Ref loc Bound parg) expnf
+                          noChangeU <- convert defs env rwexpU exptm
+                          if noChangeU
+                            then pure Nothing
+                            else buildFromRwexp loc env lemn sym lhsNF ltyNF parg rwexpU
+                  else pure Nothing
+           else buildFromRwexp loc env lemn sym lhsNF ltyNF parg rwexp
+  where
+    buildFromRwexp : FC -> Env Term vars -> Name -> Bool ->
+                     NF vars -> NF vars -> Name -> Term vars ->
+                     Core (Maybe (Lemma vars))
+    buildFromRwexp loc' env' lemn' sym' lhsNF' ltyNF' parg' rwexp'
+        = do defs'  <- get Ctxt
+             empty  <- clearDefs defs'
+             ltytm  <- quote empty env' ltyNF'
+             let pred = Bind loc' parg'
+                          (Lam loc' top Explicit ltytm)
+                          (refsToLocals (Add parg' parg' None) rwexp')
+             gpredty <- getType env' pred
              predty  <- getTerm gpredty
-             pure (Just (MkLemma lemn pred predty sym))
+             pure (Just (MkLemma lemn' pred predty sym'))
 
 -- Build a heterogeneous lemma using replaceHet.
 -- The motive P : (T : Type) -> T -> Type abstracts over both the type and
@@ -204,7 +279,7 @@ elabRewriteRetry loc env delayed hetEq lemn mhlemn rt rty expnf exptm rulety lt 
           -- target of the rewrite.)
           goalDelay <- goalHasDelayed exptm
           mBwd <- if not hetEq && not goalDelay
-                    then buildHomoLemma loc env lemn True rt rty expnf exptm
+                    then buildHomoLemma loc env lemn True True rt rty expnf exptm
                     else pure Nothing
           case mBwd of
             Just lemma => pure lemma
@@ -260,7 +335,7 @@ elabRewrite loc env delayed expected rulety
          -- type constraints from the homogeneous rewrite__impl).
          -- ---------------------------------------------------------------
          mFwd <- if not hetEq
-                   then buildHomoLemma loc env lemn False lt lty expnf exptm
+                   then buildHomoLemma loc env lemn False False lt lty expnf exptm
                    else pure Nothing
          case mFwd of
            Just lemma => pure lemma

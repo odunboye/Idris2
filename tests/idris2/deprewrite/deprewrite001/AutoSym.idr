@@ -34,3 +34,9 @@ withConcrete : {n, m : Nat} -> (prf : n = S m) -> Vect n a -> a
 withConcrete prf xs =
     let ys : Vect (S m) a := rewrite prf in xs
     in myHead ys
+
+-- Rewrite in argument position where the expected type has a meta (?k).
+-- myHead : Vect (S ?k) a -> a; rewrite prf fills ?k = m.
+-- Requires replaceWithUnify (unification-based match) in strategy 2.
+withMeta : {n, m : Nat} -> (prf : n = S m) -> Vect n a -> a
+withMeta prf xs = myHead (rewrite prf in xs)
