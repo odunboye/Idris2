@@ -206,6 +206,8 @@ checkLambda rig_in elabinfo nest env fc rigl info n argTy scope (Just expty_in)
                     -- in this exact use, but is likely a bug.
                     log "metadata.names" 7 "checkLambda is adding ↓"
                     addNameType fc n env pty -- Add the type of the argument to the metadata
+                    addNameLoc fc n -- Add lambda param to nameLocMap
+                    addBindingLoc fc n -- Record lambda param binding site
 
                     -- We've already checked the argument and scope types,
                     -- so we just need to check multiplicities
@@ -282,6 +284,8 @@ checkLet rigc_in elabinfo nest env fc lhsFC rigl n nTy nVal scope expty {vars}
          -- Add the lhs of the let to metadata
          log "metadata.names" 7 $ "checkLet is adding ↓"
          addNameType lhsFC n env tyv
+         addNameLoc lhsFC n -- Add let binding to nameLocMap
+         addBindingLoc lhsFC n -- Record let binding site
 
          pure (Bind fc n (Let fc rigb valv tyv) scopev,
                gnf env (Bind fc n (Let fc rigb valv tyv) scopet))

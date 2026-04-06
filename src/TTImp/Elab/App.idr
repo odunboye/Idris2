@@ -85,6 +85,7 @@ getNameType elabMode rigc env fc x
 
                  log "metadata.names" 7 $ "getNameType is adding ↓"
                  addNameType fc x env bty
+                 addNameLoc fc x -- Add local var reference to nameLocMap
 
                  when (isLinear rigb) $ update EST { linearUsed $= VarSet.insert (MkVar lv) }
                  log "ide-mode.highlight" 8
@@ -185,6 +186,7 @@ getVarType elabMode rigc nest env fc x
                                 -- Add the type to the metadata
                                 log "metadata.names" 7 $ "getVarType is adding ↓"
                                 addNameType fc x env tyenv
+                                addNameLoc fc x -- Add var reference to nameLocMap
 
                                 when (isSourceName ndef.fullname) $
                                   whenJust (isConcreteFC fc) $ \nfc => do

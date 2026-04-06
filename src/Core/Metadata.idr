@@ -83,6 +83,9 @@ record Metadata where
        currentLHS : Maybe ClosedTerm
        holeLHS : List (Name, ClosedTerm)
        nameLocMap : PosMap (NonEmptyFC, Name)
+       -- Mapping from name to its binding site (where it's defined/bound).
+       -- Distinct from nameLocMap which records all occurrences.
+       bindingLocs : List (NonEmptyFC, Name)
        sourceIdent : OriginDesc
 
        ||| Semantic Highlighting
@@ -128,7 +131,7 @@ allSemanticHighlighting meta = do
 
 covering
 Show Metadata where
-  show (MkMetadata apps names tydecls currentLHS holeLHS nameLocMap
+  show (MkMetadata apps names tydecls currentLHS holeLHS nameLocMap bindLocs
                    fname semanticHighlighting semanticAliases semanticDefaults) = """
     Metadata:
      lhsApps: \{ show apps }
@@ -152,6 +155,7 @@ initMetadata finfo = MkMetadata
   , currentLHS = Nothing
   , holeLHS = []
   , nameLocMap = empty
+  , bindingLocs = []
   , sourceIdent = finfo
   , semanticHighlighting = empty
   , semanticAliases = empty
@@ -169,6 +173,7 @@ TTC Metadata where
            toBuf (tydecls m)
            toBuf (holeLHS m)
            toBuf (nameLocMap m)
+           toBuf (bindingLocs m)
            toBuf (sourceIdent m)
            toBuf (semanticHighlighting m)
            toBuf (semanticAliases m)
@@ -180,11 +185,12 @@ TTC Metadata where
            tys <- fromBuf
            hlhs <- fromBuf
            dlocs <- fromBuf
+           blocs <- fromBuf
            fname <- fromBuf
            semhl <- fromBuf
            semal <- fromBuf
            semdef <- fromBuf
-           pure (MkMetadata apps ns tys Nothing hlhs dlocs fname semhl semal semdef)
+           pure (MkMetadata apps ns tys Nothing hlhs dlocs blocs fname semhl semal semdef)
 
 export
 addLHS : {vars : _} ->
@@ -254,6 +260,26 @@ addNameLoc loc n
          n' <- getFullName n
          whenJust (isConcreteFC loc) $ \neloc =>
            put MD $ { nameLocMap $= insert (neloc, n') } meta
+
+||| Record a name's binding site (where it is defined/bound).
+||| This is distinct from addNameLoc which records all occurrences.
+export
+addBindingLoc : {auto m : Ref MD Metadata} ->
+                {auto c : Ref Ctxt Defs} ->
+                FC -> Name -> Core ()
+addBindingLoc loc n
+    = do meta <- get MD
+         n' <- getFullName n
+         whenJust (isConcreteFC loc) $ \neloc =>
+           put MD $ { bindingLocs $= ((neloc, n') ::) } meta
+
+||| Find the binding site for a given name.
+export
+findBindingLoc : {auto m : Ref MD Metadata} ->
+                 Name -> Core (Maybe NonEmptyFC)
+findBindingLoc n
+    = do meta <- get MD
+         pure $ map fst $ find (\(_, n') => n' == n) meta.bindingLocs
 
 export
 setHoleLHS : {auto m : Ref MD Metadata} -> ClosedTerm -> Core ()
@@ -381,6 +407,7 @@ HasNames Metadata where
                , currentLHS := Nothing
                , holeLHS := !(traverse fullHLHS $ md.holeLHS)
                , nameLocMap := fromList !(traverse fullDecls (toList $ md.nameLocMap))
+               , bindingLocs := !(traverse fullDecls md.bindingLocs)
                } md
     where
       fullLHS : (NonEmptyFC, (Nat, ClosedTerm)) -> Core (NonEmptyFC, (Nat, ClosedTerm))
@@ -395,13 +422,14 @@ HasNames Metadata where
       fullDecls : (NonEmptyFC, Name) -> Core (NonEmptyFC, Name)
       fullDecls (fc, n) = pure (fc, !(full gam n))
 
-  resolved gam (MkMetadata lhs ns tys clhs hlhs dlocs fname semhl semal semdef)
+  resolved gam (MkMetadata lhs ns tys clhs hlhs dlocs blocs fname semhl semal semdef)
       = pure $ MkMetadata !(traverse resolvedLHS lhs)
                           !(traverse resolvedTy ns)
                           !(traverse resolvedTy tys)
                           Nothing
                           !(traverse resolvedHLHS hlhs)
                           (fromList !(traverse resolvedDecls (toList dlocs)))
+                          !(traverse resolvedDecls blocs)
                           fname
                           semhl
                           semal

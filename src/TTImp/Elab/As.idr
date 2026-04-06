@@ -50,6 +50,8 @@ checkAs rig elabinfo nest env fc nameFC side n_in pat topexp
                     -- Add the name type to the metadata
                     log "metadata.names" 7 $ "checkAs is adding ↓"
                     addNameType nameFC n_in env !(getTerm nty)
+                    addNameLoc nameFC n_in -- Add @-pattern to nameLocMap
+                    addBindingLoc nameFC n_in -- Record @-pattern binding site
 
                     pure (As fc side ntm pattm, patty)
               Just bty => throw (NonLinearPattern fc n_in)

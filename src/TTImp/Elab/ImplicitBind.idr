@@ -461,6 +461,7 @@ checkBindVar rig elabinfo nest env fc nm topexp
                    log "metadata.names" 7 $ "checkBindVar is adding ↓"
                    addNameType fc nm env exp
                    addNameLoc fc nm
+                   addBindingLoc fc nm -- Record implicit binding site
 
                    checkExp rig elabinfo env fc tm (gnf env exp) topexp
               Just bty =>
@@ -473,6 +474,7 @@ checkBindVar rig elabinfo nest env fc nm topexp
                    log "metadata.names" 7 $ "checkBindVar is adding ↓"
                    addNameType fc nm env ty
                    addNameLoc fc nm
+                   addBindingLoc fc nm -- Record implicit binding site
 
                    checkExp rig elabinfo env fc tm (gnf env ty) topexp
   where
