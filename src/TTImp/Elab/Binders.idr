@@ -88,6 +88,10 @@ checkPi rig elabinfo nest env fc rigf info n argTy retTy expTy
          let rigf' = if isLvl && isImplicit info' then erased else rigf
          let env' : Env Term (n :: _) = Pi fc rigf' info' tyv :: env
          let nest' = weaken (dropName n nest)
+         -- Record Pi-bound variable in metadata for goto-definition
+         addNameType (getFC argTy) n env tyv
+         addNameLoc (getFC argTy) n
+         addBindingLoc (getFC argTy) n
          scu <- uniVar fc
          (scopev, scopet) <-
             inScope fc env' (\e' =>
