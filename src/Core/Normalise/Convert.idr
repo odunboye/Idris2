@@ -6,6 +6,8 @@ import public Core.Normalise.Quote
 import Core.Case.CaseTree
 import Core.Context
 import Core.Env
+import Core.TT.Term
+import Core.Transform
 import Core.UnivSolver
 import Core.Value
 
@@ -382,6 +384,25 @@ mutual
       sameBinders (Lam {}) (Lam {}) = True
       sameBinders _ _ = False
 
+  -- Apply %rewrite transforms when two NApp terms fail structural conversion.
+  -- Uses eqTerm to detect if anything changed, preventing infinite loops.
+  tryTransformNApp : {auto c : Ref Ctxt Defs} ->
+                     {vars : _} ->
+                     Ref QVar Int -> Bool -> Defs -> Env Term vars ->
+                     NF vars -> NF vars -> Core Bool
+  tryTransformNApp q i defs env x y
+      = do empty <- clearDefs defs
+           xtm <- quote empty env x
+           ytm <- quote empty env y
+           xtm' <- applyTransforms env xtm
+           ytm' <- applyTransforms env ytm
+           let changed = not (eqTerm xtm xtm') || not (eqTerm ytm ytm')
+           if changed
+              then do fullDefs <- get Ctxt
+                      convGen q i fullDefs env
+                          !(nf fullDefs env xtm') !(nf fullDefs env ytm')
+              else pure False
+
   export
   Convert NF where
     convGen q i defs env (NBind fc x b sc) (NBind _ x' b' sc')
@@ -416,10 +437,13 @@ mutual
              else do blockConv <- chkConvCaseBlock fc q inf defs env val args1 val' args2
                      if blockConv
                         then pure True
-                        else do mty <- headTyConName val
-                                case mty of
-                                  Just nm => isProofIrrelevantTyCon defs nm
-                                  Nothing => pure False
+                        else do r <- tryTransformNApp q inf defs env
+                                        (NApp fc val args) (NApp fc val' args')
+                                if r then pure True
+                                     else do mty <- headTyConName val
+                                             case mty of
+                                               Just nm => isProofIrrelevantTyCon defs nm
+                                               Nothing => pure False
         where
           getInfPos : NHead vars -> Core NatSet
           getInfPos (NRef _ n)
@@ -500,7 +524,20 @@ mutual
           case leqUnivLevel (normaliseLevel ul) (normaliseLevel ur) of
             Just b  => pure b
             Nothing => pure True
-    convGen q i defs env x y = pure False
+    -- Last resort: apply %rewrite transforms to both sides, re-normalise,
+    -- and retry. The eqTerm guard prevents looping when no transform fires.
+    convGen q i defs env x y
+        = do empty <- clearDefs defs
+             xtm  <- quote empty env x
+             ytm  <- quote empty env y
+             xtm' <- applyTransforms env xtm
+             ytm' <- applyTransforms env ytm
+             let changed = not (eqTerm xtm xtm') || not (eqTerm ytm ytm')
+             if changed
+                then do fullDefs <- get Ctxt
+                        convGen q i fullDefs env
+                            !(nf fullDefs env xtm') !(nf fullDefs env ytm')
+                else pure False
 
   export
   Convert Term where
