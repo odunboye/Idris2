@@ -96,6 +96,8 @@ Eq Error where
   BadPattern fc1 n1 == BadPattern fc2 n2 =  fc1 == fc2 && n1 == n2
   NoDeclaration fc1 n1 == NoDeclaration fc2 n2 = fc1 == fc2 && n1 == n2
   AlreadyDefined fc1 n1 == AlreadyDefined fc2 n2 = fc1 == fc2 && n1 == n2
+  CoherenceViolation fc1 i1 e1 == CoherenceViolation fc2 i2 e2
+      = fc1 == fc2 && i1 == i2 && e1 == e2
   NotFunctionType fc1 rho1 s1 == NotFunctionType fc2 rho2 s2 = fc1 == fc2
   RewriteNoChange fc1 rho1 s1 t1 == RewriteNoChange fc2 rho2 s2 t2 = fc1 == fc2
   NotRewriteRule fc1 rho1 s1 == NotRewriteRule fc2 rho2 s2 = fc1 == fc2
@@ -571,6 +573,17 @@ perrorRaw (NoDeclaration fc n)
 perrorRaw (AlreadyDefined fc n)
     = pure $ errorDesc (code (pretty0 n) <++> reflow "is already defined.")
         <+> line <+> !(ploc fc)
+perrorRaw (CoherenceViolation fc iface existing)
+    = pure $ errorDesc
+        (reflow "Coherence violation:" <++> code (pretty0 iface) <++>
+         reflow "is marked %coherent, but an unnamed implementation already exists:"
+         <++> code (pretty0 existing) <+> dot)
+        <+> line <+> !(ploc fc)
+        <+> line <+> reflow
+          "Hint: use a named implementation [name] if you need multiple implementations for the same type."
+        <+> line <+> reflow
+          "Hint: consider whether one implementation should replace the other."
+
 perrorRaw (NotFunctionType fc env tm)
     = pure $ errorDesc (code !(pshow env tm) <++> reflow "is not a function type.")
         <+> line <+> !(ploc fc)

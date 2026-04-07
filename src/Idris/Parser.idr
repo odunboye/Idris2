@@ -1626,6 +1626,10 @@ directive
   <|> do decoratedPragma fname "safe"
          atEnd indents
          pure SafeModule
+  <|> do decoratedPragma fname "coherent"
+         n <- name
+         atEnd indents
+         pure (Coherent n)
 
 fix : Rule Fixity
 fix

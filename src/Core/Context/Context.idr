@@ -57,10 +57,16 @@ record TypeFlags where
   uniqueAuto : Bool  -- should 'auto' implicits check for uniqueness
   external : Bool -- defined externally (e.g. in a C or Scheme library)
   noPositivity : Bool -- skip positivity checking
+  ||| When True, the elaborator rejects any *unnamed* implementation whose
+  ||| determining arguments overlap with an existing unnamed implementation.
+  ||| This gives Haskell-style typeclass coherence for interfaces marked
+  ||| with the `%%coherent` pragma: at most one unnamed implementation per
+  ||| combination of determining-argument types.
+  coherent : Bool
 
 export
 defaultFlags : TypeFlags
-defaultFlags = MkTypeFlags False False False
+defaultFlags = MkTypeFlags False False False False
 
 public export
 record HoleFlags where

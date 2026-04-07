@@ -828,6 +828,7 @@ HasNames Error where
   full gam (BadPattern fc n) = BadPattern fc <$> full gam n
   full gam (NoDeclaration fc n) = NoDeclaration fc <$> full gam n
   full gam (AlreadyDefined fc n) = AlreadyDefined fc <$> full gam n
+  full gam (CoherenceViolation fc i e) = CoherenceViolation fc <$> full gam i <*> full gam e
   full gam (NotFunctionType fc rho s) = NotFunctionType fc <$> full gam rho <*> full gam s
   full gam (RewriteNoChange fc rho s t) = RewriteNoChange fc <$> full gam rho <*> full gam s <*> full gam t
   full gam (NotRewriteRule fc rho s) = NotRewriteRule fc <$> full gam rho <*> full gam s
@@ -931,6 +932,7 @@ HasNames Error where
   resolved gam (BadPattern fc n) = BadPattern fc <$> resolved gam n
   resolved gam (NoDeclaration fc n) = NoDeclaration fc <$> resolved gam n
   resolved gam (AlreadyDefined fc n) = AlreadyDefined fc <$> resolved gam n
+  resolved gam (CoherenceViolation fc i e) = CoherenceViolation fc <$> resolved gam i <*> resolved gam e
   resolved gam (NotFunctionType fc rho s) = NotFunctionType fc <$> resolved gam rho <*> resolved gam s
   resolved gam (RewriteNoChange fc rho s t) = RewriteNoChange fc <$> resolved gam rho <*> resolved gam s <*> resolved gam t
   resolved gam (NotRewriteRule fc rho s) = NotRewriteRule fc <$> resolved gam rho <*> resolved gam s
@@ -1901,6 +1903,35 @@ setUniqueSearch fc tyn u
               | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setDetermining]"))
          let fl' = { uniqueAuto := u } fl
          updateDef tyn (const (Just (TCon a ps ds fl' cons ms det)))
+
+||| Mark a type constructor as %%coherent: the elaborator will reject any
+||| unnamed implementation whose determining arguments overlap with those
+||| of an existing unnamed implementation.
+export
+setCoherent : {auto c : Ref Ctxt Defs} ->
+              FC -> Name -> Bool -> Core ()
+setCoherent fc tyn u
+    = do defs <- get Ctxt
+         -- Use lookupCtxtName so that unqualified names like `Semigroup'
+         -- (written in source) resolve to their full namespace form.
+         [(tyn', _, g)] <- lookupCtxtName tyn (gamma defs)
+              | [] => undefinedName fc tyn
+              | _  => throw (AmbiguousName fc [tyn])
+         let TCon a ps ds fl cons ms det = definition g
+              | _ => throw (GenericMsg fc (show (fullname g) ++ " is not a type constructor [setCoherent]"))
+         let fl' = { coherent := u } fl
+         updateDef tyn' (const (Just (TCon a ps ds fl' cons ms det)))
+
+||| True if the type constructor (interface) has been marked %%coherent.
+export
+isCoherent : {auto c : Ref Ctxt Defs} -> Name -> Core Bool
+isCoherent n
+    = do defs <- get Ctxt
+         Just gdef <- lookupCtxtExact n (gamma defs)
+              | Nothing => pure False
+         let TCon _ _ _ fl _ _ _ = definition gdef
+              | _ => pure False
+         pure fl.coherent
 
 export
 setExternal : {auto c : Ref Ctxt Defs} ->
