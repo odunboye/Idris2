@@ -177,6 +177,7 @@ knownTopics = [
     ("totality.productivity.calc", Nothing),
     ("transform.lhs", Nothing),
     ("transform.rhs", Nothing),
+    ("rewrite.rule", Just "Log definitional rewrite rule registration"),
     ("ttc.read", Nothing),
     ("ttc.write", Nothing),
     ("typesearch.equiv", Nothing),

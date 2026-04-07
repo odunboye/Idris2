@@ -25,6 +25,7 @@ import Parser.Support.Escaping
 
 import TTImp.BindImplicits
 import TTImp.Parser
+import TTImp.ProcessRewriteRule
 import TTImp.ProcessType
 import TTImp.TTImp
 import TTImp.Utils
@@ -1395,6 +1396,8 @@ mutual
       = withExtendedNS ns $ do
            ds <- traverse (desugarDecl ps) decls
            pure [INamespace n.fc ns (concat ds)]
+  desugarDecl ps rr@(MkWithData _ $ PRewriteRule n)
+      = pure [IPragma rr.fc [] (\_, _ => processRewriteRule rr.fc (UN $ Basic n))]
   desugarDecl ps ts@(MkWithData _ $ PTransform n lhs rhs)
       = do (bound, blhs) <- bindNames False !(desugar LHS ps lhs)
            rhs' <- desugar AnyExpr (bound ++ ps) rhs
@@ -1436,6 +1439,7 @@ mutual
              Extension e => pure [IPragma fc [] (\nest, env => setExtension e)]
              DefaultTotality tot => pure [IPragma fc [] (\_, _ => setDefaultTotalityOption tot)]
              SafeModule => pure [IPragma fc [] (\_, _ => updateSession ({ safeMode := True }))]
+             DefRewriteRule n => pure []  -- handled by PRewriteRule above
              ForeignImpl n cs => do
                cs' <- traverse (desugar AnyExpr ps) cs
                pure [IPragma fc [] (\nest, env => do
