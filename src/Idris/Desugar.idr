@@ -1440,6 +1440,7 @@ mutual
              DefaultTotality tot => pure [IPragma fc [] (\_, _ => setDefaultTotalityOption tot)]
              SafeModule => pure [IPragma fc [] (\_, _ => updateSession ({ safeMode := True }))]
              DefRewriteRule n => pure []  -- handled by PRewriteRule above
+             Coherent n => pure [IPragma fc [] (\nest, env => setCoherent fc n True)]
              ForeignImpl n cs => do
                cs' <- traverse (desugar AnyExpr ps) cs
                pure [IPragma fc [] (\nest, env => do

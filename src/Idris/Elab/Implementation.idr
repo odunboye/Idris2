@@ -1,7 +1,9 @@
 module Idris.Elab.Implementation
 
+import Core.Context
 import Core.Env
 import Core.Metadata
+import Core.Normalise.Convert
 import Core.Unify
 
 import Idris.REPL.Opts
@@ -165,6 +167,8 @@ elabImplementation {vars} ifc vis opts_in pass env nest is cons iname ps named i
          logTerm "elab.implementation" 3 "Constructor type: " conty
          log "elab.implementation" 5 $ "Making implementation " ++ show impName
 
+
+
          -- 1. Build the type for the implementation
          -- Make the constraints auto implicit arguments, which can be explicitly
          -- given when using named implementations
@@ -205,6 +209,36 @@ elabImplementation {vars} ifc vis opts_in pass env nest is cons iname ps named i
                    unless ok $ do logTermNF "elab.implementation" 1 "Previous" Env.empty (type gdef)
                                   logTermNF "elab.implementation" 1 "Now" Env.empty fullty
                                   throw (CantConvert (getFC impTy) (gamma defs) Env.empty fullty (type gdef))
+
+           -- 1.5 Coherence check for %coherent interfaces (unnamed only).
+           --
+           -- Placed here — after processDecl — so we can look up the
+           -- fully elaborated implementation type directly from the context.
+           -- Named implementations ([name]) are exempt from this check.
+           --
+           -- For each existing *direct* (unnamed) hint for this interface:
+           -- if its type converts with the new implementation's type, the
+           -- determining arguments are the same and we have a violation.
+           when (not named) $ do
+             coh <- isCoherent cn
+             when coh $ do
+               defs' <- get Ctxt
+               Just newGdef <- lookupCtxtExact impName (gamma defs')
+                    | Nothing => pure ()  -- shouldn't happen, but be safe
+               -- processDecl already added impName as a hint above, so we
+               -- must exclude it from the candidate list — otherwise we
+               -- would always compare an impl against itself.
+               selfResolved <- toResolvedNames impName
+               let existingHints =
+                     filter (\h => h /= selfResolved) $ map fst $
+                     filter snd $
+                     fromMaybe [] $ lookup !(toFullNames cn) (typeHints defs')
+               for_ existingHints $ \hintn => do
+                 Just hgdef <- lookupCtxtExact hintn (gamma defs')
+                      | Nothing => pure ()
+                 ok <- convert defs' Env.empty (type hgdef) (type newGdef)
+                 when ok $
+                   throw (CoherenceViolation vfc cn (fullname hgdef))
 
          -- If the body is empty, we're done for now (just declaring that
          -- the implementation exists and define it later)

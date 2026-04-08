@@ -1033,11 +1033,13 @@ TTC TypeFlags where
       = do toBuf (uniqueAuto l)
            toBuf (external l)
            toBuf (noPositivity l)
+           toBuf (coherent l)
   fromBuf
       = do u <- fromBuf
            e <- fromBuf
            p <- fromBuf
-           pure (MkTypeFlags u e p)
+           c <- fromBuf
+           pure (MkTypeFlags u e p c)
 
 export
 TTC Def where

@@ -459,6 +459,10 @@ mutual
        ForeignImpl : Name -> List PTerm -> Directive
        SafeModule : Directive
        DefRewriteRule : Name -> Directive
+       ||| Mark a named interface as %%coherent: the elaborator will reject
+       ||| unnamed implementations whose determining arguments overlap with
+       ||| those of any existing unnamed implementation of the same interface.
+       Coherent : Name -> Directive
 
   public export
   RecordField' : Type -> Type

@@ -25,7 +25,7 @@ import public Libraries.Utils.Binary
 ||| version number if you're changing the version more than once in the same day.
 export
 ttcVersion : Int
-ttcVersion = 2026_04_05_01  -- + hrewriteName field in RewriteNames for het rewrite support
+ttcVersion = 2026_04_07_01  -- + coherent field in TypeFlags for %coherent pragma
 
 export
 checkTTCVersion : String -> Int -> Int -> Core ()

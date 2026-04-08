@@ -159,6 +159,12 @@ data Error : Type where
      BadPattern : FC -> Name -> Error
      NoDeclaration : FC -> Name -> Error
      AlreadyDefined : FC -> Name -> Error
+     ||| A %%coherent interface already has an unnamed implementation whose
+     ||| determining arguments overlap with the new one being defined.
+     CoherenceViolation : FC
+                        -> (iface : Name)       -- ^ the %%coherent interface
+                        -> (existing : Name)     -- ^ the conflicting implementation
+                        -> Error
      NotFunctionType : {vars : _} ->
                        FC -> Env Term vars -> Term vars -> Error
      RewriteNoChange : {vars : _} ->
@@ -358,6 +364,9 @@ Show Error where
   show (BadPattern fc n) = show fc ++ ":Pattern not allowed here: " ++ show n
   show (NoDeclaration fc x) = show fc ++ ":No type declaration for " ++ show x
   show (AlreadyDefined fc x) = show fc ++ ":" ++ show x ++ " is already defined"
+  show (CoherenceViolation fc iface existing)
+      = show fc ++ ": coherence violation: " ++ show iface ++
+        " is marked %coherent, but an unnamed implementation already exists: " ++ show existing
   show (NotFunctionType fc env tm) = show fc ++ ":Not a function type: " ++ show tm
   show (RewriteNoChange fc env rule ty)
       = show fc ++ ":Rewriting by " ++ show rule ++ " did not change type " ++ show ty
@@ -503,6 +512,7 @@ getErrorLoc (NonLinearPattern loc _) = Just loc
 getErrorLoc (BadPattern loc _) = Just loc
 getErrorLoc (NoDeclaration loc _) = Just loc
 getErrorLoc (AlreadyDefined loc _) = Just loc
+getErrorLoc (CoherenceViolation loc _ _) = Just loc
 getErrorLoc (NotFunctionType loc _ _) = Just loc
 getErrorLoc (RewriteNoChange loc _ _ _) = Just loc
 getErrorLoc (NotRewriteRule loc _ _) = Just loc
@@ -599,6 +609,7 @@ killErrorLoc (NonLinearPattern fc x) = NonLinearPattern emptyFC x
 killErrorLoc (BadPattern fc x) = BadPattern emptyFC x
 killErrorLoc (NoDeclaration fc x) = NoDeclaration emptyFC x
 killErrorLoc (AlreadyDefined fc x) = AlreadyDefined emptyFC x
+killErrorLoc (CoherenceViolation fc i e) = CoherenceViolation emptyFC i e
 killErrorLoc (NotFunctionType fc x y) = NotFunctionType emptyFC x y
 killErrorLoc (RewriteNoChange fc x y z) = RewriteNoChange emptyFC x y z
 killErrorLoc (NotRewriteRule fc x y) = NotRewriteRule emptyFC x y

@@ -6,6 +6,7 @@ import public Core.Normalise.Quote
 import Core.Case.CaseTree
 import Core.Context
 import Core.Env
+import Core.Record
 import Core.TT.Term
 import Core.Transform
 import Core.UnivSolver
@@ -384,6 +385,74 @@ mutual
       sameBinders (Lam {}) (Lam {}) = True
       sameBinders _ _ = False
 
+  -- True if an NF is an unsolved metavariable application — used to guard
+  -- record η-equality so we don't η-expand into holes.
+  isMeta : NF vars -> Bool
+  isMeta (NApp _ (NMeta _ _ _) _) = True
+  isMeta _ = False
+
+  -- η-equality for single-constructor record types.
+  --
+  -- If one side is a fully-applied data constructor `NDCon nm tag arity args`
+  -- and the other is a neutral term whose *type* is the matching record type,
+  -- expand the neutral term into a constructor form by applying all of the
+  -- record's field projectors.  Then compare field-by-field.
+  --
+  -- This lets the kernel accept, e.g.:
+  --   p : Point     ──   MkPoint p.x p.y  ≡  p
+  -- without requiring the programmer to η-expand manually.
+  tryRecordEta : {auto c : Ref Ctxt Defs} -> {vars : _} ->
+                 Ref QVar Int -> Bool -> Defs -> Env Term vars ->
+                 Name -> Int -> Nat -> List (FC, Closure vars) -> NF vars ->
+                 Core Bool
+  tryRecordEta q i defs env nm tag arity args neutral
+      = do -- Never η-expand a metavariable: it hasn't been solved yet.
+           let False = isMeta neutral | _ => pure False
+           -- Use the full context (defs may have been cleared for quoting).
+           fullDefs <- get Ctxt
+           -- Arity must match the argument list length.
+           let True = length args == arity | _ => pure False
+           Just gdef <- lookupCtxtExact nm (gamma fullDefs) | _ => pure False
+           -- The constructor's return type must name a record type.
+           let Just tyName = returnTyCon (type gdef) | _ => pure False
+           Just tyDef <- lookupCtxtExact tyName (gamma fullDefs) | _ => pure False
+           -- That record type must have exactly one constructor (it's a record).
+           let TCon _ _ _ _ _ (Just [_]) _ = definition tyDef | _ => pure False
+           -- Collect the projector names for each field, in order.
+           let pns   = projectorNS (fullname tyDef)
+           let projs = getConProjectors pns (type gdef)
+           let True  = length projs == length args | _ => pure False
+           -- Quote the neutral term and any erased (type-parameter) args so we
+           -- can build the projector applications as raw Terms.
+           empty <- clearDefs fullDefs
+           neutralTm <- quote empty env neutral
+           let projsAndArgCls = zip projs (map Builtin.snd args)
+           -- Erased args are those whose projector slot is Nothing.
+           erasedTms <- traverse
+               (\cl => do v <- evalClosureWithOpts fullDefs defaultOpts cl
+                          quote empty env v)
+               (mapMaybe (\(mp, cl) => case mp of Nothing => Just cl; _ => Nothing)
+                         projsAndArgCls)
+           -- For each field, build `proj erasedArgs... neutralTm` and normalise.
+           etaNFsAndFound <- for projsAndArgCls $ \(mproj, _) =>
+             case mproj of
+               Nothing => pure (NErased EmptyFC Placeholder, False)
+               Just proj =>
+                 case !(lookupCtxtExactI proj (gamma fullDefs)) of
+                   Nothing => pure (NErased EmptyFC Placeholder, False)
+                   Just (idx, _) => do
+                     let base        = Ref EmptyFC Func (Resolved idx)
+                     let withTyArgs  = foldl (\acc, tm => App EmptyFC acc tm) base erasedTms
+                     etaNF <- nf fullDefs env (App EmptyFC withTyArgs neutralTm)
+                     pure (etaNF, True)
+           -- Require at least one real projector (or zero fields — unit record).
+           let True = null projs || any (\x => Builtin.snd x) etaNFsAndFound
+                    | _ => pure False
+           -- Compare each constructor argument against its projected form.
+           argNFs <- traverse (evalClosureWithOpts fullDefs defaultOpts) (map snd args)
+           allM (\(argNF, etaNF) => convGen q i fullDefs env argNF etaNF)
+                (zip argNFs (map fst etaNFsAndFound))
+
   -- Apply %rewrite transforms when two NApp terms fail structural conversion.
   -- Uses eqTerm to detect if anything changed, preventing infinite loops.
   tryTransformNApp : {auto c : Ref Ctxt Defs} ->
@@ -405,6 +474,14 @@ mutual
 
   export
   Convert NF where
+    -- η-equality for single-constructor record types.
+    -- Try these cases early so that `NDCon nm .. ≡ neutralOfSameType` works
+    -- before falling through to the structural NDCon check below.
+    convGen q i defs env (NDCon _ nm tag arity args) tmy@(NApp _ _ _)
+        = tryRecordEta q i defs env nm tag arity args tmy
+    convGen q i defs env tmx@(NApp _ _ _) (NDCon _ nm tag arity args)
+        = tryRecordEta q i defs env nm tag arity args tmx
+
     convGen q i defs env (NBind fc x b sc) (NBind _ x' b' sc')
         = do var <- genName "conv"
              let c = MkClosure defaultOpts LocalEnv.empty env (Ref fc Bound var)
