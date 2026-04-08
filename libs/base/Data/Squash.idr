@@ -139,14 +139,13 @@ interface ProofIrrelevant (0 a : Type) where
   ||| Prove that any two inhabitants of `a` are propositionally equal.
   proofIrrel : (p : a) -> (q : a) -> p = q
 
-||| `Squash a` is proof-irrelevant: this follows directly from
-||| `proofIrrelevance`, which is a theorem proved by `Refl`.
+-- Squash a is proof-irrelevant: proofIrrelevance is a theorem proved by Refl.
 export
 [SquashProofIrrelevant] ProofIrrelevant (Squash a) where
   proofIrrel = proofIrrelevance
 
-||| `Unit` (the unit type `()`) is proof-irrelevant: its only inhabitant
-||| is `MkUnit`, so any two values are trivially equal.
+-- Unit is proof-irrelevant: its only constructor is MkUnit.
+export
 [UnitProofIrrelevant] ProofIrrelevant Unit where
   proofIrrel () () = Refl
 
