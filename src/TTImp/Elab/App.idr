@@ -80,7 +80,7 @@ getNameType elabMode rigc env fc x
                  let binder = getBinder lv env
                  let bty = binderType binder
                  case binder of
-                   Pi _ _ Irrelevant _ => throw (IrrelevantUsed fc x)
+                   Pi _ _ Irrelevant _ => pure () -- checked by LinearCheck with proper erase flag
                    _ => pure ()
 
                  log "metadata.names" 7 $ "getNameType is adding ↓"
