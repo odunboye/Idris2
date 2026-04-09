@@ -27,6 +27,7 @@ import TTImp.Elab.Quote
 import TTImp.Elab.Record
 import TTImp.Elab.Rewrite
 import TTImp.Elab.RunElab
+import TTImp.Elab.Search
 import TTImp.TTImp
 
 %default covering
@@ -195,8 +196,20 @@ checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)
     = do est <- get EST
          nm <- genName "search"
          expty <- getTerm gexpty
-         sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
-         pure (sval, gexpty)
+         -- Try direct search first; on failure (and depth allows) try case-split
+         catch
+           (do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
+               pure (sval, gexpty))
+           (\err =>
+             case err of
+               AmbiguousSearch {} => throw err   -- don't mask ambiguity errors
+               _ =>
+                 if depth < 2
+                   then throw err
+                   else catch
+                          (do tm <- tryCaseSplitSearch fc rig depth elabinfo nest env expty
+                              pure (tm, gexpty))
+                          (\_ => throw err))
 checkTerm rig elabinfo nest env (ISearch fc depth) Nothing
     = do est <- get EST
          nmty <- genName "searchTy"
