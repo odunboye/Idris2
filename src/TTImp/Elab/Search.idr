@@ -113,6 +113,11 @@ buildCong : FC -> Name -> RawImp -> RawImp
 buildCong fc fName eq =
     IApp fc (IApp fc (IVar fc (UN $ Basic "cong")) (IVar fc fName)) eq
 
+-- Build an explicit type ascription: `the ty tm`
+buildThe : FC -> RawImp -> RawImp -> RawImp
+buildThe fc ty tm =
+    IApp fc (IApp fc (IVar fc (UN $ Basic "the")) ty) tm
+
 -- Try case-split proof search as a fallback when searchVar fails.
 --
 -- For each local variable `x : D args` (unrestricted, D a data type), builds:
