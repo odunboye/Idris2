@@ -196,26 +196,26 @@ checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)
     = do est <- get EST
          nm <- genName "search"
          expty <- getTerm gexpty
-         -- Normalize the goal type in the current environment
-         -- This is crucial for computational goals like `plus n 0 = n`
-         -- where the goal type should reduce in each case branch
-         defs <- get Ctxt
-         normExpty <- quote defs env !(nf defs env expty)
-         let gnormExpty = gnf env normExpty
-         -- Try direct search first; on failure (and depth allows) try case-split
-         catch
-           (do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm normExpty
-               pure (sval, gnormExpty))
-           (\err =>
-             case err of
-               AmbiguousSearch {} => throw err   -- don't mask ambiguity errors
-               _ =>
-                 if depth < 2
-                   then throw err
-                   else catch
-                          (do tm <- tryCaseSplitSearch fc rig depth elabinfo nest env normExpty
-                              pure (tm, gnormExpty))
-                          (\_ => throw err))
+         -- searchVar uses delayed elaboration (BySearch metavar), so a catch
+         -- around it here does not intercept its failure — the error surfaces
+         -- later during constraint solving, outside this scope.
+         -- Fix: try tryCaseSplitSearch synchronously first.  It uses Refl in
+         -- every case branch (the conversion checker handles reduction), so
+         -- there are no nested ISearch calls and no exponential blowup.
+         -- Fall back to searchVar if there are no split candidates or all
+         -- splits fail.
+         if depth < 2
+           then do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
+                   pure (sval, gexpty)
+           else do
+             caseSplitResult <- catch
+               (do tm <- tryCaseSplitSearch fc rig depth elabinfo nest env expty
+                   pure (Just tm))
+               (\_ => pure Nothing)
+             case caseSplitResult of
+               Just tm  => pure (tm, gexpty)
+               Nothing  => do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
+                              pure (sval, gexpty)
 checkTerm rig elabinfo nest env (ISearch fc depth) Nothing
     = do est <- get EST
          nmty <- genName "searchTy"

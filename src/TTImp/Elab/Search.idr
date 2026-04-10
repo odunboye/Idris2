@@ -1,13 +1,17 @@
--- Stronger proof search: case-splitting with explicit recursion for full induction.
+-- Case-splitting proof search fallback.
 --
--- When `searchVar` (direct unification-based search) fails, this module
--- attempts to make progress by case-splitting on unrestricted local variables
--- whose types are fully-applied data type constructors (NTCon).  For each
--- candidate variable it constructs an ICase expression.
+-- When `searchVar` (delayed-elaboration-based search) fails to find a proof,
+-- this module tries to make progress by case-splitting on unrestricted local
+-- variables whose normalised types are data type constructors (NTCon).
 --
--- NEW: For recursive constructors, generates explicit recursive calls instead
--- of nested %search. This enables full structural induction with induction
--- hypotheses available in recursive branches.
+-- For each split candidate it builds an ICase with `Refl` in every branch.
+-- The conversion checker then handles any definitional reductions needed to
+-- make `Refl` type-check in each branch.  Goals that do not reduce to `x = x`
+-- in some branch cause that branch to fail; if any branch fails the whole split
+-- is abandoned and the next candidate is tried.
+--
+-- Using `Refl` (rather than a nested ISearch) avoids exponential blowup:
+-- there are no recursive ISearch calls inside the generated case expression.
 module TTImp.Elab.Search
 
 import Core.Context
@@ -28,19 +32,22 @@ import TTImp.TTImp
 
 %default covering
 
--- Generate the list [0, 1, ..., n-1]
+------------------------------------------------------------------------
+-- Helpers
+------------------------------------------------------------------------
+
+-- Generate [0, 1, ..., n-1]
 upTo : Nat -> List Nat
 upTo 0     = []
 upTo (S n) = upTo n ++ [n]
 
--- Count the number of *explicit* Pi binders at the head of a term.
--- Works for both open and closed terms (vars is implicit and polymorphic).
+-- Count explicit Pi binders at the head of a type term.
 countExplicit : {vars : _} -> Term vars -> Nat
 countExplicit (Bind _ _ (Pi _ _ Explicit _) sc) = S (countExplicit sc)
 countExplicit (Bind _ _ (Pi _ _ _ _) sc)        = countExplicit sc
 countExplicit _                                  = 0
 
--- Retrieve the data constructors for a named type from the global context.
+-- Retrieve data constructors for a fully-applied type constructor name.
 getDataCons : {auto c : Ref Ctxt Defs} -> Name -> Core (List Name)
 getDataCons n
     = do defs <- get Ctxt
@@ -50,25 +57,22 @@ getDataCons n
               | _ => pure []
          pure cons
 
--- Build the pattern `Con arg0 arg1 ...` with fresh IBindVars for every
--- explicit argument.  conIdx is used to make bind-var names unique across
--- the alternatives of the same ICase expression.
+-- Build the pattern `Con bv0 bv1 ...` with fresh bind-vars for every
+-- explicit argument.  conIdx and argIdx together give unique names.
 buildConPat : FC -> Name -> (arity : Nat) -> (conIdx : Nat) -> RawImp
 buildConPat fc con arity conIdx =
     let args = map (\j => IBindVar fc (UN (Basic ("__cs" ++ show conIdx ++ "_" ++ show j))))
                    (upTo arity)
     in foldl (IApp fc) (IVar fc con) args
 
--- A local variable that is a valid candidate for case-splitting:
--- unrestricted multiplicity + the head of its type is a TCon.
+-- A variable worth splitting on: unrestricted multiplicity and the head of
+-- its normalised type is a type constructor with at least one constructor.
 record SplitCandidate where
   constructor MkSplit
-  varName   : Name   -- local variable to split on
-  tyConName : Name   -- head type constructor of its normalised type
+  varName   : Name
+  tyConName : Name
 
--- Walk the environment, collecting split candidates.
--- Only unrestricted (top-multiplicity) bindings whose normalised type
--- is a fully-applied NTCon with at least one data constructor are included.
+-- Walk the elaboration environment collecting split candidates.
 getSplitCandidates : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
                      Env Term vars ->
@@ -96,42 +100,64 @@ zipWith3 _ _         _        []       = []
 zipWith3 f (x :: xs) (y :: ys) (z :: zs)
     = f x y z :: zipWith3 f xs ys zs
 
--- Check if a term is an equality type (=) by looking at the name
-isEquality : Term vars -> Bool
-isEquality (App _ (App _ (Ref _ _ n) _) _) =
-    case n of
-        UN (Basic "=") => True
-        _ => False
-isEquality _ = False
+------------------------------------------------------------------------
+-- Core: tryCaseSplitSearch
+------------------------------------------------------------------------
 
--- Build a recursive call: `f arg` where f is the function being defined
-buildRecCall : FC -> Name -> RawImp -> RawImp
-buildRecCall fc fName arg = IApp fc (IVar fc fName) arg
+-- Build one ICase alternative: pattern matching on constructor `con` with
+-- `arity` explicit arguments, body is `Refl`.
+--
+-- The elaborator's conversion checker reduces the branch goal after
+-- substituting the constructor pattern, so `Refl` type-checks whenever
+-- the goal is definitionally `x = x` in that branch.
+makeAlt : FC -> Name -> (arity : Nat) -> (conIdx : Nat) -> ImpClause
+makeAlt fc con arity conIdx =
+    let pat  = buildConPat fc con arity conIdx
+        body = IVar fc (UN (Basic "Refl"))
+    in PatClause fc pat body
 
--- Build `cong f eq` for lifting an equality through a constructor
-buildCong : FC -> Name -> RawImp -> RawImp
-buildCong fc fName eq =
-    IApp fc (IApp fc (IVar fc (UN $ Basic "cong")) (IVar fc fName)) eq
+-- Try to solve `topTy` by case-splitting on a single candidate variable.
+-- Saves and restores the unification and context state on failure.
+trySplit : {vars : _} ->
+           {auto c : Ref Ctxt Defs} ->
+           {auto m : Ref MD Metadata} ->
+           {auto u : Ref UST UState} ->
+           {auto e : Ref EST (EState vars)} ->
+           {auto s : Ref Syn SyntaxInfo} ->
+           {auto o : Ref ROpts REPLOpts} ->
+           FC -> RigCount -> Nat ->
+           ElabInfo -> NestedNames vars -> Env Term vars ->
+           Term vars ->
+           SplitCandidate ->
+           Core (Term vars)
+trySplit fc rig depth elabinfo nest env topTy (MkSplit varNm tyConNm)
+    = do log "auto" 5 $ "  trying split on " ++ show varNm
+         cons    <- getDataCons tyConNm
+         defs    <- get Ctxt
+         arities <- traverse (\con =>
+                       do Just gdef <- lookupCtxtExact con (gamma defs)
+                               | Nothing => pure 0
+                          pure (countExplicit (type gdef))) cons
+         let conIndices = upTo (length cons)
+         let alts = zipWith3 (\con, arity, conIdx => makeAlt fc con arity conIdx)
+                             cons arities conIndices
+         let caseExpr = ICase fc [] (IVar fc varNm) (Implicit fc False) alts
+         log "auto" 5 $ "  built case with " ++ show (length alts) ++ " alternatives"
+         -- Save state; restore on failure so we leave no partial work.
+         ust  <- get UST
+         ctxSnap <- branch
+         catch
+           (do (tm, _) <- check rig elabinfo nest env caseExpr (Just (gnf env topTy))
+               commit
+               log "auto" 5 "  case split succeeded"
+               pure tm)
+           (\err =>
+             do put UST ust
+                put Ctxt ctxSnap
+                throw err)
 
--- Build an explicit type ascription: `the ty tm`
-buildThe : FC -> RawImp -> RawImp -> RawImp
-buildThe fc ty tm =
-    IApp fc (IApp fc (IVar fc (UN $ Basic "the")) ty) tm
-
--- Try case-split proof search as a fallback when searchVar fails.
---
--- For each local variable `x : D args` (unrestricted, D a data type), builds:
---
---   case x of
---     C0 a0_0 ... => %search(depth-1)
---     C1 a1_0 ... => %search(depth-1)  or  cong S (f a1_0) for recursive
---     ...
---
--- and elaborates it against the expected type topTy.  Returns the first
--- candidate that succeeds.  Caller must ensure depth >= 2.
---
--- NEW: Supports computational goals like `plus n 0 = n` by allowing
--- definitional equality after case splitting.
+-- Try case-splitting on each candidate in turn; return the first success.
+-- Throws InternalError if all candidates fail (caller catches and falls back).
 export
 tryCaseSplitSearch : {vars : _} ->
                      {auto c : Ref Ctxt Defs} ->
@@ -140,91 +166,18 @@ tryCaseSplitSearch : {vars : _} ->
                      {auto e : Ref EST (EState vars)} ->
                      {auto s : Ref Syn SyntaxInfo} ->
                      {auto o : Ref ROpts REPLOpts} ->
-                     FC -> RigCount -> (depth : Nat) ->
-                     ElabInfo ->
-                     NestedNames vars -> Env Term vars ->
-                     (topTy : Term vars) ->
+                     FC -> RigCount -> Nat ->
+                     ElabInfo -> NestedNames vars -> Env Term vars ->
+                     Term vars ->
                      Core (Term vars)
 tryCaseSplitSearch fc rig depth elabinfo nest env topTy
-    = do est <- get EST
-         let fName = Resolved (defining est)  -- function being defined
-         -- Normalize the goal type to unfold definitions like `plus n 0`
-         defs <- get Ctxt
-         normTopTy <- nf defs env topTy
-         logTermNF "auto" 5 "Case-split goal" env topTy
-         candidates <- getSplitCandidates env
-         log "auto" 3 $ "case-split search: "
-                       ++ show (length candidates) ++ " candidate(s)"
-         tryAll fName normTopTy candidates
+    = do candidates <- getSplitCandidates env
+         log "auto" 3 $ "case-split search: " ++ show (length candidates) ++ " candidate(s)"
+         tryAll candidates
   where
-    -- Build the body for a case alternative
-    -- For equality goals with recursive constructors, generates explicit recursion
-    buildAltBody : Name -> Name -> Name -> Nat -> Nat -> List Name -> NF vars -> Core RawImp
-    buildAltBody fName tyCon con arity conIdx argNames goalNF = do
-        defs <- get Ctxt
-        goalTm <- quote defs env goalNF
-        let isEq = isEquality goalTm
-        log "auto" 6 $ "Building body for " ++ show con ++ " (equality: " ++ show isEq ++ ")"
-        
-        if not isEq
-            then pure $ ISearch fc (depth `minus` 1)  -- not equality, use search
-            else case arity of
-                Z => pure $ ISearch fc (depth `minus` 1)  -- base case
-                S _ => case argNames of
-                    [] => pure $ ISearch fc (depth `minus` 1)
-                    (recArg :: _) => do
-                        -- Generate explicit recursive call with cong
-                        log "auto" 6 $ "  Generating cong " ++ show con ++ " (" ++ show fName ++ " " ++ show recArg ++ ")"
-                        pure $ buildCong fc con (buildRecCall fc fName (IVar fc recArg))
-
-    -- One ICase alternative with explicit recursion support
-    makeAlt : Name -> Name -> Name -> Nat -> Nat -> NF vars -> Core ImpClause
-    makeAlt fName tyCon con arity conIdx goalNF = do
-        let pat = buildConPat fc con arity conIdx
-        -- Generate argument names for the pattern
-        let argNames = map (\j => UN $ Basic ("__cs" ++ show conIdx ++ "_" ++ show j)) (upTo arity)
-        body <- buildAltBody fName tyCon con arity conIdx argNames goalNF
-        pure $ PatClause fc pat body
-
-    -- Attempt to solve via a single candidate; save+restore state on failure
-    trySplit : Name -> NF vars -> SplitCandidate -> Core (Term vars)
-    trySplit fName normGoal (MkSplit varNm tyConNm)
-        = do log "auto" 5 $ "  trying split on " ++ show varNm
-             cons    <- getDataCons tyConNm
-             arities <- traverse (\con => do
-                            defs <- get Ctxt
-                            Just gdef <- lookupCtxtExact con (gamma defs)
-                                 | Nothing => pure 0
-                            pure (countExplicit (type gdef))) cons
-             -- Build alternatives with the normalized goal type
-             let conIndices = upTo (length cons)
-             alts <- traverse (\(con, arity, conIdx) => 
-                        makeAlt fName tyConNm con arity conIdx normGoal)
-                     (zipWith3 (\c, a, i => (c, a, i)) cons arities conIndices)
-             let caseExpr = ICase fc [] (IVar fc varNm)
-                                   (Implicit fc False) alts
-             log "auto" 5 $ "  Built case expression with " ++ show (length alts) ++ " alternatives"
-             ust  <- get UST
-             defs <- branch
-             catch
-               (do -- Use the NORMALIZED goal type for checking
-                   -- This allows computational goals like `plus n 0 = n` to work
-                   normGoalTy <- quote defs env normGoal
-                   (tm, _) <- check rig elabinfo nest env caseExpr
-                                     (Just (gnf env normGoalTy))
-                   commit
-                   log "auto" 5 $ "  Case split succeeded!"
-                   pure tm)
-               (\err => do 
-                   log "auto" 6 $ "  Case split failed: " ++ show err
-                   put UST ust
-                   put Ctxt defs
-                   throw err)
-
-    -- Try each candidate left to right; return the first that succeeds
-    tryAll : Name -> NF vars -> List SplitCandidate -> Core (Term vars)
-    tryAll _ _ []
+    tryAll : List SplitCandidate -> Core (Term vars)
+    tryAll []
         = throw (InternalError "tryCaseSplitSearch: no split succeeded")
-    tryAll fName normGoal (c :: cs)
-        = catch (trySplit fName normGoal c) 
-                (\_ => tryAll fName normGoal cs)
+    tryAll (c :: cs)
+        = catch (trySplit fc rig depth elabinfo nest env topTy c)
+                (\_ => tryAll cs)
