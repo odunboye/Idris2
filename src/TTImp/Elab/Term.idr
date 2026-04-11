@@ -208,10 +208,15 @@ checkTerm rig elabinfo nest env (ISearch fc depth) (Just gexpty)
            then do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
                    pure (sval, gexpty)
            else do
-             caseSplitResult <- catch
-               (do tm <- tryCaseSplitSearch fc rig depth elabinfo nest env expty
-                   pure (Just tm))
-               (\_ => pure Nothing)
+             -- Only attempt case-split search for propositional equality goals.
+             -- Syntactic check avoids `nf` which can loop on unsolved metas.
+             -- Interface goals (e.g. `Eq a`) go straight to `searchVar`.
+             isPropEq <- hasPropEqHead expty
+             caseSplitResult <- if not isPropEq then pure Nothing
+                                else catch
+                                  (do tm <- tryCaseSplitSearch fc rig depth elabinfo nest env expty
+                                      pure (Just tm))
+                                  (\_ => pure Nothing)
              case caseSplitResult of
                Just tm  => pure (tm, gexpty)
                Nothing  => do sval <- searchVar fc rig depth (Resolved (defining est)) env nest nm expty
