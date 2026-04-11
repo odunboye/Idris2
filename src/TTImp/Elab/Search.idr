@@ -74,6 +74,39 @@ buildConPat fc con arity conIdx =
 csVar : FC -> (conIdx : Nat) -> (j : Nat) -> RawImp
 csVar fc conIdx j = IVar fc (UN (Basic ("__cs" ++ show conIdx ++ "_" ++ show j)))
 
+-- Apply a Name as an explicit argument to a RawImp expression.
+-- Defined top-level so it can be used as a partial application in foldl
+-- without requiring an inline lambda (bootstrap parser safety).
+applyNameArg : FC -> RawImp -> Name -> RawImp
+applyNameArg fc acc nm = IApp fc acc (IVar fc nm)
+
+-- Count the number of explicitly-Pi-bound arguments in a function's declared type.
+-- Used to identify which env variables are truly explicit parameters vs auto-bound
+-- implicits that appear as PVar Explicit in the clause elaboration environment.
+funcExplicitArity : {auto c : Ref Ctxt Defs} -> Name -> Core Nat
+funcExplicitArity nm = do
+    defs <- get Ctxt
+    mgdef <- lookupCtxtExact nm (gamma defs)
+    case mgdef of
+      Just gdef => pure (countExplicit (type gdef))
+      Nothing   => pure 0
+
+-- Collect ALL variable names from the environment in newest-first order.
+-- Unlike getExplicitVarNames (which tried to filter by PiInfo), this returns
+-- everything.  The caller then uses `take funcArity` to keep only the truly-
+-- explicit parameters, since explicit params are always bound most recently.
+getAllVarNames : {vars : _} -> Env Term vars -> List Name
+getAllVarNames [] = []
+getAllVarNames {vars = v :: vs} (_ :: env) = v :: getAllVarNames env
+
+-- Remove all occurrences of `nm` from a list of Names.
+filterOutName : Name -> List Name -> List Name
+filterOutName _ [] = []
+filterOutName nm (x :: xs) =
+    if nm == x
+      then filterOutName nm xs
+      else x :: filterOutName nm xs
+
 -- Strip App nodes to find the outermost name reference in a term.
 termHead : {vars : _} -> Term vars -> Maybe Name
 termHead (App _ f _) = termHead f
@@ -164,28 +197,32 @@ isLastArgRecursive con dataTyCon = do
 
 -- Build the body of one ICase alternative.
 -- For non-recursive constructors: Refl.
--- For recursive constructors: cong (Con prefixArgs) (defNm lastArg).
+-- For recursive constructors: cong (Con prefixArgs) (defNm lastArg otherVars...).
 --
 -- Variable names must match buildConPat's naming scheme: __cs{conIdx}_{j}.
-makeAltBody : FC -> Name -> Nat -> Nat -> Bool -> Name -> RawImp
-makeAltBody fc con arity conIdx isRec defNm =
+-- otherVars are the sibling explicit parameters passed to the recursive call.
+makeAltBody : FC -> Name -> Nat -> Nat -> Bool -> Name -> List Name -> RawImp
+makeAltBody fc con arity conIdx isRec defNm otherVars =
     if isRec
     then IApp fc
              (IApp fc (IVar fc (UN (Basic "cong")))
                       (foldl (IApp fc) (IVar fc con)
                              (map (csVar fc conIdx) (upTo (minus arity 1)))))
-             (IApp fc (IVar fc defNm) (csVar fc conIdx (minus arity 1)))
+             (foldl (applyNameArg fc)
+                    (IApp fc (IVar fc defNm) (csVar fc conIdx (minus arity 1)))
+                    otherVars)
     else IVar fc (UN (Basic "Refl"))
 
 -- Build one ICase alternative: pattern matching on constructor `con` with
 -- `arity` explicit arguments.
--- If isRec, body is `cong (Con prefixArgs) (defNm lastArg)`;
+-- If isRec, body is `cong (Con prefixArgs) (defNm lastArg otherVars...)`;
 -- otherwise body is `Refl`.
+-- otherVars are the sibling explicit parameters threaded into recursive calls.
 makeAlt : FC -> Name -> (arity : Nat) -> (conIdx : Nat) ->
-          (isRec : Bool) -> (defNm : Name) -> ImpClause
-makeAlt fc con arity conIdx isRec defNm =
+          (isRec : Bool) -> (defNm : Name) -> (otherVars : List Name) -> ImpClause
+makeAlt fc con arity conIdx isRec defNm otherVars =
     let pat  = buildConPat fc con arity conIdx
-        body = makeAltBody fc con arity conIdx isRec defNm
+        body = makeAltBody fc con arity conIdx isRec defNm otherVars
     in PatClause fc pat body
 
 -- Try to solve `topTy` by case-splitting on a single candidate variable.
@@ -213,6 +250,15 @@ trySplit fc rig depth elabinfo nest env topTy (MkSplit varNm tyConNm)
            (do -- Get the name of the function being defined for recursive calls.
                est <- get EST
                let defNm = Resolved (defining est)
+               -- Compute sibling explicit parameters that must be threaded into
+               -- recursive calls.  We look up the function's declared explicit
+               -- arity and take only that many variables from `vars` (newest-first),
+               -- which are the truly-explicit params.  Auto-bound implicits like
+               -- `{a : Type}` appear further along in `vars` and are excluded.
+               -- E.g. multiRefl x y z: funcArity=3, vars=[z,y,x], otherVars=[y,z].
+               -- E.g. treeRefl {a} t:  funcArity=1, vars=[t,a],   otherVars=[].
+               funcArity <- funcExplicitArity defNm
+               let otherVars = reverse (filterOutName varNm (take funcArity (getAllVarNames env)))
                -- Build case alternatives with Refl or cong bodies.
                cons <- getDataCons tyConNm
                defs <- get Ctxt
@@ -220,10 +266,10 @@ trySplit fc rig depth elabinfo nest env topTy (MkSplit varNm tyConNm)
                          (\p => do
                              let (conIdx, con) = p
                              Just gdef <- lookupCtxtExact con (gamma defs)
-                                 | Nothing => pure (makeAlt fc con 0 conIdx False defNm)
+                                 | Nothing => pure (makeAlt fc con 0 conIdx False defNm otherVars)
                              let arity = countExplicit (type gdef)
                              isRec <- isLastArgRecursive con tyConNm
-                             pure (makeAlt fc con arity conIdx isRec defNm))
+                             pure (makeAlt fc con arity conIdx isRec defNm otherVars))
                          (zip (upTo (length cons)) cons)
                let caseExpr = ICase fc [] (IVar fc varNm) (Implicit fc False) alts
                log "auto" 5 $ "  built case with " ++ show (length alts) ++ " alternatives"
