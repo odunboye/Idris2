@@ -4,14 +4,15 @@
 -- this module tries to make progress by case-splitting on unrestricted local
 -- variables whose normalised types are data type constructors (NTCon).
 --
--- For each split candidate it builds an ICase with `Refl` in every branch.
+-- For each split candidate it builds an ICase with Refl (for base constructors)
+-- or `cong Con (f arg)` (for recursive constructors) in every branch.
 -- The conversion checker then handles any definitional reductions needed to
--- make `Refl` type-check in each branch.  Goals that do not reduce to `x = x`
--- in some branch cause that branch to fail; if any branch fails the whole split
--- is abandoned and the next candidate is tried.
+-- make `Refl` type-check in each branch.
 --
--- Using `Refl` (rather than a nested ISearch) avoids exponential blowup:
--- there are no recursive ISearch calls inside the generated case expression.
+-- The `cong` branch handles inductive proofs: if the last explicit argument of a
+-- constructor has the same type as the data type being split, we generate
+-- `cong Con (defNm lastArg)` where `defNm` is the function being defined.
+-- This makes `plusZeroRight : (n : Nat) -> plus n 0 = n` provable by %search.
 module TTImp.Elab.Search
 
 import Core.Context
@@ -65,6 +66,14 @@ buildConPat fc con arity conIdx =
                    (upTo arity)
     in foldl (IApp fc) (IVar fc con) args
 
+-- IVar reference for the j-th explicit argument of constructor at index conIdx.
+-- Naming matches buildConPat: __cs{conIdx}_{j}.
+-- Defined as a top-level function so it can be used as a partial application
+-- in map without needing a lambda (the bootstrap parser struggles with lambdas
+-- inside multi-binding let blocks).
+csVar : FC -> (conIdx : Nat) -> (j : Nat) -> RawImp
+csVar fc conIdx j = IVar fc (UN (Basic ("__cs" ++ show conIdx ++ "_" ++ show j)))
+
 -- Strip App nodes to find the outermost name reference in a term.
 termHead : {vars : _} -> Term vars -> Maybe Name
 termHead (App _ f _) = termHead f
@@ -117,32 +126,72 @@ getSplitCandidates {vars = v :: vs} (b :: env)
                             else pure (MkSplit v n :: rest)
                      _ => pure rest
 
--- Local zipWith3 (not in Prelude)
-zipWith3 : (a -> b -> c -> d) -> List a -> List b -> List c -> List d
-zipWith3 _ []        _        _        = []
-zipWith3 _ _         []       _        = []
-zipWith3 _ _         _        []       = []
-zipWith3 f (x :: xs) (y :: ys) (z :: zs)
-    = f x y z :: zipWith3 f xs ys zs
+-- Get the outermost Name at the head of the last explicit argument type
+-- of a data constructor.  Returns Nothing for nullary constructors.
+-- Used to detect recursive constructors (e.g. S : Nat -> Nat).
+-- `go` is polymorphic over the variable scope because Bind nodes extend it.
+lastExplicitArgHead : {auto c : Ref Ctxt Defs} ->
+                      Name -> Core (Maybe Name)
+lastExplicitArgHead con = do
+    defs <- get Ctxt
+    Just gdef <- lookupCtxtExact con (gamma defs) | Nothing => pure Nothing
+    pure (go (type gdef))
+  where
+    go : {vs : _} -> Term vs -> Maybe Name
+    go (Bind _ _ (Pi _ _ Explicit ty) sc) =
+        case go sc of
+          Nothing => termHead ty   -- this is the last explicit arg
+          Just n  => Just n
+    go (Bind _ _ _ sc) = go sc
+    go _ = Nothing
+
+-- True if the last explicit argument type of `con` has `dataTyCon` as its
+-- type-constructor head — i.e. `con` is a recursive constructor.
+-- Example: isLastArgRecursive S Nat = True; isLastArgRecursive Z Nat = False.
+isLastArgRecursive : {auto c : Ref Ctxt Defs} ->
+                     (con : Name) -> (dataTyCon : Name) -> Core Bool
+isLastArgRecursive con dataTyCon = do
+    mh <- lastExplicitArgHead con
+    case mh of
+      Nothing => pure False
+      Just h  => do fh  <- getFullName h
+                    fdt <- getFullName dataTyCon
+                    pure (fh == fdt)
 
 ------------------------------------------------------------------------
 -- Core: tryCaseSplitSearch
 ------------------------------------------------------------------------
 
--- Build one ICase alternative: pattern matching on constructor `con` with
--- `arity` explicit arguments, body is `Refl`.
+-- Build the body of one ICase alternative.
+-- For non-recursive constructors: Refl.
+-- For recursive constructors: cong (Con prefixArgs) (defNm lastArg).
 --
--- The elaborator's conversion checker reduces the branch goal after
--- substituting the constructor pattern, so `Refl` type-checks whenever
--- the goal is definitionally `x = x` in that branch.
-makeAlt : FC -> Name -> (arity : Nat) -> (conIdx : Nat) -> ImpClause
-makeAlt fc con arity conIdx =
+-- Variable names must match buildConPat's naming scheme: __cs{conIdx}_{j}.
+makeAltBody : FC -> Name -> Nat -> Nat -> Bool -> Name -> RawImp
+makeAltBody fc con arity conIdx isRec defNm =
+    if isRec
+    then IApp fc
+             (IApp fc (IVar fc (UN (Basic "cong")))
+                      (foldl (IApp fc) (IVar fc con)
+                             (map (csVar fc conIdx) (upTo (minus arity 1)))))
+             (IApp fc (IVar fc defNm) (csVar fc conIdx (minus arity 1)))
+    else IVar fc (UN (Basic "Refl"))
+
+-- Build one ICase alternative: pattern matching on constructor `con` with
+-- `arity` explicit arguments.
+-- If isRec, body is `cong (Con prefixArgs) (defNm lastArg)`;
+-- otherwise body is `Refl`.
+makeAlt : FC -> Name -> (arity : Nat) -> (conIdx : Nat) ->
+          (isRec : Bool) -> (defNm : Name) -> ImpClause
+makeAlt fc con arity conIdx isRec defNm =
     let pat  = buildConPat fc con arity conIdx
-        body = IVar fc (UN (Basic "Refl"))
+        body = makeAltBody fc con arity conIdx isRec defNm
     in PatClause fc pat body
 
 -- Try to solve `topTy` by case-splitting on a single candidate variable.
 -- Saves and restores the unification and context state on failure.
+-- All operations (including isLastArgRecursive) run inside the catch block
+-- so that context side-effects are rolled back cleanly on failure.
 trySplit : {vars : _} ->
            {auto c : Ref Ctxt Defs} ->
            {auto m : Ref MD Metadata} ->
@@ -157,22 +206,28 @@ trySplit : {vars : _} ->
            Core (Term vars)
 trySplit fc rig depth elabinfo nest env topTy (MkSplit varNm tyConNm)
     = do log "auto" 5 $ "  trying split on " ++ show varNm
-         cons    <- getDataCons tyConNm
-         defs    <- get Ctxt
-         arities <- traverse (\con =>
-                       do Just gdef <- lookupCtxtExact con (gamma defs)
-                               | Nothing => pure 0
-                          pure (countExplicit (type gdef))) cons
-         let conIndices = upTo (length cons)
-         let alts = zipWith3 (\con, arity, conIdx => makeAlt fc con arity conIdx)
-                             cons arities conIndices
-         let caseExpr = ICase fc [] (IVar fc varNm) (Implicit fc False) alts
-         log "auto" 5 $ "  built case with " ++ show (length alts) ++ " alternatives"
-         -- Save state; restore on failure so we leave no partial work.
-         ust  <- get UST
+         -- Snapshot before any context-affecting operations.
+         ust     <- get UST
          ctxSnap <- branch
          catch
-           (do (tm, _) <- check rig elabinfo nest env caseExpr (Just (gnf env topTy))
+           (do -- Get the name of the function being defined for recursive calls.
+               est <- get EST
+               let defNm = Resolved (defining est)
+               -- Build case alternatives with Refl or cong bodies.
+               cons <- getDataCons tyConNm
+               defs <- get Ctxt
+               alts <- traverse
+                         (\p => do
+                             let (conIdx, con) = p
+                             Just gdef <- lookupCtxtExact con (gamma defs)
+                                 | Nothing => pure (makeAlt fc con 0 conIdx False defNm)
+                             let arity = countExplicit (type gdef)
+                             isRec <- isLastArgRecursive con tyConNm
+                             pure (makeAlt fc con arity conIdx isRec defNm))
+                         (zip (upTo (length cons)) cons)
+               let caseExpr = ICase fc [] (IVar fc varNm) (Implicit fc False) alts
+               log "auto" 5 $ "  built case with " ++ show (length alts) ++ " alternatives"
+               (tm, _) <- check rig elabinfo nest env caseExpr (Just (gnf env topTy))
                commit
                log "auto" 5 "  case split succeeded"
                pure tm)
