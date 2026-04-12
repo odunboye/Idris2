@@ -129,6 +129,15 @@ newAlias alias full ctxt
     = do (idx, ctxt) <- getPosition full ctxt
          pure $ { possibles $= addAlias alias full idx } ctxt
 
+-- Like newAlias but registers the alias as a Direct entry so that hiding
+-- the original name does not make the alias invisible.  Used by selective
+-- import renaming (import M (f as g)) so that 'g' stays visible after 'f'
+-- is hidden.
+newDirectAlias : Name -> Name -> Context -> Core Context
+newDirectAlias alias full ctxt
+    = do (idx, ctxt) <- getPosition full ctxt
+         pure $ { possibles $= addPossible alias idx } ctxt
+
 export
 getNameID : Name -> Context -> Maybe Int
 getNameID (Resolved idx) ctxt = Just idx
@@ -1387,6 +1396,20 @@ addContextAlias alias full
          Nothing <- lookupCtxtExact alias (gamma defs)
              | _ => pure () -- Don't add the alias if the name exists already
          gam' <- newAlias alias full (gamma defs)
+         put Ctxt ({ gamma := gam' } defs)
+
+-- Like addContextAlias but registers the alias as a Direct entry so that
+-- hiding the original name does not make the alias invisible.  Used for
+-- selective import renaming (import M (f as g)) where the original 'f' is
+-- subsequently hidden but 'g' must remain accessible.
+export
+addContextDirectAlias : {auto c : Ref Ctxt Defs} ->
+                        Name -> Name -> Core ()
+addContextDirectAlias alias full
+    = do defs <- get Ctxt
+         Nothing <- lookupCtxtExact alias (gamma defs)
+             | _ => pure ()
+         gam' <- newDirectAlias alias full (gamma defs)
          put Ctxt ({ gamma := gam' } defs)
 
 export

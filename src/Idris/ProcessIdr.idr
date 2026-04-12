@@ -237,7 +237,8 @@ applyImportSpec imp
                             Nothing => pure ()
                             Just aliasName =>
                                  do let aliasFull = NS targetNS aliasName
-                                    addContextAlias aliasFull fullName
+                                    addContextDirectAlias aliasFull fullName
+                                    hide (loc imp) fullName
 
 readImport : {auto c : Ref Ctxt Defs} ->
              {auto u : Ref UST UState} ->
